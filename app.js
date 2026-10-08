@@ -1,4 +1,4 @@
-// app.js - 核心互動邏輯
+// app.js - 核心互動邏輯 (支援多重品飲歷程與單次分享)
 const TELEGRAM_PLANE_SVG = `<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>`;
 const DIM_LABELS = { mv:"市場價值", ql:"品質", dv:"飲用價值", pv:"配餐價值", sv:"社交話題", gv:"送禮價值", cv:"收藏價值", sto:"保存價值" };
 const ACTION_ICONS = { drink:"🥃", pair:"🍽️", share:"👥", gift:"🎁", collect:"💎", sell:"💰", store:"🌡️", keep:"💎" };
@@ -27,7 +27,7 @@ function renderHome(){
     <div class="view">
       <div class="scan-hero">
         <h1>影一張酒標，<br>知道下一步應該點做</h1>
-        <p>AI 視覺分析風味建議，滑動卡片即可收藏或移除。</p>
+        <p>AI 視覺分析風味建議，記錄每次與同伴品飲的美好時光。</p>
         <div class="scan-center-box">
           <button class="scan-btn" onclick="document.getElementById('cameraInput').click()" aria-label="Take Photo">
             <svg viewBox="0 0 24 24" fill="none" stroke="#191A11" stroke-width="1.8"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -85,7 +85,7 @@ function renderCellar(){
       </div>
 
       <div style="font-size:10.5px; color:var(--text-faint); margin-bottom:8px; font-family:var(--mono);">
-        💡 點擊卡片看詳細分析 | 👉 右滑加最愛 | 👈 左滑移除
+        💡 點擊卡片看詳細分析與多重品飲歷程 | 👉 右滑加最愛 | 👈 左滑移除
       </div>
 
       <div class="cellar-scene-tabs">
@@ -115,6 +115,8 @@ function switchScene(scene){ currentScene = scene; renderCellar(); }
 function bottleCardHtml(b){
   const idf = b.identification || {};
   const tags = b.tags || {};
+  const pourCount = (b.tastings || []).length;
+
   return `
     <div class="swipe-item-wrapper" id="wrap-${b.id}">
       <div class="swipe-action-left" onclick="confirmToggleFavorite('${b.id}')">
@@ -135,6 +137,7 @@ function bottleCardHtml(b){
           <div class="bottle-sub">${escapeHtml(idf.producer || '')} · ${escapeHtml(tags.vintage || '')}</div>
           <div class="tag-cluster">
             <span class="tag-badge">${escapeHtml(tags.category || '酒類')}</span>
+            ${pourCount > 0 ? `<span class="tag-badge" style="background:rgba(56,189,248,0.15); color:var(--cyan-glow); border-color:rgba(56,189,248,0.3);">品飲紀錄 ×${pourCount}</span>` : ''}
             ${b.personalRating ? `<span class="tag-badge secondary">★ ${b.personalRating}/5</span>` : ''}
           </div>
         </div>
@@ -143,7 +146,6 @@ function bottleCardHtml(b){
   `;
 }
 
-// 徹底修正點擊與滑動衝突
 function attachSwipeListeners(){
   const wrappers = document.querySelectorAll('.swipe-item-wrapper');
   wrappers.forEach(wrap => {
@@ -186,7 +188,6 @@ function attachSwipeListeners(){
         else if (diffX < -40) card.style.transform = 'translateX(-76px)';
         else card.style.transform = 'translateX(0px)';
       } else {
-        // 純點擊直接進入詳情頁！
         renderDetail(id);
       }
     };
@@ -253,7 +254,7 @@ function showModal({ title, desc, confirmText, confirmColor, onConfirm }){
 
 function closeModal(){ document.getElementById('modal-container').innerHTML = ''; }
 
-// 完整恢復詳情頁（數值、八維圖、決策）
+/* ---------------- 詳情頁：支援品飲時間軸與單次分享 ---------------- */
 function renderDetail(id){
   const b = window.cellar.find(x => x.id === id);
   if(!b) return;
@@ -263,6 +264,21 @@ function renderDetail(id){
   const vm = r.vm || {};
   const rec = r.rec || {};
   const tier = (idf.conf >= 80) ? {cls:'seal-high', label:'high'} : (idf.conf >= 55 ? {cls:'seal-medium', label:'medium'} : {cls:'seal-low', label:'low'});
+  
+  // 向下相容舊版單篇筆記
+  if(!b.tastings) {
+    b.tastings = [];
+    if(b.diary && b.diary.notes) {
+      b.tastings.push({
+        id: 't_' + (b.addedAt || Date.now()),
+        dateStr: b.diary.drinkDate || new Date(b.addedAt || Date.now()).toISOString().split('T')[0],
+        location: '私藏品飲',
+        companions: '獨酌',
+        rating: b.personalRating || 5,
+        notes: b.diary.notes
+      });
+    }
+  }
 
   const statuses = [
     { key:'unopened', label:'⚡ 未飲' },
@@ -275,7 +291,7 @@ function renderDetail(id){
     <div class="view">
       <div class="back-row">
         <span onclick="renderCellar()" style="cursor:pointer;">← 返回酒庫</span>
-        <button class="share-plane-btn" onclick="shareSingleBottle('${b.id}')">${TELEGRAM_PLANE_SVG}<span>分享酒評</span></button>
+        <button class="share-plane-btn" onclick="shareBottleSummary('${b.id}')">${TELEGRAM_PLANE_SVG}<span>分享總覽</span></button>
       </div>
 
       <div class="detail-photo-hero">${b.image ? `<img src="${b.image}">` : '🍷'}</div>
@@ -304,18 +320,37 @@ function renderDetail(id){
         </div>
       </div>
 
+      <!-- 品飲歷史時間軸 (Tasting Sessions) -->
       <div class="info-block">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <h3>⭐ 品飲星級與筆記</h3>
-          <button class="icon-btn" onclick="toggleFavInDetail('${b.id}')" style="color:${b.isFavorite?'var(--gold)':'var(--text-muted)'};">
-            ${b.isFavorite ? '★' : '☆'}
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <h3>🥃 品飲記錄時間軸 (${b.tastings.length})</h3>
+          <button class="btn btn-primary" style="padding:5px 12px; font-size:11.5px;" onclick="openAddSessionModal('${b.id}')">
+            ＋ 新增品飲紀錄
           </button>
         </div>
-        <div class="star-row">
-          ${[1,2,3,4,5].map(n=>`<button class="star-btn ${b.personalRating>=n?'filled':''}" onclick="setRating('${b.id}',${n})">★</button>`).join('')}
+        <div style="font-size:11px; color:var(--text-faint); margin-bottom:10px;">記錄不同時間、不同朋友與環境帶來的獨特體驗。</div>
+
+        <div class="timeline-list">
+          ${b.tastings.length ? b.tastings.map((t, idx) => `
+            <div class="timeline-card">
+              <div class="timeline-header">
+                <div>
+                  <span class="timeline-time">#${idx+1} ·${escapeHtml(t.dateStr)}</span>
+                  <div style="color:var(--gold); font-size:12px; margin-top:2px;">${'★'.repeat(t.rating || 5)}</div>
+                </div>
+                <!-- 單次品飲專屬紙飛機分享 -->
+                <button class="timeline-share-btn" onclick="shareSingleSession('${b.id}', '${t.id}')" title="分享這次品飲">
+                  ${TELEGRAM_PLANE_SVG}
+                </button>
+              </div>
+              <div class="timeline-meta">
+                ${t.location ? `<span>📍 ${escapeHtml(t.location)}</span>` : ''}
+                ${t.companions ? `<span>👥 同行：${escapeHtml(t.companions)}</span>` : ''}
+              </div>
+              ${t.notes ? `<div class="timeline-notes">"${escapeHtml(t.notes)}"</div>` : ''}
+            </div>
+          `).join('') : '<div style="font-size:12px; color:var(--text-faint); text-align:center; padding:16px 0;">尚未記錄任何品飲歷史。點擊上方按鈕記錄你的第一杯！</div>'}
         </div>
-        <textarea id="dt-notes" class="text-input" placeholder="品飲心得...">${b.diary?.notes || ''}</textarea>
-        <button class="btn btn-primary btn-block" style="margin-top:10px;" onclick="saveQuickNote('${b.id}')">儲存筆記</button>
       </div>
 
       ${renderRadar(vm)}
@@ -398,47 +433,120 @@ function renderRadar(vm){
   `;
 }
 
-async function toggleFavInDetail(id){
-  const b = window.cellar.find(x => x.id === id);
-  if(!b) return;
-  b.isFavorite = !b.isFavorite;
-  await saveBottleToDB(b);
-  renderDetail(id);
+/* ---------------- 彈窗：新增單次品飲紀錄 ---------------- */
+let currentSessionRating = 5;
+
+function openAddSessionModal(bottleId){
+  const now = new Date();
+  const defaultDate = now.toISOString().slice(0, 16).replace('T', ' ');
+  currentSessionRating = 5;
+
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="closeModal()">
+      <div class="modal-card" style="max-width:380px; text-align:left;" onclick="event.stopPropagation()">
+        <div style="font-family:var(--serif); font-size:17px; font-weight:600; margin-bottom:12px; color:var(--gold);">
+          ＋ 記錄這次品飲時光
+        </div>
+
+        <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint);">日期與時間</div>
+        <input type="text" id="sess-date" class="text-input" value="${defaultDate}">
+
+        <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); margin-top:8px;">地點 / 酒吧</div>
+        <input type="text" id="sess-loc" class="text-input" placeholder="例如：尖沙咀 Whisky Bar / 屋企客廳">
+
+        <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); margin-top:8px;">同飲同伴</div>
+        <input type="text" id="sess-comp" class="text-input" placeholder="例如：Rex、阿明、獨酌">
+
+        <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); margin-top:8px;">這次星級</div>
+        <div class="star-row" style="margin-top:2px;">
+          ${[1,2,3,4,5].map(n => `<button class="star-btn filled" id="sess-star-${n}" onclick="setModalRating(${n})">★</button>`).join('')}
+        </div>
+
+        <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); margin-top:8px;">品飲感覺與筆記</div>
+        <textarea id="sess-notes" class="text-input" style="height:70px; resize:none;" placeholder="例如：醒咗半個鐘果香出晒嚟，同 Rex 傾計超夾..."></textarea>
+
+        <div style="display:flex; gap:10px; margin-top:14px;">
+          <button class="btn btn-ghost btn-block" onclick="closeModal()">取消</button>
+          <button class="btn btn-primary btn-block" onclick="saveNewSession('${bottleId}')">儲存品飲</button>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
-async function moveStatus(id, newStatus){
-  const b = window.cellar.find(x => x.id === id);
-  if(!b) return;
-  b.status = newStatus;
-  await saveBottleToDB(b);
-  renderDetail(id);
+function setModalRating(n){
+  currentSessionRating = n;
+  for(let i=1; i<=5; i++){
+    const el = document.getElementById(`sess-star-${i}`);
+    if(el) {
+      if(i <= n) el.classList.add('filled');
+      else el.classList.remove('filled');
+    }
+  }
 }
 
-async function setRating(id, n){
-  const b = window.cellar.find(x=>x.id===id);
+async function saveNewSession(bottleId){
+  const b = window.cellar.find(x => x.id === bottleId);
   if(!b) return;
-  b.personalRating = n;
-  await saveBottleToDB(b);
-  renderDetail(id);
-}
 
-async function saveQuickNote(id){
-  const b = window.cellar.find(x => x.id === id);
-  if(!b) return;
+  const newSession = {
+    id: 't_' + Date.now(),
+    dateStr: document.getElementById('sess-date').value.trim() || new Date().toLocaleString(),
+    location: document.getElementById('sess-loc').value.trim(),
+    companions: document.getElementById('sess-comp').value.trim(),
+    rating: currentSessionRating,
+    notes: document.getElementById('sess-notes').value.trim()
+  };
+
+  if(!b.tastings) b.tastings = [];
+  b.tastings.unshift(newSession); // 最新的置頂
+
+  // 自動同步更新酒款整體最新星級與最近筆記
+  b.personalRating = newSession.rating;
   if(!b.diary) b.diary = {};
-  b.diary.notes = document.getElementById('dt-notes').value;
+  b.diary.notes = newSession.notes;
+
   await saveBottleToDB(b);
-  alert("品飲筆記已更新！");
+  closeModal();
+  renderDetail(bottleId);
 }
 
-// 分享函式（優先手機原生分享）
-async function shareSingleBottle(id){
+/* ---------------- 單次品飲紀錄專屬分享 (Share This Pour) ---------------- */
+async function shareSingleSession(bottleId, sessionId){
+  const b = window.cellar.find(x => x.id === bottleId);
+  if(!b) return;
+  const s = (b.tastings || []).find(t => t.id === sessionId);
+  if(!s) return;
+
+  const name = b.identification?.name || '酒款';
+  const stars = '★'.repeat(s.rating || 5);
+  const locStr = s.location ? `\n📍 地點：${s.location}` : '';
+  const compStr = s.companions ? `\n👥 同伴：${s.companions}` : '';
+  const noteStr = s.notes ? `\n📝 品飲感受：「${s.notes}」` : '';
+
+  const shareText = `🥃 BottleSense 品飲手記\n酒款：${name}\n時間：${s.dateStr}${locStr}${compStr}\n評分：${stars}${noteStr}\n\nTracked with BottleSense.`;
+
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: `${name} 品飲手記`,
+        text: shareText,
+        url: window.location.href
+      });
+      return;
+    } catch(err){}
+  }
+  navigator.clipboard.writeText(shareText);
+  alert("已將這次品飲紀錄複製至剪貼簿！可直接貼上至 Social Media！");
+}
+
+/* ---------------- 整支酒總覽分享 ---------------- */
+async function shareBottleSummary(id){
   const b = window.cellar.find(x => x.id === id);
   if(!b) return;
   const name = b.identification?.name || '我的酒款';
-  const stars = b.personalRating ? ` (${b.personalRating}★)` : '';
-  const notes = b.diary?.notes ? `\n心得：「${b.diary.notes}」` : '';
-  const shareText = `🍾 BottleSense 品飲筆記：${name}${stars}${notes}\n來自我的私人酒窖收藏。`;
+  const pourCount = (b.tastings || []).length;
+  const shareText = `🍾 我的私人藏酒：${name}\n目前共記錄了 ${pourCount} 次不同的品飲體會。\n收錄於 BottleSense 私人酒窖。`;
 
   if (navigator.share) {
     try {
@@ -447,7 +555,15 @@ async function shareSingleBottle(id){
     } catch(err){}
   }
   navigator.clipboard.writeText(shareText);
-  alert("酒評已複製至剪貼簿！");
+  alert("酒款總覽已複製至剪貼簿！");
+}
+
+async function moveStatus(id, newStatus){
+  const b = window.cellar.find(x => x.id === id);
+  if(!b) return;
+  b.status = newStatus;
+  await saveBottleToDB(b);
+  renderDetail(id);
 }
 
 async function shareCurrentShelf(){
@@ -486,7 +602,7 @@ async function shareEntireCellar(){
   alert(`酒窖公開連結已複製！\n${shareUrl}`);
 }
 
-// 拍照上傳與分析
+/* ---------------- 拍照上傳 ---------------- */
 document.getElementById('cameraInput').addEventListener('change', handleUpload);
 document.getElementById('galleryInput').addEventListener('change', handleUpload);
 
@@ -551,6 +667,7 @@ async function saveNewBottle(status, isFav){
     image: currentScan.image,
     identification: currentScan.raw.id || {},
     scan: currentScan.raw,
+    tastings: [],
     tags: { category: currentScan.raw.id?.category || '酒類', vintage: currentScan.raw.id?.vintage || '' },
     addedAt: Date.now()
   };
@@ -560,6 +677,7 @@ async function saveNewBottle(status, isFav){
   renderCellar();
 }
 
+/* ---------------- Explore & Settings ---------------- */
 async function renderExplore(){
   setActiveNav('nav-explore');
   document.getElementById('main').innerHTML = `
