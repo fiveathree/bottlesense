@@ -1,4 +1,4 @@
-// app.js - 核心互動邏輯 (修復 undefined 報錯與酒架空白問題)
+// app.js - 核心互動邏輯 (已徹底清除語法錯誤，恢復中間酒架)
 const TELEGRAM_PLANE_SVG = `<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>`;
 const EDIT_PENCIL_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
 const DIM_LABELS = { mv:"市場價值", ql:"品質", dv:"飲用價值", pv:"配餐價值", sv:"社交話題", gv:"送禮價值", cv:"收藏價值", sto:"保存價值" };
@@ -109,7 +109,7 @@ function openScene(scene){
   renderCellar();
 }
 
-/* ---------------- 酒窖主頁面 (防呆修復核心) ---------------- */
+/* ---------------- 酒窖主頁面 ---------------- */
 function renderCellar(){
   setActiveNav('nav-cellar');
   const safeCellar = window.cellar || [];
@@ -130,7 +130,7 @@ function renderCellar(){
   else if (currentScene === 'wishlist') { spaceList = wishBottles; shelfTitle = '🏷️ 願望清單 (想買)'; }
   else { spaceList = favBottles; shelfTitle = '⭐ 心頭好精選 (最愛)'; shelfKey = 'fav'; }
 
-  // 防呆標籤安全提取 (防止 b.tags 為 undefined 導致 Crash)
+  // 防呆標籤安全提取
   const filterSet = new Set();
   spaceList.forEach(b => {
     if(!b) return;
@@ -144,7 +144,6 @@ function renderCellar(){
   });
   const filterOptions = ['all', ...Array.from(filterSet)];
 
-  // 篩選藏酒
   const activeList = (activeFilter === 'all')
     ? spaceList
     : spaceList.filter(b => {
@@ -185,7 +184,7 @@ function renderCellar(){
         </div>
       ` : ''}
 
-      <!-- 中間酒架主體格 (保證一定渲染) -->
+      <!-- 中間酒架主體格 -->
       <div class="shelf-container shelf-${shelfKey}">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <div style="font-family:var(--serif); font-size:14px; font-weight:600;">${shelfTitle}</div>
