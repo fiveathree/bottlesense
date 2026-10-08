@@ -1,5 +1,5 @@
 /* BottleSense app.js
- * 完整恢復 5 大藏酒空間、動態棚架主題、篩選列與安全滾動邊距
+ * 完整整合版：修正雙重 URL 顯示、無彈窗原生分享、5大空間與多重品飲時間軸
  */
 
 const main = document.getElementById('main');
@@ -230,7 +230,6 @@ function renderCellar() {
   else if (currentScene === 'wishlist') { spaceList = wishBottles; shelfTitle = '🏷️ 願望清單 (想買)'; }
   else { spaceList = favBottles; shelfTitle = '⭐ 心頭好精選 (最愛)'; shelfKey = 'fav'; }
 
-  // 動態分類篩選
   const filterSet = new Set();
   spaceList.forEach(b => {
     const cat = bottleCategory(b);
@@ -745,7 +744,7 @@ async function saveNewSession(bottleId) {
   renderBottleDetail(bottleId);
 }
 
-/* ---------------- 分享機制 (全窖 / 單架 / 單酒 / 單次品飲) ---------------- */
+/* ---------------- 分享機制 (修正雙重網址問題，只傳單一URL) ---------------- */
 async function syncPublishCellar() {
   const key = localStorage.getItem('bottlesense_sync_key');
   try {
@@ -758,30 +757,50 @@ async function syncPublishCellar() {
 }
 
 async function shareEntireCellar() {
-  if (!window.cellar.length) { alert("酒櫃暫無酒款！"); return; }
+  if (!window.cellar.length) return;
   await syncPublishCellar();
   const key = localStorage.getItem('bottlesense_sync_key');
   const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(key)}`;
-  const shareText = `🍾 歡迎參觀我的私人酒窖 (BottleSense)：\n內有 ${window.cellar.length} 款精選佳釀與真實品飲手記！\n${shareUrl}`;
+  const shareText = `🍾 歡迎參觀我的私人酒窖 (BottleSense)：內有 ${window.cellar.length} 款精選佳釀與真實品飲手記！`;
 
   if (navigator.share) {
-    try { await navigator.share({ title: '我的私人酒窖', text: shareText, url: shareUrl }); return; } catch(err){}
+    try {
+      await navigator.share({
+        title: '我的私人酒窖',
+        text: shareText,
+        url: shareUrl
+      });
+      return;
+    } catch(err) {
+      return;
+    }
   }
-  navigator.clipboard.writeText(shareUrl);
-  alert("酒窖公開專屬連結已複製！");
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+  }
 }
 
 async function shareCurrentShelf() {
   const key = localStorage.getItem('bottlesense_sync_key');
   const names = { cooler:'未飲電子酒櫃', wood:'已飲實木酒架', bar:'飲完吧台', wishlist:'想買願望清單', favorite:'心頭好最愛' };
   const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(key)}&shelf=${currentScene}`;
-  const shareText = `🍷 邀請你睇我嘅 BottleSense [${names[currentScene]||'酒架'}]：\n${shareUrl}`;
+  const shareText = `🍷 邀請你睇我嘅 BottleSense [${names[currentScene]||'酒架'}]：`;
 
   if (navigator.share) {
-    try { await navigator.share({ title: names[currentScene], text: shareText, url: shareUrl }); return; } catch(err){}
+    try {
+      await navigator.share({
+        title: names[currentScene],
+        text: shareText,
+        url: shareUrl
+      });
+      return;
+    } catch(err) {
+      return;
+    }
   }
-  navigator.clipboard.writeText(shareUrl);
-  alert("此酒架專屬連結已複製！");
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+  }
 }
 
 async function shareSingleBottle(id) {
@@ -790,13 +809,23 @@ async function shareSingleBottle(id) {
   await syncPublishCellar();
   const key = localStorage.getItem('bottlesense_sync_key');
   const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(key)}&bottle=${b.id}`;
-  const shareText = `🍾 BottleSense 藏酒推薦：${bottleName(b)}\n${shareUrl}`;
+  const shareText = `🍾 BottleSense 藏酒推薦：${bottleName(b)}`;
 
   if (navigator.share) {
-    try { await navigator.share({ title: bottleName(b), text: shareText, url: shareUrl }); return; } catch(err){}
+    try {
+      await navigator.share({
+        title: bottleName(b),
+        text: shareText,
+        url: shareUrl
+      });
+      return;
+    } catch(err) {
+      return;
+    }
   }
-  navigator.clipboard.writeText(shareUrl);
-  alert("這支酒的專屬連結已複製！");
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+  }
 }
 
 async function shareSingleSession(bottleId, sessionId) {
@@ -808,13 +837,24 @@ async function shareSingleSession(bottleId, sessionId) {
 
   const key = localStorage.getItem('bottlesense_sync_key');
   const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(key)}&bottle=${b.id}`;
-  const shareText = `🥃 BottleSense 品飲手記\n酒款：${bottleName(b)}\n時間：${s.dateStr}\n評分：${'★'.repeat(s.rating||5)}\n心得：「${s.notes}」\n${shareUrl}`;
+  const noteStr = s.notes ? `\n心得：「${s.notes}」` : '';
+  const shareText = `🥃 BottleSense 品飲手記\n酒款：${bottleName(b)}\n時間：${s.dateStr}\n評分：${'★'.repeat(s.rating||5)}${noteStr}`;
 
   if (navigator.share) {
-    try { await navigator.share({ title: `${bottleName(b)} 品飲手記`, text: shareText, url: shareUrl }); return; } catch(err){}
+    try {
+      await navigator.share({
+        title: `${bottleName(b)} 品飲手記`,
+        text: shareText,
+        url: shareUrl
+      });
+      return;
+    } catch(err) {
+      return;
+    }
   }
-  navigator.clipboard.writeText(shareText);
-  alert("已複製品飲手記連結至剪貼簿！");
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+  }
 }
 
 /* ---------------- 探索與公開展示 ---------------- */
@@ -1010,7 +1050,6 @@ function renderSettings() {
 function copySyncKey() {
   const key = localStorage.getItem('bottlesense_sync_key') || '';
   if (navigator.clipboard) navigator.clipboard.writeText(key);
-  alert('同步碼已複製');
 }
 
 function closeModal() { modalContainer.innerHTML = ''; }
