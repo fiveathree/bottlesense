@@ -225,3 +225,48 @@ main{ flex: 1; padding: 4px 16px 110px; overflow-y: auto; }
   height: 15px;
   fill: currentColor;
 }
+
+/* ---------- 篩選 Chip 列 ---------- */
+.filter-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px 2px 10px;
+  margin-bottom: 8px;
+  scrollbar-width: none;
+}
+.filter-row::-webkit-scrollbar { display: none; }
+.filter-chip {
+  padding: 4px 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.filter-chip.active {
+  background: var(--gold);
+  color: #191A11;
+  border-color: var(--gold);
+  font-weight: 600;
+}
+
+/* 小 Edit 掣 */
+.edit-badge-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--text-muted);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.edit-badge-btn:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
