@@ -130,26 +130,29 @@ function renderCellar(){
   else if (currentScene === 'wishlist') { spaceList = wishBottles; shelfTitle = '🏷️ 願望清單 (想買)'; }
   else { spaceList = favBottles; shelfTitle = '⭐ 心頭好精選 (最愛)'; shelfKey = 'fav'; }
 
-  // 4. 動態提取分類、產區、年份標籤供篩選
-  const filterOptions = ['all'];
+  // 取得當前架上所有分類與產區標籤
+  const filterSet = new Set();
   spaceList.forEach(b => {
-    const cat = b.tags?.category;
-    const reg = b.tags?.region;
-    const vin = b.tags?.vintage;
-    if(cat && !filterOptions.includes(cat)) filterOptions.push(cat);
-    if(reg && reg !== '未知產區' && !filterOptions.includes(reg)) filterOptions.push(reg);
-    if(vin && vin !== '無年份' && !filterOptions.includes(vin)) filterOptions.push(vin);
+    if (b.tags?.category) filterSet.add(b.tags.category);
+    if (b.tags?.region && b.tags.region !== '未知產區') filterSet.add(b.tags.region);
+    if (b.tags?.vintage && b.tags.vintage !== '無年份') filterSet.add(b.tags.vintage);
   });
+  const filterOptions = ['all', ...Array.from(filterSet)];
 
-  const activeList = activeFilter === 'all'
+  // 安全篩選邏輯：如果揀咗 'all'，100% 顯示所有藏酒
+  const activeList = (activeFilter === 'all')
     ? spaceList
-    : spaceList.filter(b => b.tags?.category === activeFilter || b.tags?.region === activeFilter || b.tags?.vintage === activeFilter);
+    : spaceList.filter(b => {
+        const cat = b.tags?.category || '';
+        const reg = b.tags?.region || '';
+        const vin = b.tags?.vintage || '';
+        return cat === activeFilter || reg === activeFilter || vin === activeFilter;
+      });
 
   document.getElementById('main').innerHTML = `
     <div class="view">
       <div class="section-head" style="margin-top:8px;">
         <h2>私人酒窖全景</h2>
-        <!-- 全酒窖分享 -->
         <button class="share-plane-btn" style="background:rgba(212,175,55,0.25);" onclick="shareEntireCellar()">
           ${TELEGRAM_PLANE_SVG}
           <span>分享全窖</span>
@@ -165,8 +168,8 @@ function renderCellar(){
         <div class="scene-tab ${currentScene==='favorite'?'active-fav':''}" onclick="switchScene('favorite')"><span class="scene-icon">⭐</span><div class="scene-name">最愛</div><div class="scene-count">${favBottles.length}</div></div>
       </div>
 
-      <!-- 4. 篩選條 (攝在 5 個選項同卡片中間) -->
-      ${filterOptions.length > 2 ? `
+      <!-- 只要有超過 1 個分類選項即出 Filter Bar -->
+      ${filterOptions.length > 1 ? `
         <div class="filter-row">
           ${filterOptions.map(opt => `
             <div class="filter-chip ${activeFilter===opt?'active':''}" onclick="setShelfFilter('${opt}')">
@@ -176,8 +179,8 @@ function renderCellar(){
         </div>
       ` : ''}
 
+      <!-- 中間酒架主格容器 -->
       <div class="shelf-container shelf-${shelfKey}">
-        <!-- 2. 分享此架移至酒架卡片標題右邊 -->
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <div style="font-family:var(--serif); font-size:14px; font-weight:600;">${shelfTitle}</div>
           <button class="share-plane-btn" onclick="shareCurrentShelf()">
