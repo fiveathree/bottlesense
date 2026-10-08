@@ -90,7 +90,7 @@ body {
   height: 16px;
 }
 
-/* 核心滾動區域：加上安全底距防止被底部 Menu 遮擋 */
+/* 核心滾動區域：充足底距防遮擋 */
 main {
   flex: 1;
   padding: 4px 16px calc(110px + env(safe-area-inset-bottom));
@@ -119,7 +119,7 @@ main {
   padding: 12px 20px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.15s ease;
+  transition: transform 0.15s ease, background 0.2s ease;
 }
 .btn:active {
   transform: scale(0.97);
@@ -141,7 +141,7 @@ main {
   width: 100%;
 }
 
-/* 首頁 Scan Hero 區域 */
+/* 首頁 Scan Hero 區域 (原創黑金樣式) */
 .scan-hero {
   margin-top: 14px;
   border: 1px solid var(--line);
@@ -157,7 +157,7 @@ main {
 }
 .scan-hero p {
   color: var(--text-muted);
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.5;
   max-width: 320px;
   margin: 0 auto 20px;
@@ -169,25 +169,27 @@ main {
   justify-content: center;
 }
 .scan-btn {
-  width: 76px;
-  height: 76px;
+  width: 78px;
+  height: 78px;
   border-radius: 50%;
-  background: var(--gold);
+  background: #11120D;
+  border: 2px solid var(--gold);
+  color: var(--gold);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  border: none;
-  box-shadow: 0 0 0 6px rgba(212, 175, 55, 0.1), 0 10px 26px -6px rgba(212, 175, 55, 0.35);
+  box-shadow: 0 0 0 6px rgba(212, 175, 55, 0.12), 0 10px 24px -6px rgba(0, 0, 0, 0.6);
   margin-bottom: 12px;
-  transition: transform 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
 }
 .scan-btn:active {
   transform: scale(0.94);
 }
 .scan-btn svg {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
+  stroke: var(--gold);
 }
 .upload-subtext {
   font-size: 12px;
@@ -232,7 +234,7 @@ main {
 }
 .section-head h2 {
   font-family: var(--serif);
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
 }
 .section-head a {
@@ -447,8 +449,8 @@ main {
   transition: transform 0.2s ease;
 }
 .bottle-photo-box {
-  width: 54px;
-  height: 72px;
+  width: 58px;
+  height: 76px;
   border-radius: 8px;
   overflow: hidden;
   background: #000;
@@ -465,23 +467,23 @@ main {
   align-items: center;
   justify-content: center;
   height: 100%;
-  font-size: 26px;
+  font-size: 28px;
 }
 .bottle-info {
   flex: 1;
   min-width: 0;
 }
 .bottle-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .bottle-sub {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 3px;
   font-family: var(--mono);
   white-space: nowrap;
   overflow: hidden;
@@ -494,8 +496,8 @@ main {
   margin-top: 6px;
 }
 .tag-badge {
-  font-size: 9px;
-  padding: 2px 5px;
+  font-size: 10px;
+  padding: 2px 6px;
   border-radius: 4px;
   background: rgba(212, 175, 55, 0.12);
   color: var(--gold);
@@ -508,14 +510,14 @@ main {
 }
 .fav-star-badge {
   color: var(--gold);
-  font-size: 13px;
+  font-size: 14px;
   margin-left: auto;
 }
 
 /* 詳情頁 Hero 圖片與按鈕 */
 .detail-photo-hero {
   width: 100%;
-  height: 230px;
+  height: 240px;
   border-radius: 16px;
   overflow: hidden;
   margin: 14px 0;
@@ -540,8 +542,8 @@ main {
   border: 1px solid var(--gold);
   border-radius: 999px;
   color: var(--gold);
-  padding: 6px 13px;
-  font-size: 11.5px;
+  padding: 6px 14px;
+  font-size: 12px;
   font-family: var(--mono);
   cursor: pointer;
   transition: transform 0.15s ease;
@@ -566,17 +568,17 @@ main {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 10px 4px;
+  padding: 12px 4px;
   text-align: center;
   cursor: pointer;
 }
 .dest-card .icon {
-  font-size: 20px;
+  font-size: 22px;
   margin-bottom: 4px;
   display: block;
 }
 .dest-card .title {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -584,7 +586,7 @@ main {
   text-align: center;
   padding: 36px 10px;
   color: var(--text-faint);
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.6;
 }
 
@@ -609,21 +611,21 @@ main {
   to { transform: rotate(360deg); }
 }
 
-/* AI 身分卡、信心章與數值 */
+/* AI 身分卡放大版樣式 */
 .label-card {
   margin-top: 14px;
   border-radius: 18px;
   border: 1px solid var(--line);
   background: linear-gradient(180deg, var(--surface) 0%, #161810 100%);
-  padding: 20px 16px;
+  padding: 22px 18px;
   position: relative;
 }
 .confidence-seal {
   position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 48px;
-  height: 48px;
+  top: 18px;
+  right: 18px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   display: flex;
   flex-direction: column;
@@ -636,52 +638,52 @@ main {
 .seal-medium { color: var(--gold); }
 .seal-low { color: var(--wine-bright); }
 .seal-pct {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1;
 }
 .seal-label {
-  font-size: 7px;
+  font-size: 8px;
   text-transform: uppercase;
   margin-top: 2px;
 }
 .label-eyebrow {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--gold-dim);
   text-transform: uppercase;
-  margin-bottom: 5px;
+  margin-bottom: 6px;
 }
 .label-name {
   font-family: var(--serif);
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.25;
   max-width: 76%;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 .label-sub {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-muted);
   max-width: 76%;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 .label-facts {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px 12px;
-  padding-top: 12px;
+  gap: 10px 14px;
+  padding-top: 14px;
   border-top: 1px dashed var(--line);
 }
 .fact-label {
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 10px;
   color: var(--text-faint);
 }
 .fact-value {
   font-family: var(--mono);
-  font-size: 12px;
-  margin-top: 2px;
+  font-size: 14px;
+  margin-top: 3px;
 }
 
 /* 八維價值地圖雷達圖 */
@@ -697,7 +699,7 @@ main {
 }
 .radar-wrap h3 {
   font-family: var(--serif);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   align-self: flex-start;
   margin-bottom: 10px;
@@ -705,18 +707,18 @@ main {
 .radar-legend {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px 12px;
+  gap: 8px 14px;
   width: 100%;
-  margin-top: 12px;
+  margin-top: 14px;
 }
 .legend-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 12px;
 }
 .legend-row .dim { color: var(--text-muted); }
-.legend-row .val { font-family: var(--mono); color: var(--gold); }
+.legend-row .val { font-family: var(--mono); color: var(--gold); font-size: 13px; }
 
 /* 決策建議與資訊卡 */
 .rec-card {
@@ -724,42 +726,42 @@ main {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 16px;
-  padding: 16px;
+  padding: 18px 16px;
 }
 .rec-card h3 {
   font-family: var(--serif);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 .rec-reason {
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--text-muted);
-  line-height: 1.5;
+  line-height: 1.6;
   margin-bottom: 12px;
 }
 .action-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   padding: 10px 0;
   border-top: 1px solid var(--line);
 }
 .action-rank {
   font-family: var(--serif);
-  font-size: 16px;
+  font-size: 18px;
   color: var(--gold);
-  width: 18px;
+  width: 20px;
 }
-.action-icon { font-size: 18px; }
+.action-icon { font-size: 20px; }
 .action-body { flex: 1; }
 .action-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   text-transform: capitalize;
 }
 .action-reason {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-faint);
   margin-top: 2px;
 }
@@ -769,36 +771,36 @@ main {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 16px;
-  padding: 16px;
+  padding: 18px 16px;
 }
 .info-block h3 {
   font-family: var(--serif);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 .storage-row {
   display: flex;
-  gap: 10px;
-  margin-bottom: 6px;
+  gap: 12px;
+  margin-bottom: 8px;
 }
 .storage-tag {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   color: var(--gold);
-  width: 68px;
+  width: 72px;
   flex-shrink: 0;
 }
 .storage-desc {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   line-height: 1.5;
 }
 .pairing-pill {
   display: inline-block;
-  font-size: 11px;
-  padding: 5px 11px;
+  font-size: 12px;
+  padding: 6px 12px;
   border-radius: 999px;
   border: 1px solid var(--line);
   color: var(--text-muted);
@@ -814,7 +816,7 @@ main {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 24px;
+  font-size: 26px;
   color: var(--line);
   opacity: 0.5;
 }
@@ -828,14 +830,14 @@ main {
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 9px;
+  padding: 11px;
   color: var(--text);
-  font-size: 13px;
+  font-size: 14px;
   outline: none;
   margin-top: 6px;
 }
 
-/* 底部導覽欄位 (Bottom Nav) */
+/* 底部導覽列 (Bottom Nav) */
 .bottomnav {
   position: fixed;
   bottom: 0;
@@ -861,7 +863,7 @@ main {
   cursor: pointer;
   color: var(--text-faint);
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 10px;
   text-transform: uppercase;
 }
 .navbtn.active {
@@ -878,7 +880,7 @@ main {
   justify-content: space-between;
   margin-bottom: 8px;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 /* 彈窗浮層 (Modal) */
@@ -897,9 +899,9 @@ main {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 18px;
-  padding: 22px 18px;
+  padding: 24px 20px;
   width: 100%;
-  max-width: 340px;
+  max-width: 350px;
   text-align: center;
 }
 
@@ -914,7 +916,7 @@ main {
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 12px;
+  padding: 14px;
   position: relative;
 }
 .timeline-header {
@@ -925,24 +927,24 @@ main {
 }
 .timeline-time {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--gold);
 }
 .timeline-meta {
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--text-muted);
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 6px;
 }
 .timeline-notes {
-  font-size: 12.5px;
-  line-height: 1.5;
+  font-size: 13.5px;
+  line-height: 1.55;
   color: var(--text);
   font-style: italic;
   background: rgba(0, 0, 0, 0.25);
-  padding: 8px 10px;
+  padding: 10px 12px;
   border-radius: 8px;
   border-left: 2px solid var(--gold);
 }
@@ -954,17 +956,17 @@ main {
   padding: 4px;
 }
 .timeline-share-btn svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   fill: currentColor;
 }
 .edit-badge-btn {
   background: transparent;
   border: 1px solid var(--line);
   color: var(--text-muted);
-  padding: 3px 8px;
+  padding: 4px 10px;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
