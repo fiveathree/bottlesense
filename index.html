@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Bottle — Know what to do with it</title>
 
-<!-- Web App / 加入手機桌面支援 -->
 <meta name="apple-mobile-web-app-title" content="Bottle">
 <meta name="application-name" content="Bottle">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -18,17 +17,18 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg: #14150F;
-    --surface: #1D2016;
-    --surface-2: #262A1D;
-    --line: #34382A;
-    --gold: #C9A24B;
+    --bg: #11120D;
+    --surface: #181A12;
+    --surface-2: #222518;
+    --line: #2E3224;
+    --gold: #D4AF37;
     --gold-dim: #8A7332;
     --wine: #8C2A3A;
     --wine-bright: #B8394D;
     --green-ok: #6E9265;
+    --cyan-glow: #38bdf8;
     --text: #ECE6D6;
-    --text-muted: #93927F;
+    --text-muted: #9A9985;
     --text-faint: #5E5D4E;
     --radius: 14px;
     --serif: 'Fraunces', serif;
@@ -38,7 +38,7 @@
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
   body{
-    background: radial-gradient(120% 140% at 50% -10%, #1B1E13 0%, var(--bg) 55%);
+    background: radial-gradient(120% 140% at 50% -10%, #1A1D13 0%, var(--bg) 60%);
     color: var(--text);
     font-family: var(--sans);
     min-height:100vh;
@@ -54,12 +54,11 @@
     flex-direction:column;
     position:relative;
   }
-  /* ---------- top bar ---------- */
   .topbar{
     display:flex;
     align-items:center;
     justify-content:space-between;
-    padding:22px 22px 14px;
+    padding:20px 22px 14px;
   }
   .wordmark{
     font-family: var(--serif);
@@ -77,16 +76,14 @@
     text-transform:uppercase;
     margin-top:2px;
   }
-  /* ---------- main scroll area ---------- */
   main{
     flex:1;
-    padding: 4px 22px 110px;
+    padding: 4px 20px 110px;
     overflow-y:auto;
   }
   .view{ animation: fadeIn .35s ease; }
   @keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
 
-  /* ---------- buttons ---------- */
   .btn{
     display:inline-flex;
     align-items:center;
@@ -104,428 +101,308 @@
   }
   .btn:active{ transform: scale(0.97); }
   .btn-primary{ background: var(--gold); color:#191A11; }
-  .btn-primary:hover{ opacity:.92; }
   .btn-ghost{ background:transparent; border-color: var(--line); color:var(--text); }
-  .btn-ghost:hover{ border-color: var(--gold-dim); }
   .btn-wine{ background: var(--wine); color:#F3E4E4; }
   .btn-block{ width:100%; }
-  .btn-sm{ padding:8px 14px; font-size:12.5px; }
 
-  /* ---------- scan hero ---------- */
   .scan-hero{
-    margin-top:18px;
+    margin-top:14px;
     border:1px solid var(--line);
     border-radius: 20px;
-    padding: 30px 22px 26px;
-    background: linear-gradient(165deg, var(--surface) 0%, #191B12 100%);
+    padding: 28px 20px;
+    background: linear-gradient(165deg, var(--surface) 0%, #161810 100%);
     text-align:center;
     position:relative;
     overflow:hidden;
   }
-  .scan-hero::before{
-    content:"";
-    position:absolute; inset:0;
-    background: repeating-linear-gradient(115deg, rgba(201,162,75,0.035) 0 2px, transparent 2px 26px);
-    pointer-events:none;
-  }
   .scan-hero h1{
     font-family:var(--serif);
     font-weight:600;
-    font-size:26px;
+    font-size:25px;
     line-height:1.25;
     margin-bottom:8px;
-    position:relative;
   }
   .scan-hero p{
     color:var(--text-muted);
-    font-size:13.5px;
+    font-size:13px;
     line-height:1.5;
     max-width:320px;
-    margin:0 auto 22px;
-    position:relative;
+    margin:0 auto 20px;
   }
   .scan-btn{
-    width:76px; height:76px;
+    width:72px; height:72px;
     border-radius:50%;
     background: var(--gold);
     display:flex; align-items:center; justify-content:center;
     margin: 0 auto 10px;
     cursor:pointer;
     border:none;
-    position:relative;
-    box-shadow: 0 0 0 6px rgba(201,162,75,0.1), 0 10px 30px -6px rgba(201,162,75,0.35);
+    box-shadow: 0 0 0 6px rgba(212,175,55,0.1), 0 10px 28px -6px rgba(212,175,55,0.35);
     transition: transform .15s ease;
   }
   .scan-btn:active{ transform: scale(0.94); }
-  .scan-btn svg{ width:30px; height:30px; }
+  .scan-btn svg{ width:28px; height:28px; }
   .scan-cta-label{
     font-family:var(--mono);
     font-size:11px;
     letter-spacing:1px;
     text-transform:uppercase;
     color: var(--gold);
-    position:relative;
   }
 
-  /* ---------- stat row ---------- */
-  .stat-row{
-    display:flex;
-    gap:10px;
-    margin-top:18px;
-  }
+  .stat-row{ display:flex; gap:10px; margin-top:16px; }
   .stat-card{
-    flex:1;
-    background: var(--surface);
-    border:1px solid var(--line);
-    border-radius:12px;
-    padding:14px 12px;
-    text-align:center;
+    flex:1; background: var(--surface); border:1px solid var(--line);
+    border-radius:12px; padding:12px 10px; text-align:center;
   }
   .stat-num{ font-family:var(--serif); font-size:22px; font-weight:600; }
-  .stat-label{ font-size:10px; color:var(--text-faint); font-family:var(--mono); text-transform:uppercase; letter-spacing:.5px; margin-top:2px;}
+  .stat-label{ font-size:9.5px; color:var(--text-faint); font-family:var(--mono); text-transform:uppercase; letter-spacing:.5px; margin-top:2px;}
 
-  /* ---------- section heading ---------- */
   .section-head{
-    display:flex;
-    align-items:baseline;
-    justify-content:space-between;
-    margin: 30px 0 12px;
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin: 26px 0 12px;
   }
-  .section-head h2{
-    font-family:var(--serif);
-    font-size:16.5px;
-    font-weight:600;
-  }
+  .section-head h2{ font-family:var(--serif); font-size:16.5px; font-weight:600; }
   .section-head a{ font-size:12px; color:var(--gold-dim); cursor:pointer; font-family:var(--mono); }
 
-  /* ---------- mini bottle card (drink soon / cellar list) ---------- */
-  .bottle-card{
-    display:flex;
-    gap:12px;
-    align-items:center;
+  /* ---------- 沉浸式酒櫃切換標籤 ---------- */
+  .cellar-scene-tabs{
+    display:grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap:8px;
+    margin-bottom:18px;
+  }
+  .scene-tab{
     background: var(--surface);
     border:1px solid var(--line);
     border-radius:12px;
-    padding:12px;
-    margin-bottom:10px;
-    cursor:pointer;
-    transition: border-color .15s ease;
-  }
-  .bottle-card:hover{ border-color: var(--gold-dim); }
-  .bottle-thumb{
-    width:44px; height:58px;
-    border-radius:6px;
-    background: linear-gradient(180deg, var(--gold-dim), #4b3f1a);
-    flex-shrink:0;
-    display:flex; align-items:center; justify-content:center;
-    font-size:20px;
-  }
-  .bottle-info{ flex:1; min-width:0; }
-  .bottle-name{ font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .bottle-sub{ font-size:11.5px; color:var(--text-muted); margin-top:2px; font-family:var(--mono); }
-  .status-chip{
-    font-size:9.5px;
-    font-family:var(--mono);
-    text-transform:uppercase;
-    letter-spacing:.4px;
-    padding:3px 8px;
-    border-radius:999px;
-    white-space:nowrap;
-    flex-shrink:0;
-  }
-  .chip-unopened{ background:rgba(110,146,101,0.15); color:var(--green-ok); }
-  .chip-opened{ background:rgba(201,162,75,0.15); color:var(--gold); }
-  .chip-finished, .chip-gifted, .chip-sold{ background:rgba(147,146,127,0.15); color:var(--text-muted); }
-
-  .empty-state{
+    padding:10px 6px;
     text-align:center;
-    padding: 30px 10px;
+    cursor:pointer;
+    transition: all .2s ease;
+  }
+  .scene-tab .scene-icon{ font-size:20px; margin-bottom:4px; display:block; }
+  .scene-tab .scene-name{ font-size:11px; font-weight:600; font-family:var(--sans); }
+  .scene-tab .scene-count{ font-size:9.5px; font-family:var(--mono); color:var(--text-faint); margin-top:2px; }
+  
+  .scene-tab.active-cooler{
+    background: linear-gradient(180deg, #132431 0%, #0d1720 100%);
+    border-color: var(--cyan-glow);
+    box-shadow: 0 0 16px rgba(56,189,248,0.22);
+  }
+  .scene-tab.active-cooler .scene-name{ color: var(--cyan-glow); }
+
+  .scene-tab.active-wood{
+    background: linear-gradient(180deg, #2b1f14 0%, #1a130b 100%);
+    border-color: #d97706;
+    box-shadow: 0 0 16px rgba(217,119,6,0.22);
+  }
+  .scene-tab.active-wood .scene-name{ color: #fbbf24; }
+
+  .scene-tab.active-bar{
+    background: linear-gradient(180deg, #242426 0%, #161617 100%);
+    border-color: var(--gold);
+    box-shadow: 0 0 16px rgba(212,175,55,0.25);
+  }
+  .scene-tab.active-bar .scene-name{ color: var(--gold); }
+
+  /* ---------- 酒櫃展示棚架結構 (Shelf View) ---------- */
+  .shelf-container{
+    border-radius:16px;
+    padding:16px 14px 20px;
+    position:relative;
+    overflow:hidden;
+    margin-bottom:20px;
+  }
+  /* 電子酒櫃風格 */
+  .shelf-cooler{
+    background: radial-gradient(100% 120% at 50% 0%, #162a3b 0%, #0a1017 100%);
+    border: 1px solid rgba(56,189,248,0.3);
+    box-shadow: inset 0 0 30px rgba(56,189,248,0.08);
+  }
+  .shelf-cooler .shelf-beam{
+    height: 6px;
+    background: linear-gradient(90deg, #1e3a53, #38bdf8, #1e3a53);
+    border-radius: 3px;
+    margin: 16px 0;
+    box-shadow: 0 0 8px rgba(56,189,248,0.4);
+  }
+
+  /* 實木酒架風格 */
+  .shelf-wood{
+    background: linear-gradient(180deg, #2c1b10 0%, #180e08 100%);
+    border: 1px solid #63391d;
+    box-shadow: inset 0 0 25px rgba(0,0,0,0.6);
+  }
+  .shelf-wood .shelf-beam{
+    height: 10px;
+    background: linear-gradient(180deg, #874921 0%, #4a260f 100%);
+    border-radius: 4px;
+    margin: 16px 0;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+  }
+
+  /* 吧台展示風格 */
+  .shelf-bar{
+    background: radial-gradient(80% 100% at 50% 0%, #292a2d 0%, #101114 100%);
+    border: 1px solid #45474e;
+    box-shadow: inset 0 0 30px rgba(255,255,255,0.03);
+  }
+  .shelf-bar .shelf-beam{
+    height: 8px;
+    background: linear-gradient(90deg, #333, #777, #333);
+    border-radius: 4px;
+    margin: 16px 0;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.6);
+  }
+
+  /* ---------- 酒瓶展示卡片 (Bottle Card with Real Photo) ---------- */
+  .bottle-card{
+    display:flex;
+    gap:14px;
+    align-items:center;
+    background: rgba(20,22,16,0.7);
+    backdrop-filter: blur(8px);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:14px;
+    padding:12px;
+    margin-bottom:12px;
+    cursor:pointer;
+    transition: all .2s ease;
+  }
+  .bottle-card:hover{ border-color: var(--gold); transform: translateY(-2px); }
+  
+  .bottle-photo-box{
+    width:56px; height:74px;
+    border-radius:8px;
+    overflow:hidden;
+    background:#000;
+    flex-shrink:0;
+    position:relative;
+    border: 1px solid rgba(255,255,255,0.12);
+  }
+  .bottle-photo-box img{
+    width:100%; height:100%;
+    object-fit:cover;
+  }
+  .bottle-photo-box .emoji-fallback{
+    display:flex; align-items:center; justify-content:center;
+    height:100%; font-size:26px;
+    background: linear-gradient(180deg, var(--surface-2), #111);
+  }
+
+  .bottle-info{ flex:1; min-width:0; }
+  .bottle-name{ font-size:14.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bottle-sub{ font-size:11.5px; color:var(--text-muted); margin-top:3px; font-family:var(--mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bottle-tag-row{ display:flex; gap:6px; margin-top:6px; align-items:center; }
+  .tag-pill{
+    font-size:9.5px; font-family:var(--mono); padding:2px 7px; border-radius:4px; text-transform:uppercase;
+  }
+  .tag-unopened{ background: rgba(56,189,248,0.15); color: var(--cyan-glow); border: 1px solid rgba(56,189,248,0.3); }
+  .tag-opened{ background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+  .tag-finished{ background: rgba(255,255,255,0.1); color: var(--text-muted); }
+
+  /* 詳情頁相片展示 */
+  .detail-photo-hero{
+    width:100%;
+    height:240px;
+    border-radius:16px;
+    overflow:hidden;
+    margin:14px 0;
+    border:1px solid var(--line);
+    background:#080906;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+  }
+  .detail-photo-hero img{
+    width:100%; height:100%;
+    object-fit:contain;
+  }
+
+  .empty-shelf{
+    text-align:center;
+    padding: 40px 10px;
     color: var(--text-faint);
     font-size:13px;
     line-height:1.6;
   }
 
-  /* ---------- loading / scanning view ---------- */
-  .loading-view{
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    padding-top:70px;
-    text-align:center;
-  }
-  .loading-ring{
-    width:70px; height:70px;
-    border-radius:50%;
-    border:2px solid var(--line);
-    border-top-color: var(--gold);
-    animation: spin 1s linear infinite;
-    margin-bottom:24px;
-  }
+  /* 讀取畫面 */
+  .loading-view{ display:flex; flex-direction:column; align-items:center; justify-content:center; padding-top:60px; text-align:center; }
+  .loading-ring{ width:66px; height:66px; border-radius:50%; border:2px solid var(--line); border-top-color: var(--gold); animation: spin 1s linear infinite; margin-bottom:20px; }
   @keyframes spin{ to{ transform: rotate(360deg); } }
-  .loading-text{ font-family:var(--mono); font-size:12.5px; color:var(--text-muted); letter-spacing:.4px; min-height:18px; }
-  .preview-thumb{
-    width:120px; height:160px;
-    object-fit:cover;
-    border-radius:10px;
-    margin-bottom:26px;
-    border:1px solid var(--line);
-    opacity:.85;
-  }
+  .preview-thumb{ width:120px; height:160px; object-fit:cover; border-radius:10px; margin-bottom:22px; border:1px solid var(--line); }
 
-  /* ---------- label card (result) ---------- */
+  /* 卡片與雷達圖相關樣式 */
   .label-card{
-    margin-top:14px;
-    border-radius:18px;
-    border:1px solid var(--line);
-    background: linear-gradient(180deg, var(--surface) 0%, #171911 100%);
-    padding:26px 22px 22px;
-    position:relative;
-    overflow:hidden;
+    margin-top:14px; border-radius:18px; border:1px solid var(--line);
+    background: linear-gradient(180deg, var(--surface) 0%, #161810 100%);
+    padding:24px 20px 20px; position:relative; overflow:hidden;
   }
-  .label-card::after{
-    content:"";
-    position:absolute; left:0; right:0; top:0; height:3px;
-    background: linear-gradient(90deg, transparent, var(--gold), transparent);
-  }
+  .label-card::after{ content:""; position:absolute; left:0; right:0; top:0; height:3px; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
   .confidence-seal{
-    position:absolute;
-    top:18px; right:18px;
-    width:58px; height:58px;
-    border-radius:50%;
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    font-family:var(--mono);
-    border: 2px solid currentColor;
+    position:absolute; top:18px; right:18px; width:54px; height:54px; border-radius:50%;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:var(--mono); border: 2px solid currentColor;
   }
-  .seal-high{ color: var(--green-ok); }
-  .seal-medium{ color: var(--gold); }
-  .seal-low{ color: var(--wine-bright); }
-  .seal-pct{ font-size:15px; font-weight:600; line-height:1; }
+  .seal-high{ color: var(--green-ok); } .seal-medium{ color: var(--gold); } .seal-low{ color: var(--wine-bright); }
+  .seal-pct{ font-size:14px; font-weight:600; line-height:1; }
   .seal-label{ font-size:7px; letter-spacing:.5px; text-transform:uppercase; margin-top:2px; }
+  .label-eyebrow{ font-family:var(--mono); font-size:10.5px; color:var(--gold-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;}
+  .label-name{ font-family:var(--serif); font-size:22px; font-weight:600; line-height:1.2; max-width:76%; margin-bottom:4px;}
+  .label-sub{ font-size:12.5px; color:var(--text-muted); max-width:76%; margin-bottom:14px;}
+  .label-facts{ display:grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; padding-top:12px; border-top:1px dashed var(--line); }
+  .fact-label{ font-family:var(--mono); font-size:9.5px; color:var(--text-faint); text-transform:uppercase; }
+  .fact-value{ font-family:var(--mono); font-size:12.5px; color:var(--text); margin-top:2px; }
+  .label-note{ margin-top:14px; font-size:11.5px; color:var(--text-faint); line-height:1.5; font-style:italic; border-top:1px dashed var(--line); padding-top:10px; }
 
-  .label-eyebrow{ font-family:var(--mono); font-size:10.5px; color:var(--gold-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;}
-  .label-name{ font-family:var(--serif); font-size:24px; font-weight:600; line-height:1.2; max-width:76%; margin-bottom:4px;}
-  .label-sub{ font-size:13px; color:var(--text-muted); max-width:76%; margin-bottom:16px;}
-  .label-facts{
-    display:grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px 16px;
-    padding-top:14px;
-    border-top:1px dashed var(--line);
-  }
-  .fact-label{ font-family:var(--mono); font-size:9.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.5px; }
-  .fact-value{ font-family:var(--mono); font-size:13px; color:var(--text); margin-top:2px; }
-  .label-note{
-    margin-top:16px;
-    font-size:12px;
-    color:var(--text-faint);
-    line-height:1.6;
-    font-style:italic;
-    border-top:1px dashed var(--line);
-    padding-top:12px;
-  }
+  .radar-wrap{ margin-top:14px; background: var(--surface); border:1px solid var(--line); border-radius:16px; padding:18px 14px; display:flex; flex-direction:column; align-items:center; }
+  .radar-wrap h3{ font-family:var(--serif); font-size:15px; font-weight:600; align-self:flex-start; margin-bottom:10px;}
+  .radar-legend{ display:grid; grid-template-columns: 1fr 1fr; gap:6px 12px; width:100%; margin-top:12px; }
+  .legend-row{ display:flex; align-items:center; justify-content:space-between; font-size:11px; }
+  .legend-row .dim{ color:var(--text-muted); } .legend-row .val{ font-family:var(--mono); color:var(--gold); }
 
-  /* ---------- radar chart ---------- */
-  .radar-wrap{
-    margin-top:16px;
-    background: var(--surface);
-    border:1px solid var(--line);
-    border-radius:16px;
-    padding:20px 16px;
-    display:flex; flex-direction:column; align-items:center;
-  }
-  .radar-wrap h3{ font-family:var(--serif); font-size:15px; font-weight:600; align-self:flex-start; margin-bottom:12px;}
-  .radar-legend{
-    display:grid;
-    grid-template-columns: 1fr 1fr;
-    gap:6px 14px;
-    width:100%;
-    margin-top:14px;
-  }
-  .legend-row{ display:flex; align-items:center; justify-content:space-between; font-size:11.5px; }
-  .legend-row .dim{ color:var(--text-muted); }
-  .legend-row .val{ font-family:var(--mono); color:var(--gold); }
-
-  /* ---------- recommendation ---------- */
-  .rec-card{
-    margin-top:16px;
-    background: var(--surface);
-    border:1px solid var(--line);
-    border-radius:16px;
-    padding:18px 18px 6px;
-  }
+  .rec-card{ margin-top:14px; background: var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px 16px 6px; }
   .rec-card h3{ font-family:var(--serif); font-size:15px; font-weight:600; margin-bottom:4px;}
-  .rec-reason{ font-size:12.5px; color:var(--text-muted); line-height:1.55; margin-bottom:14px; }
-  .action-item{
-    display:flex; align-items:center; gap:12px;
-    padding:12px 0;
-    border-top:1px solid var(--line);
-  }
-  .action-rank{ font-family:var(--serif); font-size:18px; color:var(--gold); width:20px; flex-shrink:0; }
-  .action-icon{ font-size:20px; flex-shrink:0; }
+  .rec-reason{ font-size:12px; color:var(--text-muted); line-height:1.5; margin-bottom:12px; }
+  .action-item{ display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid var(--line); }
+  .action-rank{ font-family:var(--serif); font-size:17px; color:var(--gold); width:20px; flex-shrink:0; }
+  .action-icon{ font-size:18px; flex-shrink:0; }
   .action-body{ flex:1; }
-  .action-title{ font-size:13.5px; font-weight:600; text-transform:capitalize; }
-  .action-reason{ font-size:11.5px; color:var(--text-faint); margin-top:2px; }
+  .action-title{ font-size:13px; font-weight:600; text-transform:capitalize; }
+  .action-reason{ font-size:11px; color:var(--text-faint); margin-top:2px; }
 
-  /* ---------- storage / pairing ---------- */
-  .info-block{
-    margin-top:16px;
-    background: var(--surface);
-    border:1px solid var(--line);
-    border-radius:16px;
-    padding:18px;
-  }
-  .info-block h3{ font-family:var(--serif); font-size:15px; font-weight:600; margin-bottom:10px;}
-  .storage-row{ display:flex; gap:10px; margin-bottom:8px; }
-  .storage-tag{ font-family:var(--mono); font-size:10px; text-transform:uppercase; color:var(--gold); flex-shrink:0; width:70px; padding-top:1px;}
-  .storage-desc{ font-size:12.5px; color:var(--text-muted); line-height:1.5; }
-  .pairing-pill{
-    display:inline-block;
-    font-size:12px;
-    padding:7px 13px;
-    border-radius:999px;
-    border:1px solid var(--line);
-    color:var(--text-muted);
-    margin:0 6px 8px 0;
-  }
+  .info-block{ margin-top:14px; background: var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px; }
+  .info-block h3{ font-family:var(--serif); font-size:14.5px; font-weight:600; margin-bottom:8px;}
+  .storage-row{ display:flex; gap:10px; margin-bottom:6px; }
+  .storage-tag{ font-family:var(--mono); font-size:10px; text-transform:uppercase; color:var(--gold); flex-shrink:0; width:68px; }
+  .storage-desc{ font-size:12px; color:var(--text-muted); line-height:1.5; }
+  .pairing-pill{ display:inline-block; font-size:11.5px; padding:6px 12px; border-radius:999px; border:1px solid var(--line); color:var(--text-muted); margin:0 5px 6px 0; }
 
-  .result-actions{ display:flex; gap:10px; margin-top:20px; }
-
-  /* ---------- tabs (cellar) ---------- */
-  .tabs{
-    display:flex;
-    gap:6px;
-    overflow-x:auto;
-    padding-bottom:4px;
-    margin-bottom:16px;
-    scrollbar-width:none;
-  }
-  .tabs::-webkit-scrollbar{ display:none; }
-  .tab{
-    font-family:var(--mono);
-    font-size:11px;
-    text-transform:uppercase;
-    letter-spacing:.4px;
-    padding:8px 14px;
-    border-radius:999px;
-    border:1px solid var(--line);
-    color:var(--text-muted);
-    white-space:nowrap;
-    cursor:pointer;
-    flex-shrink:0;
-  }
-  .tab.active{ background:var(--gold); border-color:var(--gold); color:#191A11; font-weight:600; }
-
-  /* ---------- detail status bar ---------- */
-  .status-actions{ display:flex; flex-wrap:wrap; gap:8px; margin-top:18px; }
+  .status-actions{ display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
   .status-btn{
-    font-family:var(--mono);
-    font-size:11px;
-    text-transform:uppercase;
-    letter-spacing:.4px;
-    padding:9px 14px;
-    border-radius:999px;
-    border:1px solid var(--line);
-    color:var(--text-muted);
-    cursor:pointer;
-    background:transparent;
+    font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.4px;
+    padding:8px 12px; border-radius:999px; border:1px solid var(--line); color:var(--text-muted); cursor:pointer; background:transparent;
   }
-  .status-btn.active{ border-color:var(--gold); color:var(--gold); }
+  .status-btn.active{ border-color:var(--gold); color:var(--gold); font-weight:600; background:rgba(212,175,55,0.08); }
 
-  .back-row{
-    display:flex; align-items:center; gap:10px;
-    margin-bottom:10px;
-    cursor:pointer;
-    color:var(--text-muted);
-    font-size:13px;
-  }
-  .back-row:hover{ color: var(--text); }
+  .star-row{ display:flex; gap:8px; margin-top:8px; }
+  .star-btn{ background:none; border:none; cursor:pointer; font-size:24px; color: var(--line); opacity:.5; }
+  .star-btn.filled{ color: var(--gold); opacity:1; }
 
-  /* ---------- bottom nav ---------- */
   .bottomnav{
-    position:fixed;
-    bottom:0; left:50%; transform:translateX(-50%);
-    width:100%; max-width:480px;
-    display:flex;
-    background: rgba(20,21,15,0.92);
-    backdrop-filter: blur(10px);
-    border-top:1px solid var(--line);
+    position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:480px;
+    display:flex; background: rgba(17,18,13,0.94); backdrop-filter: blur(12px); border-top:1px solid var(--line);
     padding: 10px 18px calc(10px + env(safe-area-inset-bottom));
   }
   .navbtn{
-    flex:1;
-    display:flex; flex-direction:column; align-items:center; gap:4px;
-    background:none; border:none; cursor:pointer;
-    color:var(--text-faint);
-    font-family:var(--mono);
-    font-size:9.5px;
-    text-transform:uppercase;
-    letter-spacing:.5px;
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;
+    background:none; border:none; cursor:pointer; color:var(--text-faint); font-family:var(--mono); font-size:9.5px; text-transform:uppercase;
   }
   .navbtn.active{ color: var(--gold); }
   .navbtn svg{ width:20px; height:20px; }
-
-  .icon-btn{
-    width:36px; height:36px;
-    border-radius:50%;
-    border:1px solid var(--line);
-    background:var(--surface);
-    color:var(--text-muted);
-    display:flex; align-items:center; justify-content:center;
-    cursor:pointer;
-  }
-  .icon-btn svg{ width:17px; height:17px; }
-  .icon-btn:hover{ color:var(--gold); border-color:var(--gold-dim); }
-
-  .star-row{ display:flex; gap:8px; margin-top:10px; }
-  .star-btn{
-    background:none; border:none; cursor:pointer;
-    font-size:24px; line-height:1; padding:0;
-    color: var(--line);
-    filter: grayscale(1);
-    opacity:.5;
-    transition: all .1s ease;
-  }
-  .star-btn.filled{ color: var(--gold); filter:none; opacity:1; }
-
-  .toggle-row{
-    display:flex; align-items:center; justify-content:space-between;
-    background:var(--surface); border:1px solid var(--line); border-radius:12px;
-    padding:14px 16px; margin-bottom:12px;
-  }
-  .toggle-title{ font-size:13.5px; font-weight:600; }
-  .toggle-desc{ font-size:11.5px; color:var(--text-faint); margin-top:2px; max-width:230px; }
-  .switch{ position:relative; width:42px; height:24px; flex-shrink:0; }
-  .switch input{ opacity:0; width:0; height:0; }
-  .slider{
-    position:absolute; cursor:pointer; inset:0;
-    background: var(--line); border-radius:999px; transition:.2s;
-  }
-  .slider::before{
-    content:""; position:absolute; height:18px; width:18px; left:3px; top:3px;
-    background:var(--text); border-radius:50%; transition:.2s;
-  }
-  .switch input:checked + .slider{ background: var(--gold); }
-  .switch input:checked + .slider::before{ transform: translateX(18px); background:#191A11; }
-
-  .similarity-badge{
-    font-family:var(--mono); font-size:10.5px; color:var(--gold);
-    background: rgba(201,162,75,0.12); border-radius:999px; padding:3px 9px;
-    flex-shrink:0;
-  }
-
-  .rating-display{ font-size:13px; color:var(--gold); font-family:var(--mono); margin-top:6px; }
-
-  .error-box{
-    background: rgba(140,42,58,0.12);
-    border:1px solid var(--wine);
-    color:#E8B9C0;
-    border-radius:12px;
-    padding:14px 16px;
-    font-size:12.5px;
-    line-height:1.5;
-    margin-top:16px;
-  }
+  .back-row{ display:flex; align-items:center; gap:8px; margin-bottom:8px; cursor:pointer; color:var(--text-muted); font-size:13px; }
+  .error-box{ background: rgba(140,42,58,0.12); border:1px solid var(--wine); color:#E8B9C0; border-radius:12px; padding:12px 14px; font-size:12px; margin-top:14px; }
 </style>
 </head>
 <body>
@@ -535,9 +412,6 @@
       <div class="wordmark">BOTTLE<span>.</span></div>
       <div class="tagline">know what to do with it</div>
     </div>
-    <button class="icon-btn" onclick="renderSettings()" aria-label="Settings">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
-    </button>
   </div>
 
   <main id="main"></main>
@@ -545,15 +419,11 @@
   <nav class="bottomnav">
     <button class="navbtn" id="nav-home" onclick="goHome()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9"/></svg>
-      Home
+      Scan
     </button>
     <button class="navbtn" id="nav-cellar" onclick="renderCellar()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>
       Cellar
-    </button>
-    <button class="navbtn" id="nav-discover" onclick="renderDiscover()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-      Discover
     </button>
   </nav>
 </div>
@@ -566,44 +436,70 @@
 let cellar = [];
 let currentScan = null;
 let currentDetailId = null;
+let currentScene = 'cooler'; // 'cooler' (未開), 'wood' (已開), 'bar' (喝完展示)
 
-const DIM_LABELS = {
-  mv: "Market Value", ql: "Quality", dv: "Drinking Value", pv: "Pairing Value",
-  sv: "Social Value", gv: "Gift Value", cv: "Collecting Value", sto: "Storage Value"
-};
+const DIM_LABELS = { mv:"市場價值", ql:"品質", dv:"飲用價值", pv:"配餐價值", sv:"話題價值", gv:"送禮價值", cv:"收藏價值", sto:"保存價值" };
 const ACTION_ICONS = { drink:"🥃", pair:"🍽️", share:"👥", gift:"🎁", collect:"💎", sell:"💰", store:"🌡️", keep:"💎" };
-const FLAVOR_LABELS = { fruit:"Fruit", sweet:"Sweetness", oak:"Oak", smoke:"Smoke", acid:"Acidity", body:"Body" };
-let settings = { shareCellar: false };
-
 const WORKER_API_URL = "https://bottlesense-api.fiveathree.workers.dev";
 
-/* ---------------- Storage ---------------- */
-function loadCellar(){
-  try{
-    const res = localStorage.getItem('cellar');
-    cellar = res ? JSON.parse(res) : [];
-  }catch(e){
+/* ---------------- 專業 IndexedDB 儲存庫（支援無限儲存相片） ---------------- */
+const DB_NAME = 'BottleSenseDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'bottles';
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function loadCellarFromDB() {
+  try {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.getAll();
+      req.onsuccess = () => {
+        cellar = (req.result || []).sort((a,b)=> (b.addedAt||0) - (a.addedAt||0));
+        resolve();
+      };
+      req.onerror = () => { cellar = []; resolve(); };
+    });
+  } catch(e) {
+    console.error('DB read error', e);
     cellar = [];
   }
 }
-function saveCellar(){
-  try{
-    localStorage.setItem('cellar', JSON.stringify(cellar));
-  }catch(e){
-    console.error('save failed', e);
+
+async function saveBottleToDB(bottle) {
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    store.put(bottle);
+  } catch(e) {
+    console.error('DB write error', e);
   }
 }
-function loadSettings(){
-  try{
-    const res = localStorage.getItem('settings');
-    settings = res ? JSON.parse(res) : { shareCellar:false };
-  }catch(e){
-    settings = { shareCellar:false };
+
+async function deleteBottleFromDB(id) {
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    store.delete(id);
+  } catch(e) {
+    console.error('DB delete error', e);
   }
-}
-function saveSettings(){
-  try{ localStorage.setItem('settings', JSON.stringify(settings)); }
-  catch(e){ console.error('settings save failed', e); }
 }
 
 /* ---------------- Navigation ---------------- */
@@ -615,20 +511,19 @@ function setActiveNav(id){
 
 function goHome(){ setActiveNav('nav-home'); renderHome(); }
 
-/* ---------------- Home ---------------- */
+/* ---------------- Home (Scan) ---------------- */
 function renderHome(){
-  const unopened = cellar.filter(b=>b.status==='unopened').length;
-  const opened = cellar.filter(b=>b.status==='opened').length;
-  const total = cellar.length;
-
-  const drinkSoon = cellar.filter(b => b.status==='opened' || (b.scan && b.scan.rec && b.scan.rec.primary === 'drink')).slice(0,4);
+  setActiveNav('nav-home');
+  const unopenedCount = cellar.filter(b=>b.status==='unopened').length;
+  const openedCount = cellar.filter(b=>b.status==='opened').length;
+  const finishedCount = cellar.filter(b=>['finished','gifted','sold'].includes(b.status)).length;
 
   document.getElementById('main').innerHTML = `
     <div class="view">
       <div class="scan-hero">
         <h1>影一張酒標，<br>知道下一步應該點做</h1>
-        <p>唔使識飲。上載相片，AI 幫你判斷呢支酒值唔值得飲、送人、收藏定出售。</p>
-        <div style="display:flex; justify-content:center; gap:24px; margin-bottom:12px;">
+        <p>上載相片，AI 幫你分析酒款身價、泥煤/果香風味、最佳飲用時機同保存建議。</p>
+        <div style="display:flex; justify-content:center; gap:24px; margin-bottom:10px;">
           <div style="display:flex; flex-direction:column; align-items:center;">
             <button class="scan-btn" onclick="document.getElementById('cameraInput').click()">
               <svg viewBox="0 0 24 24" fill="none" stroke="#191A11" stroke-width="1.8"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -644,41 +539,142 @@ function renderHome(){
         </div>
       </div>
 
+      <div class="section-head">
+        <h2>Your Private Collection</h2>
+        <a onclick="renderCellar()">Open Cellar →</a>
+      </div>
       <div class="stat-row">
-        <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">Bottles</div></div>
-        <div class="stat-card"><div class="stat-num">${unopened}</div><div class="stat-label">Unopened</div></div>
-        <div class="stat-card"><div class="stat-num">${opened}</div><div class="stat-label">Opened</div></div>
+        <div class="stat-card" onclick="openScene('cooler')"><div class="stat-num" style="color:var(--cyan-glow);">${unopenedCount}</div><div class="stat-label">電子酒櫃 (未開)</div></div>
+        <div class="stat-card" onclick="openScene('wood')"><div class="stat-num" style="color:#fbbf24;">${openedCount}</div><div class="stat-label">實木酒架 (品飲中)</div></div>
+        <div class="stat-card" onclick="openScene('bar')"><div class="stat-num" style="color:var(--gold);">${finishedCount}</div><div class="stat-label">吧台展示 (回憶)</div></div>
       </div>
 
       <div class="section-head">
-        <h2>Taste DNA</h2>
-        <a onclick="renderTasteDNA()">See profile →</a>
+        <h2>Recent Scans</h2>
       </div>
-      <div class="empty-state" style="padding:6px 0 0;">評分你飲過嘅酒，建立你嘅個人風味檔案，令建議更加準。</div>
-
-      <div class="section-head">
-        <h2>Drink Soon</h2>
-        ${cellar.length ? '<a onclick="renderCellar()">See cellar →</a>' : ''}
-      </div>
-      <div id="drinksoon-list">
-        ${drinkSoon.length ? drinkSoon.map(bottleCardHtml).join('') : `<div class="empty-state">未有酒庫紀錄。Scan 一支酒開始啦。</div>`}
+      <div>
+        ${cellar.length ? cellar.slice(0, 3).map(bottleCardHtml).join('') : `<div class="empty-shelf">未有酒庫記錄，影第一支酒開始！</div>`}
       </div>
     </div>
   `;
 }
 
+function openScene(scene){
+  currentScene = scene;
+  renderCellar();
+}
+
+/* ---------------- 沉浸式 Cellar 畫面 ---------------- */
+function renderCellar(){
+  setActiveNav('nav-cellar');
+  
+  const coolerBottles = cellar.filter(b => b.status === 'unopened');
+  const woodBottles = cellar.filter(b => b.status === 'opened');
+  const barBottles = cellar.filter(b => ['finished', 'gifted', 'sold'].includes(b.status));
+
+  let activeList = [];
+  let shelfClass = '';
+  let shelfTitle = '';
+  let shelfDesc = '';
+
+  if (currentScene === 'cooler') {
+    activeList = coolerBottles;
+    shelfClass = 'shelf-cooler';
+    shelfTitle = '⚡ 電子恆溫酒櫃 (Climate Cellar)';
+    shelfDesc = '恆溫 14°C・避光防震・未開封珍藏';
+  } else if (currentScene === 'wood') {
+    activeList = woodBottles;
+    shelfClass = 'shelf-wood';
+    shelfTitle = '🪵 實木日常酒架 (The Wood Rack)';
+    shelfDesc = '隨手品飲・已開瓶賞味期中';
+  } else {
+    activeList = barBottles;
+    shelfClass = 'shelf-bar';
+    shelfTitle = '🥃 吧台展示桌 (The Display Bar)';
+    shelfDesc = '戰績回憶・空瓶紀念與品飲星級';
+  }
+
+  document.getElementById('main').innerHTML = `
+    <div class="view">
+      <div class="section-head" style="margin-top:8px;">
+        <h2>My Cellar Spaces</h2>
+        <span style="font-family:var(--mono); font-size:11px; color:var(--text-faint);">${cellar.length} Total</span>
+      </div>
+
+      <!-- 三大酒櫃切換標籤 -->
+      <div class="cellar-scene-tabs">
+        <div class="scene-tab ${currentScene==='cooler'?'active-cooler':''}" onclick="switchScene('cooler')">
+          <span class="scene-icon">⚡</span>
+          <div class="scene-name">電子酒櫃</div>
+          <div class="scene-count">${coolerBottles.length} 支未開</div>
+        </div>
+        <div class="scene-tab ${currentScene==='wood'?'active-wood':''}" onclick="switchScene('wood')">
+          <span class="scene-icon">🪵</span>
+          <div class="scene-name">實木酒架</div>
+          <div class="scene-count">${woodBottles.length} 支已開</div>
+        </div>
+        <div class="scene-tab ${currentScene==='bar'?'active-bar':''}" onclick="switchScene('bar')">
+          <span class="scene-icon">🥃</span>
+          <div class="scene-name">吧台展示</div>
+          <div class="scene-count">${barBottles.length} 支回憶</div>
+        </div>
+      </div>
+
+      <!-- 擬真酒櫃陳列區 -->
+      <div class="shelf-container ${shelfClass}">
+        <div style="margin-bottom:12px;">
+          <div style="font-family:var(--serif); font-size:15px; font-weight:600;">${shelfTitle}</div>
+          <div style="font-family:var(--mono); font-size:10.5px; color:var(--text-muted); margin-top:2px;">${shelfDesc}</div>
+        </div>
+
+        <div class="shelf-beam"></div>
+
+        <div>
+          ${activeList.length ? activeList.map(bottleCardHtml).join('') : `
+            <div class="empty-shelf">
+              呢個棚架暫時空置緊。<br>
+              ${currentScene==='cooler'?'Scan 一支新酒放入酒櫃！':(currentScene==='wood'?'開咗酒嘅時候將狀態改為 Opened！':'飲完嘅酒標記為 Finished 會陳列喺呢度！')}
+            </div>
+          `}
+        </div>
+
+        <div class="shelf-beam"></div>
+      </div>
+    </div>
+  `;
+}
+
+function switchScene(scene){
+  currentScene = scene;
+  renderCellar();
+}
+
 function bottleCardHtml(b){
-  const id = b.identification || {};
-  const name = id.name || id.producer || '未知酒款';
-  const sub = [id.category, id.vintage].filter(Boolean).join(' · ') || '—';
+  const idf = b.identification || {};
+  const name = idf.name || idf.producer || '未知酒款';
+  const sub = [idf.producer, idf.vintage].filter(Boolean).join(' · ') || '—';
+  
+  let tagClass = 'tag-unopened';
+  let tagText = '未開封';
+  if(b.status === 'opened') { tagClass = 'tag-opened'; tagText = '已開瓶'; }
+  else if(['finished','gifted','sold'].includes(b.status)) { tagClass = 'tag-finished'; tagText = b.status.toUpperCase(); }
+
+  // 顯示使用者上傳的原相，若無則顯示 emoji
+  const photoHtml = b.image ? `<img src="${b.image}" alt="${name}">` : `<div class="emoji-fallback">${categoryEmoji(idf.category)}</div>`;
+
   return `
     <div class="bottle-card" onclick="renderDetail('${b.id}')">
-      <div class="bottle-thumb">${categoryEmoji(id.category)}</div>
+      <div class="bottle-photo-box">
+        ${photoHtml}
+      </div>
       <div class="bottle-info">
         <div class="bottle-name">${escapeHtml(name)}</div>
         <div class="bottle-sub">${escapeHtml(sub)}</div>
+        <div class="bottle-tag-row">
+          <span class="tag-pill ${tagClass}">${tagText}</span>
+          ${b.personalRating ? `<span style="font-family:var(--mono); font-size:10px; color:var(--gold);">★ ${b.personalRating}/5</span>` : ''}
+        </div>
       </div>
-      <div class="status-chip chip-${b.status}">${b.status}</div>
     </div>
   `;
 }
@@ -688,17 +684,17 @@ function categoryEmoji(cat){
   if(c.includes('whisky')||c.includes('whiskey')) return '🥃';
   if(c.includes('wine')) return '🍷';
   if(c.includes('champagne')||c.includes('sparkl')) return '🍾';
-  if(c.includes('sake')) return '🍶';
-  if(c.includes('rum')) return '🥃';
+  if(c.includes('sake')||c.includes('泡盛')) return '🍶';
   return '🍷';
 }
 
-/* ---------------- 相片壓縮與檔案讀取 ---------------- */
+/* ---------------- 拍照與相片壓縮 ---------------- */
 async function handleFileSelect(e) {
   const file = e.target.files[0];
   if(!file) return;
   e.target.value = '';
   try {
+    // 壓縮至 1280px，既清晰又適合 AI 分析與 IndexedDB 永久保存
     const dataUrl = await compressImage(file, 1280, 0.85);
     await runScan(dataUrl);
   } catch (err) {
@@ -747,10 +743,10 @@ function compressImage(file, maxWidth, quality){
   });
 }
 
-/* ---------------- 呼叫 Cloudflare Worker 進行掃描 ---------------- */
+/* ---------------- 呼叫 Worker 進行分析 ---------------- */
 async function runScan(dataUrl){
   renderLoading(dataUrl);
-  const messages = ["正在辨識酒標...", "正在比對資料...", "正在計算價值地圖...", "正在生成建議..."];
+  const messages = ["正在辨識酒標...", "正在比對產區與風味...", "正在計算價值地圖...", "正在生成專業建議..."];
   let mi = 0;
   const loadingInterval = setInterval(()=>{
     mi = (mi+1) % messages.length;
@@ -766,10 +762,7 @@ async function runScan(dataUrl){
     const response = await fetch(WORKER_API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        image: base64Data,
-        mediaType: mediaType
-      })
+      body: JSON.stringify({ image: base64Data, mediaType: mediaType })
     });
 
     if(!response.ok){
@@ -777,7 +770,6 @@ async function runScan(dataUrl){
     }
 
     const parsed = await response.json();
-
     clearInterval(loadingInterval);
     currentScan = { raw: parsed, image: dataUrl, scannedAt: Date.now() };
     renderResult(currentScan);
@@ -805,8 +797,8 @@ function renderScanError(dataUrl){
     <div class="view">
       <div class="back-row" onclick="goHome()">← 返回</div>
       <img class="preview-thumb" src="${dataUrl}" alt="scan preview" />
-      <div class="error-box">辨識失敗，可能係網絡問題或者相片唔夠清楚。請確保標籤清晰可見，再試一次。</div>
-      <div class="result-actions" style="margin-top:20px; display:flex; gap:12px;">
+      <div class="error-box">辨識失敗，可能係網絡不穩定或相片唔夠清晰。請確保酒標清晰可見再試一次。</div>
+      <div style="margin-top:16px; display:flex; gap:12px;">
         <button class="btn btn-primary btn-block" onclick="document.getElementById('cameraInput').click()">拍照重試</button>
         <button class="btn btn-ghost btn-block" onclick="document.getElementById('galleryInput').click()">相簿選擇</button>
       </div>
@@ -814,7 +806,7 @@ function renderScanError(dataUrl){
   `;
 }
 
-/* ---------------- Result ---------------- */
+/* ---------------- 辨識結果 ---------------- */
 function confidenceTier(conf){
   if(conf >= 80) return {cls:'seal-high', label:'high'};
   if(conf >= 55) return {cls:'seal-medium', label:'medium'};
@@ -832,6 +824,10 @@ function renderResult(scanObj){
     <div class="view">
       <div class="back-row" onclick="goHome()">← 返回</div>
 
+      <div class="detail-photo-hero">
+        <img src="${scanObj.image}" alt="Captured bottle">
+      </div>
+
       <div class="label-card">
         <div class="confidence-seal ${tier.cls}">
           <div class="seal-pct">${id.conf ?? '—'}%</div>
@@ -841,10 +837,10 @@ function renderResult(scanObj){
         <div class="label-name">${escapeHtml(id.name || id.producer || '未能辨識')}</div>
         <div class="label-sub">${escapeHtml(id.producer || '')}${id.region ? ' · ' + escapeHtml(id.region) : ''}</div>
         <div class="label-facts">
-          <div><div class="fact-label">Vintage</div><div class="fact-value">${escapeHtml(id.vintage || '—')}</div></div>
-          <div><div class="fact-label">ABV</div><div class="fact-value">${escapeHtml(id.abv || '—')}</div></div>
-          <div><div class="fact-label">Volume</div><div class="fact-value">${escapeHtml(id.vol || '—')}</div></div>
-          <div><div class="fact-label">Region</div><div class="fact-value">${escapeHtml(id.region || '—')}</div></div>
+          <div><div class="fact-label">Vintage / 年份</div><div class="fact-value">${escapeHtml(id.vintage || '—')}</div></div>
+          <div><div class="fact-label">ABV / 酒精</div><div class="fact-value">${escapeHtml(id.abv || '—')}</div></div>
+          <div><div class="fact-label">Volume / 容量</div><div class="fact-value">${escapeHtml(id.vol || '—')}</div></div>
+          <div><div class="fact-label">Region / 產區</div><div class="fact-value">${escapeHtml(id.region || '—')}</div></div>
         </div>
         ${id.note ? `<div class="label-note">${escapeHtml(id.note)}</div>` : ''}
       </div>
@@ -877,10 +873,10 @@ function renderResult(scanObj){
         ${(r.pairing||[]).map(p=>`<span class="pairing-pill">${escapeHtml(p)}</span>`).join('') || '<div class="storage-desc">暫無資料</div>'}
       </div>
 
-      <div class="result-actions">
-        <button class="btn btn-primary btn-block" onclick="addToCellar()">+ Add to Cellar</button>
+      <div style="margin-top:20px;">
+        <button class="btn btn-primary btn-block" onclick="addToCellar()">+ 放進電子酒櫃 (Add to Cellar)</button>
       </div>
-      <div class="result-actions">
+      <div style="margin-top:10px;">
         <button class="btn btn-ghost btn-block" onclick="goHome()">Scan another bottle</button>
       </div>
     </div>
@@ -908,9 +904,9 @@ function renderRadar(vm){
       const angle = (Math.PI*2*i/n) - Math.PI/2;
       return [cx + R*f*Math.cos(angle), cy + R*f*Math.sin(angle)].join(',');
     }).join(' ');
-    return `<polygon points="${ringPts}" fill="none" stroke="#34382A" stroke-width="1"/>`;
+    return `<polygon points="${ringPts}" fill="none" stroke="#2E3224" stroke-width="1"/>`;
   }).join('');
-  const axes = axisPoints.map(p=>`<line x1="${cx}" y1="${cy}" x2="${p[0]}" y2="${p[1]}" stroke="#34382A" stroke-width="1"/>`).join('');
+  const axes = axisPoints.map(p=>`<line x1="${cx}" y1="${cy}" x2="${p[0]}" y2="${p[1]}" stroke="#2E3224" stroke-width="1"/>`).join('');
 
   const legend = order.map(k=>`
     <div class="legend-row"><span class="dim">${DIM_LABELS[k]}</span><span class="val">${vm[k] ?? '—'}</span></div>
@@ -922,66 +918,32 @@ function renderRadar(vm){
       <svg width="260" height="260" viewBox="0 0 260 260">
         ${rings}
         ${axes}
-        <polygon points="${polygon}" fill="rgba(201,162,75,0.28)" stroke="#C9A24B" stroke-width="2"/>
-        ${points.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="#C9A24B"/>`).join('')}
+        <polygon points="${polygon}" fill="rgba(212,175,55,0.25)" stroke="#D4AF37" stroke-width="2"/>
+        ${points.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="#D4AF37"/>`).join('')}
       </svg>
       <div class="radar-legend">${legend}</div>
     </div>
   `;
 }
 
-/* ---------------- Add to cellar ---------------- */
-function addToCellar(){
+/* ---------------- 加入酒庫（以 IndexedDB 永久保存原相） ---------------- */
+async function addToCellar(){
   if(!currentScan) return;
   const item = {
     id: 'b_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
-    status: 'unopened',
+    status: 'unopened', // 預設放入電子酒櫃
     addedAt: Date.now(),
-    image: currentScan.image,
-    identification: mapId(currentScan.raw.id),
+    image: currentScan.image, // 完整保留原相
+    identification: currentScan.raw.id || {},
     scan: currentScan.raw
   };
   cellar.unshift(item);
-  saveCellar();
+  await saveBottleToDB(item);
+  currentScene = 'cooler';
   renderDetail(item.id, true);
 }
 
-function mapId(id){
-  id = id || {};
-  return { name: id.name, producer: id.producer, category: id.cat, vintage: id.vintage, region: id.region };
-}
-
-/* ---------------- Cellar list ---------------- */
-let activeTab = 'all';
-function renderCellar(){
-  setActiveNav('nav-cellar');
-  const tabs = [
-    {id:'all', label:'All'},
-    {id:'unopened', label:'Unopened'},
-    {id:'opened', label:'Opened'},
-    {id:'archive', label:'Archive'}
-  ];
-  const filtered = cellar.filter(b=>{
-    if(activeTab==='all') return true;
-    if(activeTab==='archive') return ['finished','gifted','sold'].includes(b.status);
-    return b.status === activeTab;
-  });
-
-  document.getElementById('main').innerHTML = `
-    <div class="view">
-      <div class="section-head" style="margin-top:14px;"><h2>My Cellar</h2><span style="font-family:var(--mono); font-size:11px; color:var(--text-faint);">${cellar.length} bottles</span></div>
-      <div class="tabs">
-        ${tabs.map(t=>`<div class="tab ${activeTab===t.id?'active':''}" onclick="setTab('${t.id}')">${t.label}</div>`).join('')}
-      </div>
-      <div id="cellar-list">
-        ${filtered.length ? filtered.map(bottleCardHtml).join('') : `<div class="empty-state">呢個分類暫時未有酒。</div>`}
-      </div>
-    </div>
-  `;
-}
-function setTab(t){ activeTab = t; renderCellar(); }
-
-/* ---------------- Bottle detail ---------------- */
+/* ---------------- 酒款詳情 ---------------- */
 function renderDetail(id, justAdded){
   const b = cellar.find(x=>x.id===id);
   if(!b){ renderCellar(); return; }
@@ -991,40 +953,57 @@ function renderDetail(id, justAdded){
   const vm = r.vm || {};
   const rec = r.rec || {};
 
-  const statuses = ['unopened','opened','finished','gifted','sold'];
+  const statuses = [
+    { key:'unopened', label:'⚡ 電子酒櫃 (未開)' },
+    { key:'opened', label:'🪵 實木架 (已開)' },
+    { key:'finished', label:'🥃 吧台展示 (喝完)' }
+  ];
 
   document.getElementById('main').innerHTML = `
     <div class="view">
       <div class="back-row" onclick="renderCellar()">← 返回酒庫</div>
-      ${justAdded ? `<div class="error-box" style="background:rgba(110,146,101,0.12); border-color:var(--green-ok); color:#CFE4C8;">已加入酒庫 ✓</div>` : ''}
+      ${justAdded ? `<div class="error-box" style="background:rgba(110,146,101,0.15); border-color:var(--green-ok); color:#CFE4C8;">已妥善存放於電子酒櫃 ✓</div>` : ''}
+
+      <!-- 永久保留的原相大圖 -->
+      <div class="detail-photo-hero">
+        ${b.image ? `<img src="${b.image}" alt="${idf.name}">` : `<div style="font-size:50px;">${categoryEmoji(idf.category)}</div>`}
+      </div>
 
       <div class="label-card">
-        <div class="label-eyebrow">${escapeHtml(idf.category || 'unknown')}</div>
+        <div class="label-eyebrow">${escapeHtml(idf.cat || 'unknown')}</div>
         <div class="label-name">${escapeHtml(idf.name || idf.producer || '未知酒款')}</div>
         <div class="label-sub">${escapeHtml(idf.producer || '')}${idf.region ? ' · ' + escapeHtml(idf.region) : ''}</div>
         <div class="label-facts">
           <div><div class="fact-label">Vintage</div><div class="fact-value">${escapeHtml(idf.vintage || '—')}</div></div>
-          <div><div class="fact-label">Status</div><div class="fact-value">${escapeHtml(b.status)}</div></div>
+          <div><div class="fact-label">Current Space</div><div class="fact-value" style="color:var(--gold);">${b.status.toUpperCase()}</div></div>
         </div>
       </div>
 
-      <div class="status-actions">
-        ${statuses.map(s=>`<button class="status-btn ${b.status===s?'active':''}" onclick="setStatus('${b.id}','${s}')">${s}</button>`).join('')}
+      <!-- 切換存放位置（直接移動空間） -->
+      <div class="info-block">
+        <h3>📍 存放位置 (Move to)</h3>
+        <div class="status-actions" style="margin-top:8px;">
+          ${statuses.map(s=>`
+            <button class="status-btn ${b.status===s.key?'active':''}" onclick="setStatus('${b.id}','${s.key}')">
+              ${s.label}
+            </button>
+          `).join('')}
+        </div>
       </div>
 
+      <!-- 星級評分 -->
       <div class="info-block">
-        <h3>你飲完覺得點？</h3>
-        <div class="storage-desc">評分會用嚟建立你嘅 Taste DNA，幫你以後預測邊支酒你會鍾意。</div>
+        <h3>⭐ 你的品飲評分</h3>
         <div class="star-row">
           ${[1,2,3,4,5].map(n=>`<button class="star-btn ${b.personalRating>=n?'filled':''}" onclick="setRating('${b.id}',${n})">★</button>`).join('')}
         </div>
-        ${b.personalRating ? `<div class="rating-display">你嘅評分: ${b.personalRating} / 5</div>` : ''}
+        ${b.personalRating ? `<div style="font-family:var(--mono); color:var(--gold); font-size:12px; margin-top:6px;">個人評分: ${b.personalRating} / 5</div>` : ''}
       </div>
 
       ${renderRadar(vm)}
 
       <div class="rec-card">
-        <h3>所以我而家應該點做？</h3>
+        <h3>建議點樣處理？</h3>
         <div class="rec-reason">${escapeHtml(rec.reason || '')}</div>
         ${(rec.actions||[]).map((a,i)=>`
           <div class="action-item">
@@ -1038,152 +1017,47 @@ function renderDetail(id, justAdded){
         `).join('')}
       </div>
 
-      <div class="info-block">
-        <h3>🌡️ Storage Guide</h3>
-        <div class="storage-row"><div class="storage-tag">Unopened</div><div class="storage-desc">${escapeHtml((r.storage||{}).unopened || '暫無資料')}</div></div>
-        <div class="storage-row"><div class="storage-tag">Opened</div><div class="storage-desc">${escapeHtml((r.storage||{}).opened || '暫無資料')}</div></div>
-      </div>
-
-      <div class="info-block">
-        <h3>🍽️ Pairing Suggestions</h3>
-        ${(r.pairing||[]).map(p=>`<span class="pairing-pill">${escapeHtml(p)}</span>`).join('') || '<div class="storage-desc">暫無資料</div>'}
-      </div>
-
-      <div class="result-actions">
-        <button class="btn btn-wine btn-block" onclick="removeBottle('${b.id}')">從酒庫移除</button>
+      <div style="margin-top:20px;">
+        <button class="btn btn-wine btn-block" onclick="removeBottle('${b.id}')">從酒庫中移除</button>
       </div>
     </div>
   `;
 }
 
-function setStatus(id, status){
+async function setStatus(id, status){
   const b = cellar.find(x=>x.id===id);
   if(!b) return;
   b.status = status;
-  saveCellar();
+  await saveBottleToDB(b);
+  if(status === 'unopened') currentScene = 'cooler';
+  else if(status === 'opened') currentScene = 'wood';
+  else currentScene = 'bar';
   renderDetail(id);
 }
 
-function removeBottle(id){
-  cellar = cellar.filter(x=>x.id!==id);
-  saveCellar();
-  renderCellar();
-}
-
-function setRating(id, n){
+async function setRating(id, n){
   const b = cellar.find(x=>x.id===id);
   if(!b) return;
   b.personalRating = n;
-  saveCellar();
+  await saveBottleToDB(b);
   renderDetail(id);
 }
 
-/* ---------------- Taste DNA ---------------- */
-function computeTasteDNA(){
-  const rated = cellar.filter(b => b.personalRating && b.scan && b.scan.flavor);
-  if(!rated.length) return null;
-  const keys = Object.keys(FLAVOR_LABELS);
-  const totals = {}; let weightSum = 0;
-  keys.forEach(k => totals[k] = 0);
-  rated.forEach(b=>{
-    const w = b.personalRating;
-    keys.forEach(k=>{ totals[k] += (b.scan.flavor[k]||0) * w; });
-    weightSum += w;
-  });
-  const profile = {};
-  keys.forEach(k => profile[k] = Math.round(totals[k]/weightSum));
-  return { profile, sampleCount: rated.length };
-}
-
-function renderTasteDNA(){
-  const dna = computeTasteDNA();
-  document.getElementById('main').innerHTML = `
-    <div class="view">
-      <div class="back-row" onclick="goHome()">← 返回</div>
-      <div class="section-head" style="margin-top:6px;"><h2>Your Taste DNA</h2></div>
-      ${dna ? `
-        <div class="info-block">
-          <div class="storage-desc">基於 ${dna.sampleCount} 支已評分酒款計算出嚟嘅個人風味傾向。</div>
-        </div>
-        ${renderFlavorBars(dna.profile)}
-      ` : `
-        <div class="empty-state">評分至少一支酒之後，呢度就會顯示你嘅 Taste DNA。喺酒庫入面揀一支酒，俾個星級評分試下。</div>
-      `}
-    </div>
-  `;
-}
-
-function renderFlavorBars(profile){
-  const rows = Object.keys(FLAVOR_LABELS).map(k=>{
-    const val = profile[k] || 0;
-    return `
-      <div style="margin-bottom:14px;">
-        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:5px;">
-          <span style="color:var(--text-muted);">${FLAVOR_LABELS[k]}</span>
-          <span style="font-family:var(--mono); color:var(--gold);">${val}</span>
-        </div>
-        <div style="height:6px; background:var(--line); border-radius:999px; overflow:hidden;">
-          <div style="height:100%; width:${val}%; background:var(--gold); border-radius:999px;"></div>
-        </div>
-      </div>
-    `;
-  }).join('');
-  return `<div class="info-block">${rows}</div>`;
-}
-
-/* ---------------- Discover ---------------- */
-function renderDiscover(){
-  setActiveNav('nav-discover');
-  document.getElementById('main').innerHTML = `
-    <div class="view">
-      <div class="section-head" style="margin-top:14px;"><h2>Discover</h2></div>
-      <div class="empty-state">社群分享功能需要後端雲端資料庫（如 Cloudflare D1 或 KV）。目前你可以在首頁體驗完整的酒標辨識、價值分析與酒庫記錄！</div>
-    </div>
-  `;
-}
-
-/* ---------------- Settings ---------------- */
-function renderSettings(){
-  setActiveNav('');
-  document.getElementById('main').innerHTML = `
-    <div class="view">
-      <div class="back-row" onclick="goHome()">← 返回</div>
-      <div class="section-head" style="margin-top:6px;"><h2>Settings</h2></div>
-
-      <div class="toggle-row">
-        <div>
-          <div class="toggle-title">分享部分酒庫</div>
-          <div class="toggle-desc">開啟後，你 Scan 加入酒庫嘅酒款資料會匿名分享俾其他用戶（目前為展示功能）。</div>
-        </div>
-        <label class="switch">
-          <input type="checkbox" ${settings.shareCellar?'checked':''} onchange="toggleShare(this.checked)">
-          <span class="slider"></span>
-        </label>
-      </div>
-
-      <div class="section-head"><h2>Your Taste DNA</h2><a onclick="renderTasteDNA()">查看 →</a></div>
-      <div class="empty-state" style="padding:16px 0;">評分你飲過嘅酒，建立你嘅個人風味檔案。</div>
-    </div>
-  `;
-}
-
-function toggleShare(checked){
-  settings.shareCellar = checked;
-  saveSettings();
+async function removeBottle(id){
+  cellar = cellar.filter(x=>x.id!==id);
+  await deleteBottleFromDB(id);
+  renderCellar();
 }
 
 /* ---------------- utils ---------------- */
 function escapeHtml(str){
   if(str===undefined || str===null) return '';
-  return String(str)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;');
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 /* ---------------- init ---------------- */
-(function init(){
-  loadCellar();
-  loadSettings();
+(async function init(){
+  await loadCellarFromDB();
   goHome();
 })();
 </script>
