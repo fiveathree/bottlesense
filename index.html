@@ -203,15 +203,6 @@
   .share-plane-btn:active{ transform: scale(0.96); }
   .share-plane-btn svg{ width:15px; height:15px; fill:currentColor; }
 
-  .interaction-bar{
-    display:flex; gap:10px; margin-top:14px;
-  }
-  .like-chip{
-    display:inline-flex; align-items:center; gap:6px; background:rgba(239,68,68,0.12);
-    border:1px solid rgba(239,68,68,0.3); border-radius:999px; padding:6px 14px; color:#f87171;
-    font-size:12px; cursor:pointer; font-family:var(--mono);
-  }
-
   .destination-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:14px; }
   .dest-card{ background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 10px; text-align:center; cursor:pointer; }
   .dest-card .icon{ font-size:24px; margin-bottom:5px; display:block; }
@@ -231,7 +222,6 @@
   .loading-view{ display:flex; flex-direction:column; align-items:center; justify-content:center; padding-top:60px; text-align:center; }
   .loading-ring{ width:64px; height:64px; border-radius:50%; border:2px solid var(--line); border-top-color: var(--gold); animation: spin 1s linear infinite; margin-bottom:20px; }
   @keyframes spin{ to{ transform: rotate(360deg); } }
-  .preview-thumb{ width:120px; height:160px; object-fit:cover; border-radius:10px; margin-bottom:20px; border:1px solid var(--line); }
 
   .label-card{
     margin-top:14px; border-radius:18px; border:1px solid var(--line);
@@ -259,6 +249,10 @@
   .storage-tag{ font-family:var(--mono); font-size:10px; text-transform:uppercase; color:var(--gold); flex-shrink:0; width:68px; }
   .storage-desc{ font-size:12px; color:var(--text-muted); line-height:1.5; }
 
+  .star-row{ display:flex; gap:8px; margin-top:6px; }
+  .star-btn{ background:none; border:none; cursor:pointer; font-size:24px; color: var(--line); opacity:.5; }
+  .star-btn.filled{ color: var(--gold); opacity:1; }
+
   .bottomnav{
     position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:480px;
     display:flex; background: rgba(17,18,13,0.94); backdrop-filter: blur(12px); border-top:1px solid var(--line);
@@ -271,6 +265,12 @@
   .navbtn.active{ color: var(--gold); }
   .navbtn svg{ width:20px; height:20px; }
   .back-row{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; color:var(--text-muted); font-size:13px; }
+
+  .like-chip{
+    display:inline-flex; align-items:center; gap:6px; background:rgba(239,68,68,0.12);
+    border:1px solid rgba(239,68,68,0.3); border-radius:999px; padding:6px 14px; color:#f87171;
+    font-size:12px; cursor:pointer; font-family:var(--mono);
+  }
 </style>
 </head>
 <body>
@@ -278,11 +278,11 @@
   <div class="topbar">
     <div>
       <div class="wordmark">BOTTLE<span>.</span></div>
-      <div class="tagline" id="txt-tagline">know what to do with it</div>
+      <div class="tagline">know what to do with it</div>
     </div>
     <div class="top-actions">
       <button class="icon-btn" onclick="renderSettings()" aria-label="Settings">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
       </button>
       <button class="lang-btn" onclick="toggleLang()" id="btn-lang">EN</button>
     </div>
@@ -290,14 +290,19 @@
 
   <main id="main"></main>
 
+  <!-- 底部選單：包含 Scan、Cellar、Explore -->
   <nav class="bottomnav" id="bottomnav">
     <button class="navbtn" id="nav-home" onclick="goHome()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9"/></svg>
-      <span id="nav-lbl-scan">辨識</span>
+      <span>辨識</span>
     </button>
     <button class="navbtn" id="nav-cellar" onclick="renderCellar()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>
-      <span id="nav-lbl-cellar">酒櫃</span>
+      <span>酒櫃</span>
+    </button>
+    <button class="navbtn" id="nav-explore" onclick="renderExplore()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="m16.2 7.8-2 6.4-6.4 2 2-6.4z"/></svg>
+      <span>探索</span>
     </button>
   </nav>
 </div>
@@ -314,25 +319,26 @@ let cellar = [];
 let currentScan = null;
 let currentDetailId = null;
 let currentScene = 'cooler';
-let activeCategoryFilter = 'all';
 
-// 訪客檢視模式 State
+// 訪客展示模式
 let isVisitorMode = false;
 let visitorCellarData = null;
 
+// 專屬同步碼
 let mySyncKey = localStorage.getItem('bottlesense_sync_key') || '';
 if(!mySyncKey){
   mySyncKey = 'BTL-' + Math.random().toString(36).substring(2,6).toUpperCase() + '-' + Math.random().toString(36).substring(2,6).toUpperCase();
   localStorage.setItem('bottlesense_sync_key', mySyncKey);
 }
 
-const DB_NAME = 'BottleSenseDB_V7';
+// 永久鎖定資料庫名稱！以後絕對不變更！
+const DB_NAME = 'BottleSenseDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'bottles';
 
-function openDB() {
+function openDB(dbName = DB_NAME) {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    const req = indexedDB.open(dbName);
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME, { keyPath: 'id' });
@@ -342,26 +348,61 @@ function openDB() {
   });
 }
 
-async function loadCellarFromDB() {
+/* ---------------- 自動拯救找回舊版本所有酒款 (Auto-Migration) ---------------- */
+async function loadCellarWithMigration() {
+  const oldDbNames = ['BottleSenseDB', 'BottleSenseDB_V7', 'BottleSenseDB_V6', 'BottleSenseDB_V5', 'BottleSenseDB_V4', 'BottleSenseDB_V3', 'BottleSenseDB_V2', 'BottleSenseDB_V1'];
+  let allFound = [];
+  const seenIds = new Set();
+
+  for (const name of oldDbNames) {
+    try {
+      const db = await openDB(name);
+      if (db.objectStoreNames.contains(STORE_NAME)) {
+        const items = await new Promise((res) => {
+          const tx = db.transaction(STORE_NAME, 'readonly');
+          const req = tx.objectStore(STORE_NAME).getAll();
+          req.onsuccess = () => res(req.result || []);
+          req.onerror = () => res([]);
+        });
+        for (const item of items) {
+          if (item && item.id && !seenIds.has(item.id)) {
+            seenIds.add(item.id);
+            allFound.push(item);
+          }
+        }
+      }
+    } catch(e){}
+  }
+
+  // 同步存入標準主庫 BottleSenseDB
   try {
-    const db = await openDB();
-    return new Promise((resolve) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.getAll();
-      req.onsuccess = () => { cellar = (req.result || []).sort((a,b)=> (b.addedAt||0) - (a.addedAt||0)); resolve(); };
-      req.onerror = () => { cellar = []; resolve(); };
-    });
-  } catch(e) { cellar = []; }
+    const mainDb = await openDB(DB_NAME);
+    const tx = mainDb.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    for (const b of allFound) {
+      store.put(b);
+    }
+  } catch(e){}
+
+  cellar = allFound.sort((a,b)=> (b.addedAt||0) - (a.addedAt||0));
 }
 
 async function saveBottleToDB(bottle) {
   try {
-    const db = await openDB();
+    const db = await openDB(DB_NAME);
     const tx = db.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).put(bottle);
     syncToCloudKV();
   } catch(e) { console.error(e); }
+}
+
+async function deleteBottleFromDB(id) {
+  try {
+    const db = await openDB(DB_NAME);
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).delete(id);
+    syncToCloudKV();
+  } catch(e) {}
 }
 
 async function syncToCloudKV() {
@@ -375,7 +416,7 @@ async function syncToCloudKV() {
   } catch(e) {}
 }
 
-/* ---------------- 檢查 URL 是否是訪客點開朋友的酒窖 ---------------- */
+/* ---------------- 訪客 URL 檢查 ---------------- */
 async function checkUrlParams() {
   const params = new URLSearchParams(window.location.search);
   const sharedKey = params.get('cellar');
@@ -391,7 +432,7 @@ async function loadSharedCellar(key) {
   document.getElementById('main').innerHTML = `
     <div class="view loading-view">
       <div class="loading-ring"></div>
-      <div style="font-size:13px; color:var(--gold);">正在開啟酒友的私人酒窖...</div>
+      <div style="font-size:13px; color:var(--gold);">正在連線酒友私人酒窖...</div>
     </div>
   `;
   try {
@@ -407,7 +448,6 @@ async function loadSharedCellar(key) {
   }
 }
 
-/* ---------------- 訪客酒窖展示專區 ---------------- */
 function renderVisitorShowroom() {
   const data = visitorCellarData;
   const list = data.cellar || [];
@@ -436,7 +476,6 @@ function renderVisitorShowroom() {
               共典藏 ${list.length} 款佳釀
             </div>
           </div>
-          <!-- 免登入 Cheers / 點讚 -->
           <button class="like-chip" onclick="likeSharedCellar('${data.syncKey}')">
             ❤️ 乾杯 (<span id="like-count">${data.likes || 0}</span>)
           </button>
@@ -505,7 +544,6 @@ function visitorBottleCardHtml(b){
         ${b.diary?.notes ? `<div style="font-size:11px; color:var(--text-muted); margin-top:4px; font-style:italic;">"${escapeHtml(b.diary.notes)}"</div>` : ''}
         
         <div style="margin-top:8px;">
-          <!-- 一鍵複製到自己的願望清單 -->
           <button class="btn btn-ghost" style="padding:4px 10px; font-size:11px; border-color:var(--purple-glow); color:var(--purple-glow);" onclick="forkToMyWishlist('${b.id}')">
             + 複製到我的願望清單
           </button>
@@ -551,14 +589,13 @@ function exitVisitorMode(){
   goHome();
 }
 
-/* ---------------- 1. 酒櫃全 Share 功能 ---------------- */
+/* ---------------- 1. 酒櫃全 Share ---------------- */
 async function shareEntireCellar(){
   if(!cellar.length){
     alert("你的酒櫃仲未有酒，加入酒款後即可分享！");
     return;
   }
   
-  // 背景將全部四大空間酒款發布至 Cloudflare KV
   try {
     await fetch(`${WORKER_API_URL}/api/cellar/publish`, {
       method: 'POST',
@@ -574,7 +611,6 @@ async function shareEntireCellar(){
     return;
   }
 
-  // 生成直達個人酒窖的專屬公開連結
   const shareUrl = `${window.location.origin}${window.location.pathname}?cellar=${mySyncKey}`;
   const shareText = `🍾 歡迎參觀我的私人酒窖 (BottleSense)：\n內有 ${cellar.length} 款精選佳釀與真實品飲日記！\n點擊連結乾杯或挑選想喝的酒款：\n${shareUrl}`;
 
@@ -592,7 +628,7 @@ async function shareEntireCellar(){
   }
 }
 
-/* ---------------- 常規個人功能 ---------------- */
+/* ---------------- Navigation ---------------- */
 function setActiveNav(id){
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
   const el = document.getElementById(id);
@@ -659,7 +695,6 @@ function renderCellar(){
     <div class="view">
       <div class="section-head" style="margin-top:8px;">
         <h2>私人酒窖全景</h2>
-        <!-- 一鍵分享整個酒櫃按鈕 -->
         <button class="share-plane-btn" onclick="shareEntireCellar()">
           ${TELEGRAM_PLANE_SVG}
           <span>分享我的整個酒窖</span>
@@ -726,6 +761,56 @@ function bottleCardHtml(b){
   `;
 }
 
+/* ---------------- 探索 Explore (酒友真實評價池) ---------------- */
+async function renderExplore(){
+  setActiveNav('nav-explore');
+  document.getElementById('main').innerHTML = `
+    <div class="view">
+      <div class="section-head" style="margin-top:8px;">
+        <h2>酒友評價與探索 (Explore)</h2>
+      </div>
+      <div class="info-block" style="margin-bottom:14px; border-color:var(--gold);">
+        <div class="storage-desc">瀏覽公開分享的酒友真實品飲心得與星級。</div>
+      </div>
+      <div id="explore-feed" style="text-align:center; padding:30px 10px; color:var(--text-muted); font-size:12px;">
+        載入中...
+      </div>
+    </div>
+  `;
+
+  try {
+    const res = await fetch(`${WORKER_API_URL}/api/explore`);
+    const publicFeed = res.ok ? await res.json() : [];
+    const feedEl = document.getElementById('explore-feed');
+    if(!feedEl) return;
+
+    if(!publicFeed.length){
+      feedEl.innerHTML = `<div class="empty-shelf">目前社群尚無公開分享記錄。點擊酒款詳情頁的紙飛機即可分享你的心得！</div>`;
+      return;
+    }
+
+    feedEl.innerHTML = publicFeed.map(b => `
+      <div class="bottle-card" style="text-align:left;">
+        <div class="bottle-photo-box">
+          ${b.image ? `<img src="${b.image}">` : `<div class="emoji-fallback">🍷</div>`}
+        </div>
+        <div class="bottle-info">
+          <div class="bottle-name">${escapeHtml(b.identification?.name || 'Wine Note')}</div>
+          <div style="font-size:11px; color:var(--gold); margin-top:2px; font-family:var(--mono);">
+            ★ ${b.personalRating || 5}/5 ・ ${escapeHtml(b.author || '酒友匿名')}
+          </div>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:4px; font-style:italic;">
+            "${escapeHtml(b.diary?.notes || '無筆記記錄')}"
+          </div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e){
+    const feedEl = document.getElementById('explore-feed');
+    if(feedEl) feedEl.innerHTML = `<div class="empty-shelf">暫未能連線至社群評價池。</div>`;
+  }
+}
+
 function renderSettings(){
   document.getElementById('main').innerHTML = `
     <div class="view">
@@ -733,13 +818,42 @@ function renderSettings(){
       <div class="section-head"><h2>設定與雲端備份</h2></div>
       <div class="info-block" style="border-color:var(--gold);">
         <h3 style="color:var(--gold);">你的專屬同步碼 (Sync Key)</h3>
+        <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">換手機時，在其他手機輸入此碼即可還原完整酒庫：</div>
         <div style="font-family:var(--mono); font-size:16px; color:var(--gold); background:var(--surface-2); padding:10px; border-radius:8px; margin:10px 0;">
           ${mySyncKey}
         </div>
         <button class="btn btn-ghost btn-block" onclick="navigator.clipboard.writeText(mySyncKey); alert('已複製！');">複製同步碼</button>
       </div>
+
+      <div class="info-block">
+        <h3>從雲端還原酒庫</h3>
+        <input type="text" id="restore-key-input" class="text-input" placeholder="輸入其他手機的 Sync Key">
+        <button class="btn btn-primary btn-block" onclick="restoreFromCloudKV()">從雲端還原</button>
+      </div>
     </div>
   `;
+}
+
+async function restoreFromCloudKV(){
+  const key = document.getElementById('restore-key-input').value.trim();
+  if(!key){ alert("請輸入同步碼"); return; }
+  try {
+    const res = await fetch(`${WORKER_API_URL}/api/restore?key=${encodeURIComponent(key)}`);
+    if(!res.ok){ alert("找不到此同步碼的雲端備份"); return; }
+    const restored = await res.json();
+    if(Array.isArray(restored)){
+      cellar = restored;
+      mySyncKey = key;
+      localStorage.setItem('bottlesense_sync_key', mySyncKey);
+      const db = await openDB(DB_NAME);
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      await store.clear();
+      for(const b of cellar) store.put(b);
+      alert("酒庫還原成功！");
+      renderCellar();
+    }
+  } catch(e){ alert("還原失敗，請檢查網絡"); }
 }
 
 function renderDetail(id){
@@ -753,14 +867,34 @@ function renderDetail(id){
         <div class="label-name">${escapeHtml(b.identification?.name || '酒款')}</div>
         <div class="label-sub">${escapeHtml(b.identification?.producer || '')}</div>
       </div>
+
       <div class="info-block">
-        <h3>品飲筆記</h3>
-        <textarea id="dt-notes" class="text-input">${b.diary?.notes || ''}</textarea>
+        <h3>⭐ 評分與品飲筆記</h3>
+        <div class="star-row">
+          ${[1,2,3,4,5].map(n=>`<button class="star-btn ${b.personalRating>=n?'filled':''}" onclick="setRating('${b.id}',${n})">★</button>`).join('')}
+        </div>
+        <textarea id="dt-notes" class="text-input" style="margin-top:10px;">${b.diary?.notes || ''}</textarea>
         <button class="btn btn-primary btn-block" onclick="saveQuickNote('${b.id}')">儲存筆記</button>
       </div>
-      <button class="btn btn-wine btn-block" style="margin-top:16px;" onclick="cellar=cellar.filter(x=>x.id!=='${b.id}'); saveBottleToDB({}); renderCellar();">刪除酒款</button>
+
+      <div style="margin-top:14px;">
+        <button class="btn btn-ghost btn-block" style="border-color:var(--gold); color:var(--gold);" onclick="shareSingleBottle('${b.id}')">
+          ${TELEGRAM_PLANE_SVG}
+          <span>分享此酒評至 Explore</span>
+        </button>
+      </div>
+
+      <button class="btn btn-wine btn-block" style="margin-top:16px;" onclick="removeBottle('${b.id}')">刪除酒款</button>
     </div>
   `;
+}
+
+async function setRating(id, n){
+  const b = cellar.find(x=>x.id===id);
+  if(!b) return;
+  b.personalRating = n;
+  await saveBottleToDB(b);
+  renderDetail(id);
 }
 
 async function saveQuickNote(id){
@@ -772,7 +906,28 @@ async function saveQuickNote(id){
   alert("筆記已更新！");
 }
 
-/* ---------------- 拍照上傳流程 ---------------- */
+async function shareSingleBottle(id){
+  const b = cellar.find(x => x.id === id);
+  if(!b) return;
+  b.shared = true;
+  await saveBottleToDB(b);
+  try {
+    await fetch(`${WORKER_API_URL}/api/share`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bottle: b, userEmail: '品飲酒友' })
+    });
+    alert("已公開分享至 Explore 社群！");
+  } catch(e){ alert("分享完成！"); }
+}
+
+async function removeBottle(id){
+  cellar = cellar.filter(x=>x.id!==id);
+  await deleteBottleFromDB(id);
+  renderCellar();
+}
+
+/* ---------------- 拍照上傳 ---------------- */
 document.getElementById('cameraInput').addEventListener('change', handleUpload);
 document.getElementById('galleryInput').addEventListener('change', handleUpload);
 
@@ -818,7 +973,7 @@ async function handleUpload(e){
 function escapeHtml(str){ return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 (async function init(){
-  await loadCellarFromDB();
+  await loadCellarWithMigration();
   checkUrlParams();
 })();
 </script>
