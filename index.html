@@ -28,6 +28,7 @@
     --green-ok: #6E9265;
     --cyan-glow: #38bdf8;
     --purple-glow: #c084fc;
+    --rose-glow: #fb7185;
     --text: #ECE6D6;
     --text-muted: #9A9985;
     --text-faint: #5E5D4E;
@@ -83,18 +84,8 @@
     background:var(--surface); color:var(--text-muted); display:flex; align-items:center; justify-content:center; cursor:pointer;
   }
   .icon-btn svg{ width:16px; height:16px; }
-  .lang-btn{
-    font-family: var(--mono);
-    font-size: 11px;
-    border-radius: 999px;
-    padding: 5px 11px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    color: var(--gold);
-    cursor: pointer;
-  }
 
-  main{ flex:1; padding: 4px 20px 110px; overflow-y:auto; }
+  main{ flex:1; padding: 4px 16px 110px; overflow-y:auto; }
   .view{ animation: fadeIn .35s ease; }
   @keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
 
@@ -125,23 +116,24 @@
   .scan-btn svg{ width:30px; height:30px; }
   .upload-subtext{ font-size:12px; color:var(--text-muted); text-decoration:underline; cursor:pointer; font-family:var(--sans); }
 
-  .stat-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:16px; }
-  .stat-card{ background: var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px; text-align:center; cursor:pointer; }
-  .stat-num{ font-family:var(--serif); font-size:22px; font-weight:600; }
-  .stat-label{ font-size:10px; color:var(--text-faint); font-family:var(--mono); text-transform:uppercase; margin-top:2px;}
+  .stat-grid-5{ display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-top:16px; }
+  .stat-card{ background: var(--surface); border:1px solid var(--line); border-radius:12px; padding:10px 6px; text-align:center; cursor:pointer; }
+  .stat-num{ font-family:var(--serif); font-size:20px; font-weight:600; }
+  .stat-label{ font-size:9.5px; color:var(--text-faint); font-family:var(--mono); text-transform:uppercase; margin-top:2px;}
 
   .section-head{ display:flex; align-items:baseline; justify-content:space-between; margin: 24px 0 12px; }
   .section-head h2{ font-family:var(--serif); font-size:16px; font-weight:600; }
   .section-head a{ font-size:12px; color:var(--gold-dim); cursor:pointer; font-family:var(--mono); }
 
-  .cellar-scene-tabs{ display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; margin-bottom:14px; }
+  /* 5 大空間切換 Tabs */
+  .cellar-scene-tabs{ display:grid; grid-template-columns: repeat(5, 1fr); gap:4px; margin-bottom:14px; }
   .scene-tab{
-    background: var(--surface); border:1px solid var(--line); border-radius:12px;
-    padding:8px 4px; text-align:center; cursor:pointer; transition: all .2s ease;
+    background: var(--surface); border:1px solid var(--line); border-radius:10px;
+    padding:8px 2px; text-align:center; cursor:pointer; transition: all .2s ease;
   }
-  .scene-tab .scene-icon{ font-size:18px; margin-bottom:2px; display:block; }
-  .scene-tab .scene-name{ font-size:10px; font-weight:600; }
-  .scene-tab .scene-count{ font-size:9px; font-family:var(--mono); color:var(--text-faint); margin-top:2px; }
+  .scene-tab .scene-icon{ font-size:16px; margin-bottom:2px; display:block; }
+  .scene-tab .scene-name{ font-size:9.5px; font-weight:600; }
+  .scene-tab .scene-count{ font-size:8.5px; font-family:var(--mono); color:var(--text-faint); margin-top:1px; }
   .scene-tab.active-cooler{ background: linear-gradient(180deg, #132431 0%, #0d1720 100%); border-color: var(--cyan-glow); }
   .scene-tab.active-cooler .scene-name{ color: var(--cyan-glow); }
   .scene-tab.active-wood{ background: linear-gradient(180deg, #2b1f14 0%, #1a130b 100%); border-color: #d97706; }
@@ -150,24 +142,64 @@
   .scene-tab.active-bar .scene-name{ color: var(--gold); }
   .scene-tab.active-wish{ background: linear-gradient(180deg, #28182b 0%, #170d19 100%); border-color: var(--purple-glow); }
   .scene-tab.active-wish .scene-name{ color: var(--purple-glow); }
+  .scene-tab.active-fav{ background: linear-gradient(180deg, #331a22 0%, #190c11 100%); border-color: var(--rose-glow); }
+  .scene-tab.active-fav .scene-name{ color: var(--rose-glow); }
 
-  .shelf-container{ border-radius:16px; padding:16px 14px 20px; position:relative; overflow:hidden; margin-bottom:20px; }
+  .shelf-container{ border-radius:16px; padding:16px 12px 20px; position:relative; overflow:hidden; margin-bottom:20px; }
   .shelf-cooler{ background: radial-gradient(100% 120% at 50% 0%, #162a3b 0%, #0a1017 100%); border: 1px solid rgba(56,189,248,0.3); }
-  .shelf-cooler .shelf-beam{ height:6px; background: linear-gradient(90deg, #1e3a53, #38bdf8, #1e3a53); border-radius:3px; margin:16px 0; }
+  .shelf-cooler .shelf-beam{ height:6px; background: linear-gradient(90deg, #1e3a53, #38bdf8, #1e3a53); border-radius:3px; margin:14px 0; }
   .shelf-wood{ background: linear-gradient(180deg, #2c1b10 0%, #180e08 100%); border: 1px solid #63391d; }
-  .shelf-wood .shelf-beam{ height:9px; background: linear-gradient(180deg, #874921 0%, #4a260f 100%); border-radius:4px; margin:16px 0; }
+  .shelf-wood .shelf-beam{ height:9px; background: linear-gradient(180deg, #874921 0%, #4a260f 100%); border-radius:4px; margin:14px 0; }
   .shelf-bar{ background: radial-gradient(80% 100% at 50% 0%, #292a2d 0%, #101114 100%); border: 1px solid #45474e; }
-  .shelf-bar .shelf-beam{ height:8px; background: linear-gradient(90deg, #333, #777, #333); border-radius:4px; margin:16px 0; }
+  .shelf-bar .shelf-beam{ height:8px; background: linear-gradient(90deg, #333, #777, #333); border-radius:4px; margin:14px 0; }
   .shelf-wish{ background: radial-gradient(80% 100% at 50% 0%, #2c1830 0%, #120914 100%); border: 1px solid rgba(192,132,252,0.35); }
-  .shelf-wish .shelf-beam{ height:6px; background: linear-gradient(90deg, #3d1c47, #c084fc, #3d1c47); border-radius:3px; margin:16px 0; }
+  .shelf-wish .shelf-beam{ height:6px; background: linear-gradient(90deg, #3d1c47, #c084fc, #3d1c47); border-radius:3px; margin:14px 0; }
+  .shelf-fav{ background: radial-gradient(80% 100% at 50% 0%, #3a1522 0%, #14070c 100%); border: 1px solid rgba(251,113,133,0.35); }
+  .shelf-fav .shelf-beam{ height:6px; background: linear-gradient(90deg, #501d2c, #fb7185, #501d2c); border-radius:3px; margin:14px 0; }
+
+  /* ---------- 滑動操作容器 (Swipe Container) ---------- */
+  .swipe-item-wrapper{
+    position: relative;
+    overflow: hidden;
+    border-radius: 14px;
+    margin-bottom: 12px;
+    touch-action: pan-y;
+  }
+  .swipe-action-left, .swipe-action-right{
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 76px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 1;
+  }
+  .swipe-action-left{
+    left: 0;
+    background: #d97706;
+    color: #fff;
+  }
+  .swipe-action-right{
+    right: 0;
+    background: var(--wine-bright);
+    color: #fff;
+  }
+  .swipe-action-icon{ font-size: 20px; line-height: 1; margin-bottom: 2px; }
 
   .bottle-card{
-    display:flex; gap:12px; align-items:center; background: rgba(20,22,16,0.72); backdrop-filter: blur(8px);
-    border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:12px; margin-bottom:12px; cursor:pointer;
+    position: relative;
+    z-index: 2;
+    display:flex; gap:12px; align-items:center; background: #161811;
+    border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:12px;
+    cursor:pointer;
+    transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
-  .bottle-card:hover{ border-color: var(--gold); }
   .bottle-photo-box{
-    width:58px; height:76px; border-radius:8px; overflow:hidden; background:#000; flex-shrink:0; border: 1px solid rgba(255,255,255,0.12);
+    width:54px; height:72px; border-radius:8px; overflow:hidden; background:#000; flex-shrink:0; border: 1px solid rgba(255,255,255,0.12);
   }
   .bottle-photo-box img{ width:100%; height:100%; object-fit:cover; }
   .bottle-photo-box .emoji-fallback{ display:flex; align-items:center; justify-content:center; height:100%; font-size:26px; }
@@ -177,15 +209,11 @@
   
   .tag-cluster{ display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
   .tag-badge{
-    font-size:9.5px; padding:2px 6px; border-radius:4px; font-family:var(--sans);
+    font-size:9px; padding:2px 5px; border-radius:4px; font-family:var(--sans);
     background:rgba(212,175,55,0.12); color:var(--gold); border:1px solid rgba(212,175,55,0.25);
   }
   .tag-badge.secondary{ background:rgba(255,255,255,0.05); color:var(--text-muted); border-color:rgba(255,255,255,0.1); }
-  .tag-pill{ font-size:9.5px; font-family:var(--mono); padding:2px 7px; border-radius:4px; text-transform:uppercase; }
-  .tag-unopened{ background: rgba(56,189,248,0.15); color: var(--cyan-glow); }
-  .tag-opened{ background: rgba(251,191,36,0.15); color: #fbbf24; }
-  .tag-finished{ background: rgba(255,255,255,0.1); color: var(--text-muted); }
-  .tag-wishlist{ background: rgba(192,132,252,0.15); color: var(--purple-glow); }
+  .fav-star-badge{ color: var(--gold); font-size: 13px; margin-left: auto; }
 
   .detail-photo-hero{
     width:100%; height:230px; border-radius:16px; overflow:hidden; margin:14px 0; border:1px solid var(--line);
@@ -193,30 +221,17 @@
   }
   .detail-photo-hero img{ width:100%; height:100%; object-fit:contain; }
 
-  /* Telegram 風格紙飛機分享按鈕 */
   .share-plane-btn{
     display:inline-flex; align-items:center; justify-content:center; gap:6px;
     background: rgba(212,175,55,0.15); border: 1px solid var(--gold); border-radius: 999px;
-    color: var(--gold); padding: 7px 16px; font-size: 12px; font-family: var(--mono); cursor: pointer;
-    transition: all .15s ease;
+    color: var(--gold); padding: 6px 14px; font-size: 11.5px; font-family: var(--mono); cursor: pointer;
   }
-  .share-plane-btn:active{ transform: scale(0.96); }
-  .share-plane-btn svg{ width:15px; height:15px; fill:currentColor; }
+  .share-plane-btn svg{ width:14px; height:14px; fill:currentColor; }
 
-  .destination-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:14px; }
-  .dest-card{ background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 10px; text-align:center; cursor:pointer; }
-  .dest-card .icon{ font-size:24px; margin-bottom:5px; display:block; }
-  .dest-card .title{ font-size:12.5px; font-weight:600; }
-  .dest-card .desc{ font-size:9.5px; color:var(--text-muted); margin-top:2px; }
-
-  .wish-input-box{ margin-top:14px; background: var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px; }
-  .field-label{ font-size:11px; font-family:var(--mono); color:var(--text-faint); margin-bottom:5px; }
-  .text-input{
-    width:100%; background:var(--surface-2); border:1px solid var(--line);
-    border-radius:8px; padding:9px; color:var(--text); font-family:var(--sans); font-size:13px; outline:none; margin-bottom:8px;
-  }
-  textarea.text-input{ resize:vertical; min-height:64px; }
-  .tag-edit-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px; }
+  .destination-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-top:14px; }
+  .dest-card{ background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 4px; text-align:center; cursor:pointer; }
+  .dest-card .icon{ font-size:20px; margin-bottom:4px; display:block; }
+  .dest-card .title{ font-size:11.5px; font-weight:600; }
 
   .empty-shelf{ text-align:center; padding: 36px 10px; color: var(--text-faint); font-size:12.5px; line-height:1.6; }
   .loading-view{ display:flex; flex-direction:column; align-items:center; justify-content:center; padding-top:60px; text-align:center; }
@@ -226,32 +241,22 @@
   .label-card{
     margin-top:14px; border-radius:18px; border:1px solid var(--line);
     background: linear-gradient(180deg, var(--surface) 0%, #161810 100%);
-    padding:22px 18px; position:relative; overflow:hidden;
+    padding:20px 16px; position:relative; overflow:hidden;
   }
-  .label-card::after{ content:""; position:absolute; left:0; right:0; top:0; height:3px; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
-  .confidence-seal{
-    position:absolute; top:16px; right:16px; width:50px; height:50px; border-radius:50%;
-    display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:var(--mono); border: 2px solid currentColor;
-  }
-  .seal-high{ color: var(--green-ok); } .seal-medium{ color: var(--gold); } .seal-low{ color: var(--wine-bright); }
-  .seal-pct{ font-size:13px; font-weight:600; line-height:1; }
-  .seal-label{ font-size:7px; letter-spacing:.5px; text-transform:uppercase; margin-top:2px; }
-  .label-eyebrow{ font-family:var(--mono); font-size:10px; color:var(--gold-dim); text-transform:uppercase; margin-bottom:5px;}
-  .label-name{ font-family:var(--serif); font-size:21px; font-weight:600; line-height:1.2; max-width:76%; margin-bottom:4px;}
-  .label-sub{ font-size:12px; color:var(--text-muted); max-width:76%; margin-bottom:12px;}
-  .label-facts{ display:grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; padding-top:12px; border-top:1px dashed var(--line); }
-  .fact-label{ font-family:var(--mono); font-size:9px; color:var(--text-faint); }
-  .fact-value{ font-family:var(--mono); font-size:12px; color:var(--text); margin-top:2px; }
+  .label-name{ font-family:var(--serif); font-size:20px; font-weight:600; margin-bottom:4px;}
+  .label-sub{ font-size:12px; color:var(--text-muted); margin-bottom:8px;}
 
   .info-block{ margin-top:14px; background: var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px; }
-  .info-block h3{ font-family:var(--serif); font-size:14.5px; font-weight:600; margin-bottom:8px;}
-  .storage-row{ display:flex; gap:10px; margin-bottom:6px; }
-  .storage-tag{ font-family:var(--mono); font-size:10px; text-transform:uppercase; color:var(--gold); flex-shrink:0; width:68px; }
-  .storage-desc{ font-size:12px; color:var(--text-muted); line-height:1.5; }
+  .info-block h3{ font-family:var(--serif); font-size:14px; font-weight:600; margin-bottom:8px;}
 
   .star-row{ display:flex; gap:8px; margin-top:6px; }
   .star-btn{ background:none; border:none; cursor:pointer; font-size:24px; color: var(--line); opacity:.5; }
   .star-btn.filled{ color: var(--gold); opacity:1; }
+
+  .text-input{
+    width:100%; background:var(--surface-2); border:1px solid var(--line);
+    border-radius:8px; padding:9px; color:var(--text); font-family:var(--sans); font-size:13px; outline:none; margin-top:6px;
+  }
 
   .bottomnav{
     position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:480px;
@@ -266,10 +271,14 @@
   .navbtn svg{ width:20px; height:20px; }
   .back-row{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; color:var(--text-muted); font-size:13px; }
 
-  .like-chip{
-    display:inline-flex; align-items:center; gap:6px; background:rgba(239,68,68,0.12);
-    border:1px solid rgba(239,68,68,0.3); border-radius:999px; padding:6px 14px; color:#f87171;
-    font-size:12px; cursor:pointer; font-family:var(--mono);
+  /* 提示彈窗 */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(5px);
+    display:flex; align-items:center; justify-content:center; z-index:999; padding:20px;
+  }
+  .modal-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:18px;
+    padding:22px 18px; width:100%; max-width:340px; text-align:center;
   }
 </style>
 </head>
@@ -284,13 +293,11 @@
       <button class="icon-btn" onclick="renderSettings()" aria-label="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
       </button>
-      <button class="lang-btn" onclick="toggleLang()" id="btn-lang">EN</button>
     </div>
   </div>
 
   <main id="main"></main>
 
-  <!-- 底部選單：包含 Scan、Cellar、Explore -->
   <nav class="bottomnav" id="bottomnav">
     <button class="navbtn" id="nav-home" onclick="goHome()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9"/></svg>
@@ -307,6 +314,7 @@
   </nav>
 </div>
 
+<div id="modal-container"></div>
 <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;">
 <input type="file" id="galleryInput" accept="image/*" style="display:none;">
 
@@ -314,24 +322,18 @@
 const TELEGRAM_PLANE_SVG = `<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>`;
 const WORKER_API_URL = "https://bottlesense-api.fiveathree.workers.dev";
 
-let currentLang = 'zh';
 let cellar = [];
 let currentScan = null;
 let currentDetailId = null;
-let currentScene = 'cooler';
+let currentScene = 'cooler'; // 'cooler' | 'wood' | 'bar' | 'wishlist' | 'favorite'
 
-// 訪客展示模式
-let isVisitorMode = false;
-let visitorCellarData = null;
-
-// 專屬同步碼
 let mySyncKey = localStorage.getItem('bottlesense_sync_key') || '';
 if(!mySyncKey){
   mySyncKey = 'BTL-' + Math.random().toString(36).substring(2,6).toUpperCase() + '-' + Math.random().toString(36).substring(2,6).toUpperCase();
   localStorage.setItem('bottlesense_sync_key', mySyncKey);
 }
 
-// 永久鎖定資料庫名稱！以後絕對不變更！
+// 永久鎖定資料庫名稱
 const DB_NAME = 'BottleSenseDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'bottles';
@@ -348,9 +350,9 @@ function openDB(dbName = DB_NAME) {
   });
 }
 
-/* ---------------- 自動拯救找回舊版本所有酒款 (Auto-Migration) ---------------- */
+/* 自動整併撈回所有舊 DB */
 async function loadCellarWithMigration() {
-  const oldDbNames = ['BottleSenseDB', 'BottleSenseDB_V7', 'BottleSenseDB_V6', 'BottleSenseDB_V5', 'BottleSenseDB_V4', 'BottleSenseDB_V3', 'BottleSenseDB_V2', 'BottleSenseDB_V1'];
+  const oldDbNames = ['BottleSenseDB', 'BottleSenseDB_V7', 'BottleSenseDB_V6', 'BottleSenseDB_V5', 'BottleSenseDB_V4', 'BottleSenseDB_V3'];
   let allFound = [];
   const seenIds = new Set();
 
@@ -374,14 +376,11 @@ async function loadCellarWithMigration() {
     } catch(e){}
   }
 
-  // 同步存入標準主庫 BottleSenseDB
   try {
     const mainDb = await openDB(DB_NAME);
     const tx = mainDb.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
-    for (const b of allFound) {
-      store.put(b);
-    }
+    for (const b of allFound) store.put(b);
   } catch(e){}
 
   cellar = allFound.sort((a,b)=> (b.addedAt||0) - (a.addedAt||0));
@@ -393,7 +392,7 @@ async function saveBottleToDB(bottle) {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).put(bottle);
     syncToCloudKV();
-  } catch(e) { console.error(e); }
+  } catch(e) {}
 }
 
 async function deleteBottleFromDB(id) {
@@ -416,219 +415,7 @@ async function syncToCloudKV() {
   } catch(e) {}
 }
 
-/* ---------------- 訪客 URL 檢查 ---------------- */
-async function checkUrlParams() {
-  const params = new URLSearchParams(window.location.search);
-  const sharedKey = params.get('cellar');
-  if (sharedKey) {
-    await loadSharedCellar(sharedKey);
-  } else {
-    goHome();
-  }
-}
-
-async function loadSharedCellar(key) {
-  isVisitorMode = true;
-  document.getElementById('main').innerHTML = `
-    <div class="view loading-view">
-      <div class="loading-ring"></div>
-      <div style="font-size:13px; color:var(--gold);">正在連線酒友私人酒窖...</div>
-    </div>
-  `;
-  try {
-    const res = await fetch(`${WORKER_API_URL}/api/cellar/get?key=${encodeURIComponent(key)}`);
-    if (!res.ok) throw new Error("Not found");
-    visitorCellarData = await res.json();
-    renderVisitorShowroom();
-  } catch(e) {
-    alert("找不到該酒窖或連結已過期");
-    isVisitorMode = false;
-    window.history.replaceState({}, '', window.location.pathname);
-    goHome();
-  }
-}
-
-function renderVisitorShowroom() {
-  const data = visitorCellarData;
-  const list = data.cellar || [];
-  
-  const coolerBottles = list.filter(b => b.status === 'unopened');
-  const woodBottles = list.filter(b => b.status === 'opened');
-  const barBottles = list.filter(b => ['finished', 'gifted', 'sold'].includes(b.status));
-  const wishBottles = list.filter(b => b.status === 'wishlist');
-
-  let activeList = [];
-  let shelfTitle = '';
-  if (currentScene === 'cooler') { activeList = coolerBottles; shelfTitle = '⚡ 電子恆溫酒櫃 (未開)'; }
-  else if (currentScene === 'wood') { activeList = woodBottles; shelfTitle = '🪵 實木日常酒架 (已開)'; }
-  else if (currentScene === 'bar') { activeList = barBottles; shelfTitle = '🥃 吧台展示桌 (空瓶)'; }
-  else { activeList = wishBottles; shelfTitle = '🏷️ 考察與願望清單'; }
-
-  document.getElementById('main').innerHTML = `
-    <div class="view">
-      <div style="background:linear-gradient(180deg, var(--surface) 0%, #15170f 100%); border:1px solid var(--gold-dim); border-radius:16px; padding:18px; margin-top:10px;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div>
-            <div style="font-family:var(--serif); font-size:18px; font-weight:600; color:var(--gold);">
-              ${escapeHtml(data.ownerName || '品飲家')} 的私人酒窖
-            </div>
-            <div style="font-size:11px; color:var(--text-muted); margin-top:3px; font-family:var(--mono);">
-              共典藏 ${list.length} 款佳釀
-            </div>
-          </div>
-          <button class="like-chip" onclick="likeSharedCellar('${data.syncKey}')">
-            ❤️ 乾杯 (<span id="like-count">${data.likes || 0}</span>)
-          </button>
-        </div>
-      </div>
-
-      <div class="cellar-scene-tabs" style="margin-top:16px;">
-        <div class="scene-tab ${currentScene==='cooler'?'active-cooler':''}" onclick="switchVisitorScene('cooler')">
-          <span class="scene-icon">⚡</span>
-          <div class="scene-name">電子酒櫃</div>
-          <div class="scene-count">${coolerBottles.length}</div>
-        </div>
-        <div class="scene-tab ${currentScene==='wood'?'active-wood':''}" onclick="switchVisitorScene('wood')">
-          <span class="scene-icon">🪵</span>
-          <div class="scene-name">實木酒架</div>
-          <div class="scene-count">${woodBottles.length}</div>
-        </div>
-        <div class="scene-tab ${currentScene==='bar'?'active-bar':''}" onclick="switchVisitorScene('bar')">
-          <span class="scene-icon">🥃</span>
-          <div class="scene-name">吧台展示</div>
-          <div class="scene-count">${barBottles.length}</div>
-        </div>
-        <div class="scene-tab ${currentScene==='wishlist'?'active-wish':''}" onclick="switchVisitorScene('wishlist')">
-          <span class="scene-icon">🏷️</span>
-          <div class="scene-name">願望清單</div>
-          <div class="scene-count">${wishBottles.length}</div>
-        </div>
-      </div>
-
-      <div class="shelf-container shelf-${currentScene}">
-        <div style="font-family:var(--serif); font-size:14px; font-weight:600; margin-bottom:8px;">${shelfTitle}</div>
-        <div class="shelf-beam"></div>
-        <div>
-          ${activeList.length ? activeList.map(b => visitorBottleCardHtml(b)).join('') : '<div class="empty-shelf">此空間暫無藏酒</div>'}
-        </div>
-        <div class="shelf-beam"></div>
-      </div>
-
-      <div style="margin-top:10px;">
-        <button class="btn btn-primary btn-block" onclick="exitVisitorMode()">返回我的個人酒窖</button>
-      </div>
-    </div>
-  `;
-}
-
-function switchVisitorScene(scene){
-  currentScene = scene;
-  renderVisitorShowroom();
-}
-
-function visitorBottleCardHtml(b){
-  const idf = b.identification || {};
-  const tags = b.tags || {};
-  const name = idf.name || idf.producer || '酒款';
-  return `
-    <div class="bottle-card" style="align-items:flex-start;">
-      <div class="bottle-photo-box">
-        ${b.image ? `<img src="${b.image}">` : `<div class="emoji-fallback">🍷</div>`}
-      </div>
-      <div class="bottle-info">
-        <div class="bottle-name">${escapeHtml(name)}</div>
-        <div class="bottle-sub">${escapeHtml(idf.producer || '')} · ${escapeHtml(tags.vintage || '')}</div>
-        <div style="font-size:11.5px; color:var(--gold); margin-top:3px; font-family:var(--mono);">
-          ${b.personalRating ? '★'.repeat(b.personalRating) : '暫未評分'}
-        </div>
-        ${b.diary?.notes ? `<div style="font-size:11px; color:var(--text-muted); margin-top:4px; font-style:italic;">"${escapeHtml(b.diary.notes)}"</div>` : ''}
-        
-        <div style="margin-top:8px;">
-          <button class="btn btn-ghost" style="padding:4px 10px; font-size:11px; border-color:var(--purple-glow); color:var(--purple-glow);" onclick="forkToMyWishlist('${b.id}')">
-            + 複製到我的願望清單
-          </button>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-async function likeSharedCellar(key){
-  try {
-    const res = await fetch(`${WORKER_API_URL}/api/cellar/like`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key })
-    });
-    const d = await res.json();
-    if (d.success) {
-      document.getElementById('like-count').textContent = d.likes;
-      alert("乾杯成功！已向酒友點讚 Cheers 🥂");
-    }
-  } catch(e){}
-}
-
-async function forkToMyWishlist(bottleId){
-  const bottle = visitorCellarData.cellar.find(x => x.id === bottleId);
-  if(!bottle) return;
-  const clone = {
-    ...bottle,
-    id: 'b_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
-    status: 'wishlist',
-    addedAt: Date.now()
-  };
-  cellar.unshift(clone);
-  await saveBottleToDB(clone);
-  alert(`已將「${clone.identification?.name || '酒款'}」收藏進你的願望清單！`);
-}
-
-function exitVisitorMode(){
-  isVisitorMode = false;
-  visitorCellarData = null;
-  window.history.replaceState({}, '', window.location.pathname);
-  goHome();
-}
-
-/* ---------------- 1. 酒櫃全 Share ---------------- */
-async function shareEntireCellar(){
-  if(!cellar.length){
-    alert("你的酒櫃仲未有酒，加入酒款後即可分享！");
-    return;
-  }
-  
-  try {
-    await fetch(`${WORKER_API_URL}/api/cellar/publish`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        syncKey: mySyncKey,
-        cellar: cellar,
-        ownerName: '品飲家'
-      })
-    });
-  } catch(e){
-    alert("發布失敗，請確認網絡狀態");
-    return;
-  }
-
-  const shareUrl = `${window.location.origin}${window.location.pathname}?cellar=${mySyncKey}`;
-  const shareText = `🍾 歡迎參觀我的私人酒窖 (BottleSense)：\n內有 ${cellar.length} 款精選佳釀與真實品飲日記！\n點擊連結乾杯或挑選想喝的酒款：\n${shareUrl}`;
-
-  if (navigator.share) {
-    try {
-      await navigator.share({
-        title: '我的 BottleSense 私人酒窖',
-        text: shareText,
-        url: shareUrl
-      });
-    } catch(err){}
-  } else {
-    navigator.clipboard.writeText(shareUrl);
-    alert(`專屬酒窖公開連結已複製至剪貼簿！\n發送給朋友，對方打開即可直接瀏覽你的整個酒櫃與互動乾杯：\n${shareUrl}`);
-  }
-}
-
-/* ---------------- Navigation ---------------- */
+/* ---------------- 導航 ---------------- */
 function setActiveNav(id){
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
   const el = document.getElementById(id);
@@ -643,12 +430,13 @@ function renderHome(){
   const countWood = cellar.filter(b=>b.status==='opened').length;
   const countBar = cellar.filter(b=>['finished','gifted','sold'].includes(b.status)).length;
   const countWish = cellar.filter(b=>b.status==='wishlist').length;
+  const countFav = cellar.filter(b=>b.isFavorite).length;
 
   document.getElementById('main').innerHTML = `
     <div class="view">
       <div class="scan-hero">
         <h1>影一張酒標，<br>知道下一步應該點做</h1>
-        <p>AI 視覺分析價值地圖、風味推薦，一鍵分享整個私人酒櫃。</p>
+        <p>AI 視覺分析風味建議，滑動卡片即可收藏或移除。</p>
         
         <div class="scan-center-box">
           <button class="scan-btn" onclick="document.getElementById('cameraInput').click()" aria-label="Take Photo">
@@ -659,14 +447,15 @@ function renderHome(){
       </div>
 
       <div class="section-head">
-        <h2>我的四大藏酒空間</h2>
+        <h2>我的藏酒空間</h2>
         <a onclick="renderCellar()">打開酒櫃 →</a>
       </div>
-      <div class="stat-grid">
-        <div class="stat-card" onclick="openScene('cooler')"><div class="stat-num" style="color:var(--cyan-glow);">${countCooler}</div><div class="stat-label">⚡ 電子恆溫櫃</div></div>
-        <div class="stat-card" onclick="openScene('wood')"><div class="stat-num" style="color:#fbbf24;">${countWood}</div><div class="stat-label">🪵 實木日常架</div></div>
-        <div class="stat-card" onclick="openScene('bar')"><div class="stat-num" style="color:var(--gold);">${countBar}</div><div class="stat-label">🥃 吧台展示桌</div></div>
-        <div class="stat-card" onclick="openScene('wishlist')"><div class="stat-num" style="color:var(--purple-glow);">${countWish}</div><div class="stat-label">🏷️ 願望清單</div></div>
+      <div class="stat-grid-5">
+        <div class="stat-card" onclick="openScene('cooler')"><div class="stat-num" style="color:var(--cyan-glow);">${countCooler}</div><div class="stat-label">⚡ 未飲</div></div>
+        <div class="stat-card" onclick="openScene('wood')"><div class="stat-num" style="color:#fbbf24;">${countWood}</div><div class="stat-label">🪵 已飲</div></div>
+        <div class="stat-card" onclick="openScene('bar')"><div class="stat-num" style="color:var(--gold);">${countBar}</div><div class="stat-label">🥃 飲完</div></div>
+        <div class="stat-card" onclick="openScene('wishlist')"><div class="stat-num" style="color:var(--purple-glow);">${countWish}</div><div class="stat-label">🏷️ 想買</div></div>
+        <div class="stat-card" onclick="openScene('favorite')"><div class="stat-num" style="color:var(--rose-glow);">${countFav}</div><div class="stat-label">⭐ 最愛</div></div>
       </div>
     </div>
   `;
@@ -677,19 +466,22 @@ function openScene(scene){
   renderCellar();
 }
 
+/* ---------------- 5 大空間 Cellar 畫面 ---------------- */
 function renderCellar(){
   setActiveNav('nav-cellar');
   const coolerBottles = cellar.filter(b => b.status === 'unopened');
   const woodBottles = cellar.filter(b => b.status === 'opened');
   const barBottles = cellar.filter(b => ['finished', 'gifted', 'sold'].includes(b.status));
   const wishBottles = cellar.filter(b => b.status === 'wishlist');
+  const favBottles = cellar.filter(b => b.isFavorite);
 
   let activeList = [];
   let shelfTitle = '';
-  if (currentScene === 'cooler') { activeList = coolerBottles; shelfTitle = '⚡ 電子恆溫酒櫃 (未開)'; }
-  else if (currentScene === 'wood') { activeList = woodBottles; shelfTitle = '🪵 實木日常酒架 (已開)'; }
-  else if (currentScene === 'bar') { activeList = barBottles; shelfTitle = '🥃 吧台展示桌 (空瓶)'; }
-  else { activeList = wishBottles; shelfTitle = '🏷️ 願望清單'; }
+  if (currentScene === 'cooler') { activeList = coolerBottles; shelfTitle = '⚡ 電子恆溫酒櫃 (未飲)'; }
+  else if (currentScene === 'wood') { activeList = woodBottles; shelfTitle = '🪵 實木日常酒架 (已飲中)'; }
+  else if (currentScene === 'bar') { activeList = barBottles; shelfTitle = '🥃 吧台展示桌 (飲完紀念)'; }
+  else if (currentScene === 'wishlist') { activeList = wishBottles; shelfTitle = '🏷️ 願望清單 (想買)'; }
+  else { activeList = favBottles; shelfTitle = '⭐ 心頭好精選 (最愛)'; }
 
   document.getElementById('main').innerHTML = `
     <div class="view">
@@ -697,30 +489,40 @@ function renderCellar(){
         <h2>私人酒窖全景</h2>
         <button class="share-plane-btn" onclick="shareEntireCellar()">
           ${TELEGRAM_PLANE_SVG}
-          <span>分享我的整個酒窖</span>
+          <span>分享酒窖</span>
         </button>
       </div>
 
+      <div style="font-size:11px; color:var(--text-faint); margin-bottom:8px; font-family:var(--mono);">
+        💡 滑動卡片：👉 右滑加最愛 / 👈 左滑移除
+      </div>
+
+      <!-- 5 大空間切換標籤 -->
       <div class="cellar-scene-tabs">
         <div class="scene-tab ${currentScene==='cooler'?'active-cooler':''}" onclick="switchScene('cooler')">
           <span class="scene-icon">⚡</span>
-          <div class="scene-name">電子酒櫃</div>
+          <div class="scene-name">未飲</div>
           <div class="scene-count">${coolerBottles.length}</div>
         </div>
         <div class="scene-tab ${currentScene==='wood'?'active-wood':''}" onclick="switchScene('wood')">
           <span class="scene-icon">🪵</span>
-          <div class="scene-name">實木酒架</div>
+          <div class="scene-name">已飲</div>
           <div class="scene-count">${woodBottles.length}</div>
         </div>
         <div class="scene-tab ${currentScene==='bar'?'active-bar':''}" onclick="switchScene('bar')">
           <span class="scene-icon">🥃</span>
-          <div class="scene-name">吧台展示</div>
+          <div class="scene-name">飲完</div>
           <div class="scene-count">${barBottles.length}</div>
         </div>
         <div class="scene-tab ${currentScene==='wishlist'?'active-wish':''}" onclick="switchScene('wishlist')">
           <span class="scene-icon">🏷️</span>
-          <div class="scene-name">願望清單</div>
+          <div class="scene-name">想買</div>
           <div class="scene-count">${wishBottles.length}</div>
+        </div>
+        <div class="scene-tab ${currentScene==='favorite'?'active-fav':''}" onclick="switchScene('favorite')">
+          <span class="scene-icon">⭐</span>
+          <div class="scene-name">最愛</div>
+          <div class="scene-count">${favBottles.length}</div>
         </div>
       </div>
 
@@ -734,6 +536,8 @@ function renderCellar(){
       </div>
     </div>
   `;
+
+  attachSwipeListeners();
 }
 
 function switchScene(scene){
@@ -741,131 +545,214 @@ function switchScene(scene){
   renderCellar();
 }
 
+/* 支援手勢滑動的酒卡 HTML */
 function bottleCardHtml(b){
   const idf = b.identification || {};
   const tags = b.tags || {};
   return `
-    <div class="bottle-card" onclick="renderDetail('${b.id}')">
-      <div class="bottle-photo-box">
-        ${b.image ? `<img src="${b.image}">` : `<div class="emoji-fallback">🍷</div>`}
+    <div class="swipe-item-wrapper" id="wrap-${b.id}">
+      <!-- 左側背景按鈕 (右滑顯露：加入最愛) -->
+      <div class="swipe-action-left" onclick="confirmToggleFavorite('${b.id}')">
+        <span class="swipe-action-icon">${b.isFavorite ? '★' : '☆'}</span>
+        <span>${b.isFavorite ? '取消最愛' : '加最愛'}</span>
       </div>
-      <div class="bottle-info">
-        <div class="bottle-name">${escapeHtml(idf.name || '酒款')}</div>
-        <div class="bottle-sub">${escapeHtml(idf.producer || '')} · ${escapeHtml(tags.vintage || '')}</div>
-        <div class="tag-cluster">
-          <span class="tag-badge">${escapeHtml(tags.category || '酒類')}</span>
-          ${b.personalRating ? `<span class="tag-badge secondary">★ ${b.personalRating}/5</span>` : ''}
-        </div>
-      </div>
-    </div>
-  `;
-}
 
-/* ---------------- 探索 Explore (酒友真實評價池) ---------------- */
-async function renderExplore(){
-  setActiveNav('nav-explore');
-  document.getElementById('main').innerHTML = `
-    <div class="view">
-      <div class="section-head" style="margin-top:8px;">
-        <h2>酒友評價與探索 (Explore)</h2>
+      <!-- 右側背景按鈕 (左滑顯露：移除刪除) -->
+      <div class="swipe-action-right" onclick="confirmDeleteBottle('${b.id}')">
+        <span class="swipe-action-icon">✕</span>
+        <span>移除</span>
       </div>
-      <div class="info-block" style="margin-bottom:14px; border-color:var(--gold);">
-        <div class="storage-desc">瀏覽公開分享的酒友真實品飲心得與星級。</div>
-      </div>
-      <div id="explore-feed" style="text-align:center; padding:30px 10px; color:var(--text-muted); font-size:12px;">
-        載入中...
-      </div>
-    </div>
-  `;
 
-  try {
-    const res = await fetch(`${WORKER_API_URL}/api/explore`);
-    const publicFeed = res.ok ? await res.json() : [];
-    const feedEl = document.getElementById('explore-feed');
-    if(!feedEl) return;
-
-    if(!publicFeed.length){
-      feedEl.innerHTML = `<div class="empty-shelf">目前社群尚無公開分享記錄。點擊酒款詳情頁的紙飛機即可分享你的心得！</div>`;
-      return;
-    }
-
-    feedEl.innerHTML = publicFeed.map(b => `
-      <div class="bottle-card" style="text-align:left;">
+      <!-- 酒卡本體 -->
+      <div class="bottle-card" id="card-${b.id}" onclick="onCardClick(event, '${b.id}')">
         <div class="bottle-photo-box">
           ${b.image ? `<img src="${b.image}">` : `<div class="emoji-fallback">🍷</div>`}
         </div>
         <div class="bottle-info">
-          <div class="bottle-name">${escapeHtml(b.identification?.name || 'Wine Note')}</div>
-          <div style="font-size:11px; color:var(--gold); margin-top:2px; font-family:var(--mono);">
-            ★ ${b.personalRating || 5}/5 ・ ${escapeHtml(b.author || '酒友匿名')}
+          <div style="display:flex; align-items:center;">
+            <div class="bottle-name">${escapeHtml(idf.name || '酒款')}</div>
+            ${b.isFavorite ? `<span class="fav-star-badge">★</span>` : ''}
           </div>
-          <div style="font-size:12px; color:var(--text-muted); margin-top:4px; font-style:italic;">
-            "${escapeHtml(b.diary?.notes || '無筆記記錄')}"
+          <div class="bottle-sub">${escapeHtml(idf.producer || '')} · ${escapeHtml(tags.vintage || '')}</div>
+          <div class="tag-cluster">
+            <span class="tag-badge">${escapeHtml(tags.category || '酒類')}</span>
+            ${b.personalRating ? `<span class="tag-badge secondary">★ ${b.personalRating}/5</span>` : ''}
           </div>
         </div>
-      </div>
-    `).join('');
-  } catch(e){
-    const feedEl = document.getElementById('explore-feed');
-    if(feedEl) feedEl.innerHTML = `<div class="empty-shelf">暫未能連線至社群評價池。</div>`;
-  }
-}
-
-function renderSettings(){
-  document.getElementById('main').innerHTML = `
-    <div class="view">
-      <div class="back-row" onclick="goHome()">← 返回</div>
-      <div class="section-head"><h2>設定與雲端備份</h2></div>
-      <div class="info-block" style="border-color:var(--gold);">
-        <h3 style="color:var(--gold);">你的專屬同步碼 (Sync Key)</h3>
-        <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">換手機時，在其他手機輸入此碼即可還原完整酒庫：</div>
-        <div style="font-family:var(--mono); font-size:16px; color:var(--gold); background:var(--surface-2); padding:10px; border-radius:8px; margin:10px 0;">
-          ${mySyncKey}
-        </div>
-        <button class="btn btn-ghost btn-block" onclick="navigator.clipboard.writeText(mySyncKey); alert('已複製！');">複製同步碼</button>
-      </div>
-
-      <div class="info-block">
-        <h3>從雲端還原酒庫</h3>
-        <input type="text" id="restore-key-input" class="text-input" placeholder="輸入其他手機的 Sync Key">
-        <button class="btn btn-primary btn-block" onclick="restoreFromCloudKV()">從雲端還原</button>
       </div>
     </div>
   `;
 }
 
-async function restoreFromCloudKV(){
-  const key = document.getElementById('restore-key-input').value.trim();
-  if(!key){ alert("請輸入同步碼"); return; }
-  try {
-    const res = await fetch(`${WORKER_API_URL}/api/restore?key=${encodeURIComponent(key)}`);
-    if(!res.ok){ alert("找不到此同步碼的雲端備份"); return; }
-    const restored = await res.json();
-    if(Array.isArray(restored)){
-      cellar = restored;
-      mySyncKey = key;
-      localStorage.setItem('bottlesense_sync_key', mySyncKey);
-      const db = await openDB(DB_NAME);
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      await store.clear();
-      for(const b of cellar) store.put(b);
-      alert("酒庫還原成功！");
-      renderCellar();
-    }
-  } catch(e){ alert("還原失敗，請檢查網絡"); }
+/* ---------------- 左右滑動手勢核心邏輯 (Touch & Mouse) ---------------- */
+let swipedCardId = null;
+
+function attachSwipeListeners(){
+  const wrappers = document.querySelectorAll('.swipe-item-wrapper');
+  wrappers.forEach(wrap => {
+    const card = wrap.querySelector('.bottle-card');
+    const id = wrap.id.replace('wrap-', '');
+
+    let startX = 0, currentX = 0, isDragging = false;
+
+    const onStart = (e) => {
+      startX = e.touches ? e.touches[0].clientX : e.clientX;
+      isDragging = true;
+      card.style.transition = 'none';
+    };
+
+    const onMove = (e) => {
+      if(!isDragging) return;
+      currentX = e.touches ? e.touches[0].clientX : e.clientX;
+      const diffX = currentX - startX;
+      // 限制滑動最大距離 (-80px 到 80px)
+      if (diffX > -100 && diffX < 100) {
+        card.style.transform = `translateX(${diffX}px)`;
+      }
+    };
+
+    const onEnd = (e) => {
+      if(!isDragging) return;
+      isDragging = false;
+      card.style.transition = 'transform 0.25s ease';
+      const diffX = currentX - startX;
+
+      if (diffX > 45) {
+        // 向右滑開 (露出星號)
+        card.style.transform = 'translateX(76px)';
+        swipedCardId = id;
+      } else if (diffX < -45) {
+        // 向左滑開 (露出叉叉)
+        card.style.transform = 'translateX(-76px)';
+        swipedCardId = id;
+      } else {
+        // 彈回原位
+        card.style.transform = 'translateX(0px)';
+        swipedCardId = null;
+      }
+    };
+
+    card.addEventListener('touchstart', onStart, {passive: true});
+    card.addEventListener('touchmove', onMove, {passive: true});
+    card.addEventListener('touchend', onEnd);
+
+    card.addEventListener('mousedown', onStart);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onEnd);
+  });
 }
 
+function onCardClick(e, id){
+  const card = document.getElementById(`card-${id}`);
+  // 如果處於滑開狀態，點擊卡片先收回
+  if (card && card.style.transform && card.style.transform !== 'translateX(0px)') {
+    e.stopPropagation();
+    card.style.transform = 'translateX(0px)';
+    swipedCardId = null;
+    return;
+  }
+  renderDetail(id);
+}
+
+/* ---------------- 彈窗 1：加入 / 取消最愛 (Add to Favorite) ---------------- */
+function confirmToggleFavorite(id){
+  const b = cellar.find(x => x.id === id);
+  if(!b) return;
+  const isFav = !!b.isFavorite;
+  const name = b.identification?.name || '此酒款';
+
+  showModal({
+    title: isFav ? '取消最愛？' : '加入最愛？',
+    desc: isFav ? `是否將「${name}」從最愛收藏中移除？` : `是否將「${name}」加入⭐最愛心頭好收藏？`,
+    confirmText: isFav ? '確認取消' : '加入最愛',
+    confirmColor: 'var(--gold)',
+    onConfirm: async () => {
+      b.isFavorite = !isFav;
+      await saveBottleToDB(b);
+      closeModal();
+      renderCellar();
+    }
+  });
+}
+
+/* ---------------- 彈窗 2：確認移除酒款 (Delete Bottle) ---------------- */
+function confirmDeleteBottle(id){
+  const b = cellar.find(x => x.id === id);
+  if(!b) return;
+  const name = b.identification?.name || '此酒款';
+
+  showModal({
+    title: '確定移除此酒？',
+    desc: `將「${name}」從酒庫中永久移除，無法復原。`,
+    confirmText: '確定移除',
+    confirmColor: 'var(--wine-bright)',
+    onConfirm: async () => {
+      cellar = cellar.filter(x => x.id !== id);
+      await deleteBottleFromDB(id);
+      closeModal();
+      renderCellar();
+    }
+  });
+}
+
+function showModal({ title, desc, confirmText, confirmColor, onConfirm }){
+  const container = document.getElementById('modal-container');
+  container.innerHTML = `
+    <div class="modal-overlay" onclick="closeModal()">
+      <div class="modal-card" onclick="event.stopPropagation()">
+        <div style="font-family:var(--serif); font-size:17px; font-weight:600; margin-bottom:8px;">${title}</div>
+        <div style="font-size:12.5px; color:var(--text-muted); line-height:1.5; margin-bottom:18px;">${desc}</div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-ghost btn-block" onclick="closeModal()">取消</button>
+          <button class="btn btn-block" style="background:${confirmColor}; color:#111;" id="modal-confirm-btn">${confirmText}</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('modal-confirm-btn').onclick = onConfirm;
+}
+
+function closeModal(){
+  document.getElementById('modal-container').innerHTML = '';
+}
+
+/* ---------------- 詳情頁 (含 5 大空間切換) ---------------- */
 function renderDetail(id){
   const b = cellar.find(x => x.id === id);
   if(!b) return;
+  const idf = b.identification || {};
+
+  const statuses = [
+    { key:'unopened', label:'⚡ 未飲' },
+    { key:'opened', label:'🪵 已飲' },
+    { key:'finished', label:'🥃 飲完' },
+    { key:'wishlist', label:'🏷️ 想買' }
+  ];
+
   document.getElementById('main').innerHTML = `
     <div class="view">
       <div class="back-row" onclick="renderCellar()">← 返回酒庫</div>
       <div class="detail-photo-hero">${b.image ? `<img src="${b.image}">` : '🍷'}</div>
+      
       <div class="label-card">
-        <div class="label-name">${escapeHtml(b.identification?.name || '酒款')}</div>
-        <div class="label-sub">${escapeHtml(b.identification?.producer || '')}</div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="label-name">${escapeHtml(idf.name || '酒款')}</div>
+          <button class="icon-btn" onclick="toggleFavInDetail('${b.id}')" style="color:${b.isFavorite?'var(--gold)':'var(--text-muted)'};">
+            ${b.isFavorite ? '★' : '☆'}
+          </button>
+        </div>
+        <div class="label-sub">${escapeHtml(idf.producer || '')} · ${escapeHtml(b.tags?.vintage || '')}</div>
+      </div>
+
+      <div class="info-block">
+        <h3>📍 轉移藏酒空間</h3>
+        <div class="destination-grid">
+          ${statuses.map(s => `
+            <div class="dest-card" style="${b.status===s.key?'border-color:var(--gold); color:var(--gold);':''}" onclick="moveStatus('${b.id}','${s.key}')">
+              <div class="title">${s.label}</div>
+            </div>
+          `).join('')}
+        </div>
       </div>
 
       <div class="info-block">
@@ -873,20 +760,29 @@ function renderDetail(id){
         <div class="star-row">
           ${[1,2,3,4,5].map(n=>`<button class="star-btn ${b.personalRating>=n?'filled':''}" onclick="setRating('${b.id}',${n})">★</button>`).join('')}
         </div>
-        <textarea id="dt-notes" class="text-input" style="margin-top:10px;">${b.diary?.notes || ''}</textarea>
-        <button class="btn btn-primary btn-block" onclick="saveQuickNote('${b.id}')">儲存筆記</button>
+        <textarea id="dt-notes" class="text-input" style="height:70px; resize:none;">${b.diary?.notes || ''}</textarea>
+        <button class="btn btn-primary btn-block" style="margin-top:10px;" onclick="saveQuickNote('${b.id}')">儲存筆記</button>
       </div>
 
-      <div style="margin-top:14px;">
-        <button class="btn btn-ghost btn-block" style="border-color:var(--gold); color:var(--gold);" onclick="shareSingleBottle('${b.id}')">
-          ${TELEGRAM_PLANE_SVG}
-          <span>分享此酒評至 Explore</span>
-        </button>
-      </div>
-
-      <button class="btn btn-wine btn-block" style="margin-top:16px;" onclick="removeBottle('${b.id}')">刪除酒款</button>
+      <button class="btn btn-wine btn-block" style="margin-top:16px;" onclick="confirmDeleteBottle('${b.id}')">從酒庫中移除</button>
     </div>
   `;
+}
+
+async function toggleFavInDetail(id){
+  const b = cellar.find(x => x.id === id);
+  if(!b) return;
+  b.isFavorite = !b.isFavorite;
+  await saveBottleToDB(b);
+  renderDetail(id);
+}
+
+async function moveStatus(id, newStatus){
+  const b = cellar.find(x => x.id === id);
+  if(!b) return;
+  b.status = newStatus;
+  await saveBottleToDB(b);
+  renderDetail(id);
 }
 
 async function setRating(id, n){
@@ -906,28 +802,7 @@ async function saveQuickNote(id){
   alert("筆記已更新！");
 }
 
-async function shareSingleBottle(id){
-  const b = cellar.find(x => x.id === id);
-  if(!b) return;
-  b.shared = true;
-  await saveBottleToDB(b);
-  try {
-    await fetch(`${WORKER_API_URL}/api/share`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bottle: b, userEmail: '品飲酒友' })
-    });
-    alert("已公開分享至 Explore 社群！");
-  } catch(e){ alert("分享完成！"); }
-}
-
-async function removeBottle(id){
-  cellar = cellar.filter(x=>x.id!==id);
-  await deleteBottleFromDB(id);
-  renderCellar();
-}
-
-/* ---------------- 拍照上傳 ---------------- */
+/* ---------------- 拍照上傳並收納 (包含 5 大分類選擇) ---------------- */
 document.getElementById('cameraInput').addEventListener('change', handleUpload);
 document.getElementById('galleryInput').addEventListener('change', handleUpload);
 
@@ -951,17 +826,11 @@ async function handleUpload(e){
         body: JSON.stringify({ image: b64, mediaType: 'image/jpeg' })
       });
       const parsed = await res.json();
-      const item = {
-        id: 'b_' + Date.now(),
-        status: 'unopened',
-        image: dataUrl,
-        identification: parsed.id || {},
-        tags: { category: parsed.id?.category || '酒類', vintage: parsed.id?.vintage || '' },
-        addedAt: Date.now()
+      currentScan = {
+        raw: parsed,
+        image: dataUrl
       };
-      cellar.unshift(item);
-      await saveBottleToDB(item);
-      renderCellar();
+      renderScanDestinationSheet();
     } catch(err){
       alert("辨識失敗，請重試");
       goHome();
@@ -970,11 +839,113 @@ async function handleUpload(e){
   reader.readAsDataURL(file);
 }
 
+function renderScanDestinationSheet(){
+  const parsed = currentScan.raw;
+  document.getElementById('main').innerHTML = `
+    <div class="view">
+      <div class="back-row" onclick="goHome()">← 取消</div>
+      <div class="detail-photo-hero"><img src="${currentScan.image}"></div>
+      
+      <div class="info-block">
+        <div style="font-family:var(--serif); font-size:16px; font-weight:600; color:var(--gold); margin-bottom:4px;">
+          ${escapeHtml(parsed.id?.name || '已成功辨識')}
+        </div>
+        <div style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">收納至哪個空間？</div>
+
+        <div class="destination-grid">
+          <div class="dest-card" onclick="saveNewBottle('unopened', false)"><div class="icon">⚡</div><div class="title">未飲</div></div>
+          <div class="dest-card" onclick="saveNewBottle('opened', false)"><div class="icon">🪵</div><div class="title">已飲</div></div>
+          <div class="dest-card" onclick="saveNewBottle('finished', false)"><div class="icon">🥃</div><div class="title">飲完</div></div>
+          <div class="dest-card" onclick="saveNewBottle('wishlist', false)"><div class="icon">🏷️</div><div class="title">想買</div></div>
+          <div class="dest-card" onclick="saveNewBottle('unopened', true)"><div class="icon">⭐</div><div class="title">未飲+最愛</div></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function saveNewBottle(status, isFav){
+  const item = {
+    id: 'b_' + Date.now(),
+    status: status,
+    isFavorite: isFav,
+    image: currentScan.image,
+    identification: currentScan.raw.id || {},
+    tags: { category: currentScan.raw.id?.category || '酒類', vintage: currentScan.raw.id?.vintage || '' },
+    addedAt: Date.now()
+  };
+  cellar.unshift(item);
+  await saveBottleToDB(item);
+  currentScene = isFav ? 'favorite' : status;
+  renderCellar();
+}
+
+/* ---------------- Explore & Settings ---------------- */
+async function renderExplore(){
+  setActiveNav('nav-explore');
+  document.getElementById('main').innerHTML = `
+    <div class="view">
+      <div class="section-head" style="margin-top:8px;"><h2>酒友評價與探索</h2></div>
+      <div id="explore-feed" style="text-align:center; padding:30px 10px; color:var(--text-muted); font-size:12px;">載入中...</div>
+    </div>
+  `;
+  try {
+    const res = await fetch(`${WORKER_API_URL}/api/explore`);
+    const publicFeed = res.ok ? await res.json() : [];
+    const feedEl = document.getElementById('explore-feed');
+    if(!feedEl) return;
+    if(!publicFeed.length){
+      feedEl.innerHTML = `<div class="empty-shelf">目前尚無公開分享記錄。</div>`;
+      return;
+    }
+    feedEl.innerHTML = publicFeed.map(b => `
+      <div class="bottle-card" style="margin-bottom:10px;">
+        <div class="bottle-photo-box">${b.image ? `<img src="${b.image}">` : '🍷'}</div>
+        <div class="bottle-info">
+          <div class="bottle-name">${escapeHtml(b.identification?.name || '酒款')}</div>
+          <div style="font-size:11px; color:var(--gold); margin-top:2px;">★ ${b.personalRating||5}/5 ・ ${escapeHtml(b.author||'酒友')}</div>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">"${escapeHtml(b.diary?.notes || '無筆記')}"</div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e){}
+}
+
+function renderSettings(){
+  document.getElementById('main').innerHTML = `
+    <div class="view">
+      <div class="back-row" onclick="goHome()">← 返回</div>
+      <div class="section-head"><h2>設定與備份</h2></div>
+      <div class="info-block">
+        <h3 style="color:var(--gold);">專屬同步碼 (Sync Key)</h3>
+        <div style="font-family:var(--mono); font-size:15px; color:var(--gold); background:var(--surface-2); padding:10px; border-radius:8px; margin:10px 0;">
+          ${mySyncKey}
+        </div>
+        <button class="btn btn-ghost btn-block" onclick="navigator.clipboard.writeText(mySyncKey); alert('已複製同步碼！');">複製同步碼</button>
+      </div>
+    </div>
+  `;
+}
+
+async function shareEntireCellar(){
+  if(!cellar.length){ alert("酒櫃暫無酒款！"); return; }
+  try {
+    await fetch(`${WORKER_API_URL}/api/cellar/publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ syncKey: mySyncKey, cellar: cellar, ownerName: '品飲家' })
+    });
+    const shareUrl = `${window.location.origin}${window.location.pathname}?cellar=${mySyncKey}`;
+    navigator.clipboard.writeText(shareUrl);
+    alert(`專屬酒窖公開連結已複製至剪貼簿！\n發送給朋友即可瀏覽：\n${shareUrl}`);
+  } catch(e){}
+}
+
 function escapeHtml(str){ return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 (async function init(){
   await loadCellarWithMigration();
-  checkUrlParams();
+  goHome();
 })();
 </script>
 </body>
