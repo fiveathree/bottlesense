@@ -744,7 +744,7 @@ async function saveNewSession(bottleId) {
   renderBottleDetail(bottleId);
 }
 
-/* ---------------- 分享機制 (修正雙重網址問題，只傳單一URL) ---------------- */
+/* ---------------- 分享機制 (修正雙重網址問題，只傳單一 URL，無彈窗) ---------------- */
 async function syncPublishCellar() {
   const key = localStorage.getItem('bottlesense_sync_key');
   try {
@@ -912,7 +912,7 @@ function exitVisitorMode() {
   refreshCellar().then(renderHome);
 }
 
-/* ---------------- 拍照與檔案處理 ---------------- */
+/* ---------------- 拍照與檔案處理 (強化 1000px 壓縮與 AI 辨識成功率) ---------------- */
 function openCamera() { if (cameraInput) cameraInput.click(); }
 function openGallery() { if (galleryInput) galleryInput.click(); }
 
@@ -922,7 +922,8 @@ if (galleryInput) galleryInput.addEventListener('change', e => handleImageFile(e
 async function handleImageFile(file) {
   if (!file) return;
   try {
-    currentImageData = await resizeImage(file, 1600, 0.85);
+    // 最佳化至 1000px，大幅提升傳輸速度與 AI 辨識穩定度
+    currentImageData = await resizeImage(file, 1000, 0.85);
     showScanLoading();
     const result = await identifyBottle(currentImageData.data, currentImageData.mediaType);
 
@@ -948,14 +949,14 @@ async function handleImageFile(file) {
     await saveBottleToDB(bottle);
     renderBottleDetail(bottle.id);
   } catch(err) {
-    showError(err?.message || '辨識失敗，請再試一次。');
+    showError(err?.message || '辨識失敗，請確保酒標清晰可見後重試。');
   } finally {
     if (cameraInput) cameraInput.value = '';
     if (galleryInput) galleryInput.value = '';
   }
 }
 
-function resizeImage(file, maxSize = 1600, quality = 0.85) {
+function resizeImage(file, maxSize = 1000, quality = 0.85) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('無法讀取圖片'));
