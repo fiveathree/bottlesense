@@ -1,4 +1,4 @@
-// app.js - 完整支援專屬分享路由、動態篩選、原生時間選擇與酒款編輯
+// app.js - 核心互動邏輯
 const TELEGRAM_PLANE_SVG = `<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>`;
 const EDIT_PENCIL_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
 const DIM_LABELS = { mv:"市場價值", ql:"品質", dv:"飲用價值", pv:"配餐價值", sv:"社交話題", gv:"送禮價值", cv:"收藏價值", sto:"保存價值" };
@@ -9,7 +9,6 @@ let currentScan = null;
 let currentScene = 'cooler';
 let activeFilter = 'all';
 
-// 訪客展示狀態
 let isVisitorMode = false;
 let visitorCellarData = null;
 
@@ -25,7 +24,7 @@ function goHome(){
   renderHome(); 
 }
 
-/* ---------------- 1. 訪客專屬 URL 路由解析 ---------------- */
+/* ---------------- 訪客專屬 URL 解析 ---------------- */
 async function checkUrlParams() {
   const params = new URLSearchParams(window.location.search);
   const sharedKey = params.get('cellar');
@@ -46,7 +45,6 @@ async function checkUrlParams() {
       visitorCellarData = await res.json();
       
       if(sharedBottleId) {
-        // 直接開啟該支酒專屬訪客頁面
         renderVisitorBottleDetail(sharedBottleId);
       } else {
         if(sharedShelf) currentScene = sharedShelf;
@@ -130,7 +128,7 @@ function renderCellar(){
   else if (currentScene === 'wishlist') { spaceList = wishBottles; shelfTitle = '🏷️ 願望清單 (想買)'; }
   else { spaceList = favBottles; shelfTitle = '⭐ 心頭好精選 (最愛)'; shelfKey = 'fav'; }
 
-  // 取得當前架上所有分類與產區標籤
+  // 提取標籤供篩選
   const filterSet = new Set();
   spaceList.forEach(b => {
     if (b.tags?.category) filterSet.add(b.tags.category);
@@ -139,7 +137,6 @@ function renderCellar(){
   });
   const filterOptions = ['all', ...Array.from(filterSet)];
 
-  // 安全篩選邏輯：如果揀咗 'all'，100% 顯示所有藏酒
   const activeList = (activeFilter === 'all')
     ? spaceList
     : spaceList.filter(b => {
@@ -168,7 +165,7 @@ function renderCellar(){
         <div class="scene-tab ${currentScene==='favorite'?'active-fav':''}" onclick="switchScene('favorite')"><span class="scene-icon">⭐</span><div class="scene-name">最愛</div><div class="scene-count">${favBottles.length}</div></div>
       </div>
 
-      <!-- 只要有超過 1 個分類選項即出 Filter Bar -->
+      <!-- 篩選列 -->
       ${filterOptions.length > 1 ? `
         <div class="filter-row">
           ${filterOptions.map(opt => `
@@ -179,7 +176,7 @@ function renderCellar(){
         </div>
       ` : ''}
 
-      <!-- 中間酒架主格容器 -->
+      <!-- 中間酒架主體格 -->
       <div class="shelf-container shelf-${shelfKey}">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <div style="font-family:var(--serif); font-size:14px; font-weight:600;">${shelfTitle}</div>
@@ -355,7 +352,7 @@ function showModal({ title, desc, confirmText, confirmColor, onConfirm }){
 
 function closeModal(){ document.getElementById('modal-container').innerHTML = ''; }
 
-/* ---------------- 詳情頁（含 5. 編輯掣 與 品飲歷史） ---------------- */
+/* ---------------- 詳情頁 ---------------- */
 function renderDetail(id){
   const b = window.cellar.find(x => x.id === id);
   if(!b) return;
@@ -384,13 +381,11 @@ function renderDetail(id){
 
       <div class="detail-photo-hero">${b.image ? `<img src="${b.image}">` : '🍷'}</div>
 
-      <!-- 標籤與身分卡（附帶 5. 小 Edit 掣） -->
       <div class="label-card">
         <div class="confidence-seal ${tier.cls}"><div class="seal-pct">${idf.conf ?? '95'}%</div><div class="seal-label">${tier.label}</div></div>
         
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
           <div class="label-eyebrow" style="margin-bottom:0;">${escapeHtml(b.tags?.category || idf.category || '酒款')}</div>
-          <!-- 5. 編輯資料按鈕 -->
           <button class="edit-badge-btn" onclick="openEditBottleModal('${b.id}')">
             ${EDIT_PENCIL_SVG} 編輯資料
           </button>
@@ -487,7 +482,7 @@ function renderDetail(id){
   `;
 }
 
-/* ---------------- 5. 編輯酒款資訊彈窗 (Edit Bottle Modal) ---------------- */
+/* ---------------- 編輯酒款彈窗 ---------------- */
 function openEditBottleModal(id){
   const b = window.cellar.find(x => x.id === id);
   if(!b) return;
@@ -553,7 +548,6 @@ async function saveEditedBottle(id){
   b.tags.country = document.getElementById('edit-country').value.trim();
   b.tags.region = document.getElementById('edit-region').value.trim();
 
-  // 同步更新 identification 欄位
   b.identification.category = b.tags.category;
   b.identification.vintage = b.tags.vintage;
   b.identification.country = b.tags.country;
@@ -607,11 +601,10 @@ function renderRadar(vm){
   `;
 }
 
-/* ---------------- 3. 原生時間選單品飲彈窗 ---------------- */
+/* ---------------- 原生時間選擇品飲彈窗 ---------------- */
 let currentSessionRating = 5;
 
 function openAddSessionModal(bottleId){
-  // 3. 取得原生 datetime-local 格式 (YYYY-MM-DDTHH:mm)
   const now = new Date();
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
   const defaultIso = now.toISOString().slice(0, 16);
@@ -624,7 +617,6 @@ function openAddSessionModal(bottleId){
           ＋ 記錄這次品飲時光
         </div>
 
-        <!-- 原生日期時間選單 (點擊直接開滾輪) -->
         <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint);">日期與時間 (點擊選擇)</div>
         <input type="datetime-local" id="sess-date" class="text-input" value="${defaultIso}">
 
@@ -690,7 +682,7 @@ async function saveNewSession(bottleId){
   renderDetail(bottleId);
 }
 
-/* ---------------- 1. 專屬分享連結生成 (全窖 / 單架 / 單酒) ---------------- */
+/* ---------------- 分享連結生成 ---------------- */
 async function syncPublishCellar(){
   try {
     await fetch(`${WORKER_API_URL}/api/cellar/publish`, {
@@ -701,7 +693,6 @@ async function syncPublishCellar(){
   } catch(e){}
 }
 
-// 1. 全酒窖專屬分享
 async function shareEntireCellar(){
   if(!window.cellar.length){ alert("酒櫃暫無酒款！"); return; }
   await syncPublishCellar();
@@ -719,7 +710,6 @@ async function shareEntireCellar(){
   alert(`酒窖公開專屬連結已複製！\n${shareUrl}`);
 }
 
-// 1. 單個酒架專屬分享 (?cellar=KEY&shelf=xxx)
 async function shareCurrentShelf(){
   const count = window.cellar.filter(b => b.status === currentScene).length;
   await syncPublishCellar();
@@ -738,7 +728,6 @@ async function shareCurrentShelf(){
   alert(`此酒架專屬連結已複製！\n${shareUrl}`);
 }
 
-// 1. 單支酒專屬分享 (?cellar=KEY&bottle=ID)
 async function shareSingleBottle(id){
   const b = window.cellar.find(x => x.id === id);
   if(!b) return;
@@ -758,7 +747,6 @@ async function shareSingleBottle(id){
   alert(`這支酒的專屬連結已複製！\n${shareUrl}`);
 }
 
-// 1. 單次品飲紀錄專屬分享
 async function shareSingleSession(bottleId, sessionId){
   const b = window.cellar.find(x => x.id === bottleId);
   if(!b) return;
@@ -785,7 +773,7 @@ async function shareSingleSession(bottleId, sessionId){
   alert("已複製品飲紀錄與專屬連結至剪貼簿！");
 }
 
-/* ---------------- 訪客展示介面 ---------------- */
+/* ---------------- 訪客展示頁 ---------------- */
 function renderVisitorShowroom(){
   const data = visitorCellarData;
   const list = data.cellar || [];
@@ -884,7 +872,6 @@ function renderVisitorBottleDetail(bottleId){
         </button>
       </div>
 
-      <!-- 訪客看到的品飲歷史 -->
       <div class="info-block">
         <h3>🥃 酒友品飲手記 (${(b.tastings||[]).length})</h3>
         <div class="timeline-list">
@@ -1021,7 +1008,7 @@ async function saveNewBottle(status, isFav){
   renderCellar();
 }
 
-/* ---------------- Explore 社群評價池 ---------------- */
+/* ---------------- Explore & Settings ---------------- */
 async function renderExplore(){
   setActiveNav('nav-explore');
   document.getElementById('main').innerHTML = `
