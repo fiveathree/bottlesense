@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bottle — Know what to do with it</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #14150F;
+    --surface: #1D2016;
+    --surface-2: #262A1D;
+    --line: #34382A;
+    --gold: #C9A24B;
+    --gold-dim: #8A7332;
+    --wine: #8C2A3A;
+    --wine-bright: #B8394D;
+    --green-ok: #6E9265;
+    --text: #ECE6D6;
+    --text-muted: #93927F;
+    --text-faint: #5E5D4E;
+    --radius: 14px;
+    --serif: 'Fraunces', serif;
+    --sans: 'Inter', sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background: radial-gradient(120% 140% at 50% -10%, #1B1E13 0%, var(--bg) 55%);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    -webkit-font-smoothing:antialiased;
+  }
+  #app{
+    width:100%;
+    max-width:480px;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+  }
+  /* ---------- top bar ---------- */
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:22px 22px 14px;
+  }
+  .wordmark{
+    font-family: var(--serif);
+    font-weight:600;
+    font-size:22px;
+    letter-spacing:0.5px;
+    color:var(--text);
+  }
+  .wordmark span{ color: var(--gold); }
+  .tagline{
+    font-size:10.5px;
+    color:var(--text-faint);
+    font-family: var(--mono);
+    letter-spacing:0.6px;
+    text-transform:uppercase;
+    margin-top:2px;
+  }
+  /* ---------- main scroll area ---------- */
+  main{
+    flex:1;
+    padding: 4px 22px 110px;
+    overflow-y:auto;
+  }
+  .view{ animation: fadeIn .35s ease; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+
+  /* ---------- buttons ---------- */
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    font-family:var(--sans);
+    font-weight:600;
+    font-size:14.5px;
+    border-radius:999px;
+    border:1px solid transparent;
+    padding:13px 22px;
+    cursor:pointer;
+    transition: transform .15s ease, opacity .15s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active{ transform: scale(0.97); }
+  .btn-primary{ background: var(--gold); color:#191A11; }
+  .btn-primary:hover{ opacity:.92; }
+  .btn-ghost{ background:transparent; border-color: var(--line); color:var(--text); }
+  .btn-ghost:hover{ border-color: var(--gold-dim); }
+  .btn-wine{ background: var(--wine); color:#F3E4E4; }
+  .btn-block{ width:100%; }
+  .btn-sm{ padding:8px 14px; font-size:12.5px; }
+
+  /* ---------- scan hero ---------- */
+  .scan-hero{
+    margin-top:18px;
+    border:1px solid var(--line);
+    border-radius: 20px;
+    padding: 30px 22px 26px;
+    background: linear-gradient(165deg, var(--surface) 0%, #191B12 100%);
+    text-align:center;
+    position:relative;
+    overflow:hidden;
+  }
+  .scan-hero::before{
+    content:"";
+    position:absolute; inset:0;
+    background: repeating-linear-gradient(115deg, rgba(201,162,75,0.035) 0 2px, transparent 2px 26px);
+    pointer-events:none;
+  }
+  .scan-hero h1{
+    font-family:var(--serif);
+    font-weight:600;
+    font-size:26px;
+    line-height:1.25;
+    margin-bottom:8px;
+    position:relative;
+  }
+  .scan-hero p{
+    color:var(--text-muted);
+    font-size:13.5px;
+    line-height:1.5;
+    max-width:320px;
+    margin:0 auto 22px;
+    position:relative;
+  }
+  .scan-btn{
+    width:84px; height:84px;
+    border-radius:50%;
+    background: var(--gold);
+    display:flex; align-items:center; justify-content:center;
+    margin: 0 auto 14px;
+    cursor:pointer;
+    border:none;
+    position:relative;
+    box-shadow: 0 0 0 6px rgba(201,162,75,0.1), 0 10px 30px -6px rgba(201,162,75,0.35);
+    transition: transform .15s ease;
+  }
+  .scan-btn:active{ transform: scale(0.94); }
+  .scan-btn svg{ width:32px; height:32px; }
+  .scan-cta-label{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color: var(--gold);
+    position:relative;
+  }
+
+  /* ---------- stat row ---------- */
+  .stat-row{
+    display:flex;
+    gap:10px;
+    margin-top:18px;
+  }
+  .stat-card{
+    flex:1;
+    background: var(--surface);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:14px 12px;
+    text-align:center;
+  }
+  .stat-num{ font-family:var(--serif); font-size:22px; font-weight:600; }
+  .stat-label{ font-size:10px; color:var(--text-faint); font-family:var(--mono); text-transform:uppercase; letter-spacing:.5px; margin-top:2px;}
+
+  /* ---------- section heading ---------- */
+  .section-head{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin: 30px 0 12px;
+  }
+  .section-head h2{
+    font-family:var(--serif);
+    font-size:16.5px;
+    font-weight:600;
+  }
+  .section-head a{ font-size:12px; color:var(--gold-dim); cursor:pointer; font-family:var(--mono); }
+
+  /* ---------- mini bottle card (drink soon / cellar list) ---------- */
+  .bottle-card{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    background: var(--surface);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:12px;
+    margin-bottom:10px;
+    cursor:pointer;
+    transition: border-color .15s ease;
+  }
+  .bottle-card:hover{ border-color: var(--gold-dim); }
+  .bottle-thumb{
+    width:44px; height:58px;
+    border-radius:6px;
+    background: linear-gradient(180deg, var(--gold-dim), #4b3f1a);
+    flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px;
+  }
+  .bottle-info{ flex:1; min-width:0; }
+  .bottle-name{ font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bottle-sub{ font-size:11.5px; color:var(--text-muted); margin-top:2px; font-family:var(--mono); }
+  .status-chip{
+    font-size:9.5px;
+    font-family:var(--mono);
+    text-transform:uppercase;
+    letter-spacing:.4px;
+    padding:3px 8px;
+    border-radius:999px;
+    white-space:nowrap;
+    flex-shrink:0;
+  }
+  .chip-unopened{ background:rgba(110,146,101,0.15); color:var(--green-ok); }
+  .chip-opened{ background:rgba(201,162,75,0.15); color:var(--gold); }
+  .chip-finished, .chip-gifted, .chip-sold{ background:rgba(147,146,127,0.15); color:var(--text-muted); }
+
+  .empty-state{
+    text-align:center;
+    padding: 30px 10px;
+    color: var(--text-faint);
+    font-size:13px;
+    line-height:1.6;
+  }
+
+  /* ---------- loading / scanning view ---------- */
+  .loading-view{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding-top:70px;
+    text-align:center;
+  }
+  .loading-ring{
+    width:70px; height:70px;
+    border-radius:50%;
+    border:2px solid var(--line);
+    border-top-color: var(--gold);
+    animation: spin 1s linear infinite;
+    margin-bottom:24px;
+  }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+  .loading-text{ font-family:var(--mono); font-size:12.5px; color:var(--text-muted); letter-spacing:.4px; min-height:18px; }
+  .preview-thumb{
+    width:120px; height:160px;
+    object-fit:cover;
+    border-radius:10px;
+    margin-bottom:26px;
+    border:1px solid var(--line);
+    opacity:.85;
+  }
+
+  /* ---------- label card (result) ---------- */
+  .label-card{
+    margin-top:14px;
+    border-radius:18px;
+    border:1px solid var(--line);
+    background: linear-gradient(180deg, var(--surface) 0%, #171911 100%);
+    padding:26px 22px 22px;
+    position:relative;
+    overflow:hidden;
+  }
+  .label-card::after{
+    content:"";
+    position:absolute; left:0; right:0; top:0; height:3px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .confidence-seal{
+    position:absolute;
+    top:18px; right:18px;
+    width:58px; height:58px;
+    border-radius:50%;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-family:var(--mono);
+    border: 2px solid currentColor;
+  }
+  .seal-high{ color: var(--green-ok); }
+  .seal-medium{ color: var(--gold); }
+  .seal-low{ color: var(--wine-bright); }
+  .seal-pct{ font-size:15px; font-weight:600; line-height:1; }
+  .seal-label{ font-size:7px; letter-spacing:.5px; text-transform:uppercase; margin-top:2px; }
+
+  .label-eyebrow{ font-family:var(--mono); font-size:10.5px; color:var(--gold-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;}
+  .label-name{ font-family:var(--serif); font-size:24px; font-weight:600; line-height:1.2; max-width:76%; margin-bottom:4px;}
+  .label-sub{ font-size:13px; color:var(--text-muted); max-width:76%; margin-bottom:16px;}
+  .label-facts{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 16px;
+    padding-top:14px;
+    border-top:1px dashed var(--line);
+  }
+  .fact-label{ font-family:var(--mono); font-size:9.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.5px; }
+  .fact-value{ font-family:var(--mono); font-size:13px; color:var(--text); margin-top:2px; }
+  .label-note{
+    margin-top:16px;
+    font-size:12px;
+    color:var(--text-faint);
+    line-height:1.6;
+    font-style:italic;
+    border-top:1px dashed var(--line);
+    padding-top:12px;
+  }
+
+  /* ---------- radar chart ---------- */
+  .radar-wrap{
+    margin-top:16px;
+    background: var(--surface);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:20px 16px;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  .radar-wrap h3{ font-family:var(--serif); font-size:15px; font-weight:600; align-self:flex-start; margin-bottom:12px;}
+  .radar-legend{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:6px 14px;
+    width:100%;
+    margin-top:14px;
+  }
+  .legend-row{ display:flex; align-items:center; justify-content:space-between; font-size:11.5px; }
+  .legend-row .dim{ color:var(--text-muted); }
+  .legend-row .val{ font-family:var(--mono); color:var(--gold); }
+
+  /* ---------- recommendation ---------- */
+  .rec-card{
+    margin-top:16px;
+    background: var(--surface);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:18px 18px 6px;
+  }
+  .rec-card h3{ font-family:var(--serif); font-size:15px; font-weight:600; margin-bottom:4px;}
+  .rec-reason{ font-size:12.5px; color:var(--text-muted); line-height:1.55; margin-bottom:14px; }
+  .action-item{
+    display:flex; align-items:center; gap:12px;
+    padding:12px 0;
+    border-top:1px solid var(--line);
+  }
+  .action-rank{ font-family:var(--serif); font-size:18px; color:var(--gold); width:20px; flex-shrink:0; }
+  .action-icon{ font-size:20px; flex-shrink:0; }
+  .action-body{ flex:1; }
+  .action-title{ font-size:13.5px; font-weight:600; text-transform:capitalize; }
+  .action-reason{ font-size:11.5px; color:var(--text-faint); margin-top:2px; }
+
+  /* ---------- storage / pairing ---------- */
+  .info-block{
+    margin-top:16px;
+    background: var(--surface);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:18px;
+  }
+  .info-block h3{ font-family:var(--serif); font-size:15px; font-weight:600; margin-bottom:10px;}
+  .storage-row{ display:flex; gap:10px; margin-bottom:8px; }
+  .storage-tag{ font-family:var(--mono); font-size:10px; text-transform:uppercase; color:var(--gold); flex-shrink:0; width:70px; padding-top:1px;}
+  .storage-desc{ font-size:12.5px; color:var(--text-muted); line-height:1.5; }
+  .pairing-pill{
+    display:inline-block;
+    font-size:12px;
+    padding:7px 13px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    color:var(--text-muted);
+    margin:0 6px 8px 0;
+  }
+
+  .result-actions{ display:flex; gap:10px; margin-top:20px; }
+
+  /* ---------- tabs (cellar) ---------- */
+  .tabs{
+    display:flex;
+    gap:6px;
+    overflow-x:auto;
+    padding-bottom:4px;
+    margin-bottom:16px;
+    scrollbar-width:none;
+  }
+  .tabs::-webkit-scrollbar{ display:none; }
+  .tab{
+    font-family:var(--mono);
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.4px;
+    padding:8px 14px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    color:var(--text-muted);
+    white-space:nowrap;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .tab.active{ background:var(--gold); border-color:var(--gold); color:#191A11; font-weight:600; }
+
+  /* ---------- detail status bar ---------- */
+  .status-actions{ display:flex; flex-wrap:wrap; gap:8px; margin-top:18px; }
+  .status-btn{
+    font-family:var(--mono);
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.4px;
+    padding:9px 14px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    color:var(--text-muted);
+    cursor:pointer;
+    background:transparent;
+  }
+  .status-btn.active{ border-color:var(--gold); color:var(--gold); }
+
+  .back-row{
+    display:flex; align-items:center; gap:10px;
+    margin-bottom:10px;
+    cursor:pointer;
+    color:var(--text-muted);
+    font-size:13px;
+  }
+  .back-row:hover{ color: var(--text); }
+
+  /* ---------- bottom nav ---------- */
+  .bottomnav{
+    position:fixed;
+    bottom:0; left:50%; transform:translateX(-50%);
+    width:100%; max-width:480px;
+    display:flex;
+    background: rgba(20,21,15,0.92);
+    backdrop-filter: blur(10px);
+    border-top:1px solid var(--line);
+    padding: 10px 18px calc(10px + env(safe-area-inset-bottom));
+  }
+  .navbtn{
+    flex:1;
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    background:none; border:none; cursor:pointer;
+    color:var(--text-faint);
+    font-family:var(--mono);
+    font-size:9.5px;
+    text-transform:uppercase;
+    letter-spacing:.5px;
+  }
+  .navbtn.active{ color: var(--gold); }
+  .navbtn svg{ width:20px; height:20px; }
+
+  .icon-btn{
+    width:36px; height:36px;
+    border-radius:50%;
+    border:1px solid var(--line);
+    background:var(--surface);
+    color:var(--text-muted);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .icon-btn svg{ width:17px; height:17px; }
+  .icon-btn:hover{ color:var(--gold); border-color:var(--gold-dim); }
+
+  .star-row{ display:flex; gap:8px; margin-top:10px; }
+  .star-btn{
+    background:none; border:none; cursor:pointer;
+    font-size:24px; line-height:1; padding:0;
+    color: var(--line);
+    filter: grayscale(1);
+    opacity:.5;
+    transition: all .1s ease;
+  }
+  .star-btn.filled{ color: var(--gold); filter:none; opacity:1; }
+
+  .toggle-row{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding:14px 16px; margin-bottom:12px;
+  }
+  .toggle-title{ font-size:13.5px; font-weight:600; }
+  .toggle-desc{ font-size:11.5px; color:var(--text-faint); margin-top:2px; max-width:230px; }
+  .switch{ position:relative; width:42px; height:24px; flex-shrink:0; }
+  .switch input{ opacity:0; width:0; height:0; }
+  .slider{
+    position:absolute; cursor:pointer; inset:0;
+    background: var(--line); border-radius:999px; transition:.2s;
+  }
+  .slider::before{
+    content:""; position:absolute; height:18px; width:18px; left:3px; top:3px;
+    background:var(--text); border-radius:50%; transition:.2s;
+  }
+  .switch input:checked + .slider{ background: var(--gold); }
+  .switch input:checked + .slider::before{ transform: translateX(18px); background:#191A11; }
+
+  .similarity-badge{
+    font-family:var(--mono); font-size:10.5px; color:var(--gold);
+    background: rgba(201,162,75,0.12); border-radius:999px; padding:3px 9px;
+    flex-shrink:0;
+  }
+
+  .rating-display{ font-size:13px; color:var(--gold); font-family:var(--mono); margin-top:6px; }
+
+  input[type=file]{ display:none; }
+
+  .error-box{
+    background: rgba(140,42,58,0.12);
+    border:1px solid var(--wine);
+    color:#E8B9C0;
+    border-radius:12px;
+    padding:14px 16px;
+    font-size:12.5px;
+    line-height:1.5;
+    margin-top:16px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div>
+      <div class="wordmark">BOTTLE<span>.</span></div>
+      <div class="tagline">know what to do with it</div>
+    </div>
+    <button class="icon-btn" onclick="renderSettings()" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+    </button>
+  </div>
+
+  <main id="main"></main>
+
+  <nav class="bottomnav">
+    <button class="navbtn" id="nav-home" onclick="goHome()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9"/></svg>
+      Home
+    </button>
+    <button class="navbtn" id="nav-cellar" onclick="renderCellar()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>
+      Cellar
+    </button>
+    <button class="navbtn" id="nav-discover" onclick="renderDiscover()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      Discover
+    </button>
+  </nav>
+</div>
+
+<input type="file" id="fileInput" accept="image/*" capture="environment">
+
+<script>
+/* ---------------- State ---------------- */
+let cellar = [];
+let currentScan = null;
+let currentDetailId = null;
+
+const DIM_LABELS = {
+  mv: "Market Value", ql: "Quality", dv: "Drinking Value", pv: "Pairing Value",
+  sv: "Social Value", gv: "Gift Value", cv: "Collecting Value", sto: "Storage Value"
+};
+const ACTION_ICONS = { drink:"🥃", pair:"🍽️", share:"👥", gift:"🎁", collect:"💎", sell:"💰", store:"🌡️", keep:"💎" };
+const FLAVOR_LABELS = { fruit:"Fruit", sweet:"Sweetness", oak:"Oak", smoke:"Smoke", acid:"Acidity", body:"Body" };
+let settings = { shareCellar: false };
+
+// 你的 Cloudflare Worker API 網址
+const WORKER_API_URL = "https://bottlesense-api.fiveathree.workers.dev";
+
+/* ---------------- Storage (使用瀏覽器標準 LocalStorage) ---------------- */
+function loadCellar(){
+  try{
+    const res = localStorage.getItem('cellar');
+    cellar = res ? JSON.parse(res) : [];
+  }catch(e){
+    cellar = [];
+  }
+}
+function saveCellar(){
+  try{
+    localStorage.setItem('cellar', JSON.stringify(cellar));
+  }catch(e){
+    console.error('save failed', e);
+  }
+}
+function loadSettings(){
+  try{
+    const res = localStorage.getItem('settings');
+    settings = res ? JSON.parse(res) : { shareCellar:false };
+  }catch(e){
+    settings = { shareCellar:false };
+  }
+}
+function saveSettings(){
+  try{ localStorage.setItem('settings', JSON.stringify(settings)); }
+  catch(e){ console.error('settings save failed', e); }
+}
+
+/* ---------------- Navigation ---------------- */
+function setActiveNav(id){
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+  const el = document.getElementById(id);
+  if(el) el.classList.add('active');
+}
+
+function goHome(){ setActiveNav('nav-home'); renderHome(); }
+
+/* ---------------- Home ---------------- */
+function renderHome(){
+  const unopened = cellar.filter(b=>b.status==='unopened').length;
+  const opened = cellar.filter(b=>b.status==='opened').length;
+  const total = cellar.length;
+
+  const drinkSoon = cellar.filter(b => b.status==='opened' || (b.scan && b.scan.rec && b.scan.rec.primary === 'drink')).slice(0,4);
+
+  document.getElementById('main').innerHTML = `
+    <div class="view">
+      <div class="scan-hero">
+        <h1>影一張酒標，<br>知道下一步應該點做</h1>
+        <p>唔使識飲。上載相片，AI 幫你判斷呢支酒值唔值得飲、送人、收藏定出售。</p>
+        <button class="scan-btn" onclick="document.getElementById('fileInput').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#191A11" stroke-width="1.8"><path d="M4 8V6a2 2 0 0 1 2-2h2M4 16v2a2 2 0 0 0 2 2h2M20 8V6a2 2 0 0 0-2-2h-2M20 16v2a2 2 0 0 1-2 2h-2"/><circle cx="12" cy="12" r="3.4"/></svg>
+        </button>
+        <div class="scan-cta-label">Scan a bottle</div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">Bottles</div></div>
+        <div class="stat-card"><div class="stat-num">${unopened}</div><div class="stat-label">Unopened</div></div>
+        <div class="stat-card"><div class="stat-num">${opened}</div><div class="stat-label">Opened</div></div>
+      </div>
+
+      <div class="section-head">
+        <h2>Taste DNA</h2>
+        <a onclick="renderTasteDNA()">See profile →</a>
+      </div>
+      <div class="empty-state" style="padding:6px 0 0;">評分你飲過嘅酒，建立你嘅個人風味檔案，令建議更加準。</div>
+
+      <div class="section-head">
+        <h2>Drink Soon</h2>
+        ${cellar.length ? '<a onclick="renderCellar()">See cellar →</a>' : ''}
+      </div>
+      <div id="drinksoon-list">
+        ${drinkSoon.length ? drinkSoon.map(bottleCardHtml).join('') : `<div class="empty-state">未有酒庫紀錄。Scan 一支酒開始啦。</div>`}
+      </div>
+    </div>
+  `;
+}
+
+function bottleCardHtml(b){
+  const id = b.identification || {};
+  const name = id.name || id.producer || '未知酒款';
+  const sub = [id.category, id.vintage].filter(Boolean).join(' · ') || '—';
+  return `
+    <div class="bottle-card" onclick="renderDetail('${b.id}')">
+      <div class="bottle-thumb">${categoryEmoji(id.category)}</div>
+      <div class="bottle-info">
+        <div class="bottle-name">${escapeHtml(name)}</div>
+        <div class="bottle-sub">${escapeHtml(sub)}</div>
+      </div>
+      <div class="status-chip chip-${b.status}">${b.status}</div>
+    </div>
+  `;
+}
+
+function categoryEmoji(cat){
+  const c = (cat||'').toLowerCase();
+  if(c.includes('whisky')||c.includes('whiskey')) return '🥃';
+  if(c.includes('wine')) return '🍷';
+  if(c.includes('champagne')||c.includes('sparkl')) return '🍾';
+  if(c.includes('sake')) return '🍶';
+  if(c.includes('rum')) return '🥃';
+  return '🍷';
+}
+
+/* ---------------- 相片壓縮與檔案讀取 ---------------- */
+document.getElementById('fileInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  e.target.value = '';
+  try {
+    const dataUrl = await compressImage(file, 1280, 0.85);
+    await runScan(dataUrl);
+  } catch (err) {
+    console.error('Image compression error', err);
+    const dataUrl = await fileToDataUrl(file);
+    await runScan(dataUrl);
+  }
+});
+
+function fileToDataUrl(file){
+  return new Promise((resolve, reject)=>{
+    const r = new FileReader();
+    r.onload = ()=> resolve(r.result);
+    r.onerror = ()=> reject(new Error('read failed'));
+    r.readAsDataURL(file);
+  });
+}
+
+function compressImage(file, maxWidth, quality){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event)=>{
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = ()=>{
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        if(width > maxWidth){
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = (err)=> reject(err);
+    };
+    reader.onerror = (err)=> reject(err);
+  });
+}
+
+/* ---------------- 呼叫 Cloudflare Worker 進行掃描 ---------------- */
+async function runScan(dataUrl){
+  renderLoading(dataUrl);
+  const messages = ["正在辨識酒標...", "正在比對資料...", "正在計算價值地圖...", "正在生成建議..."];
+  let mi = 0;
+  const loadingInterval = setInterval(()=>{
+    mi = (mi+1) % messages.length;
+    const el = document.getElementById('loading-text');
+    if(el) el.textContent = messages[mi];
+  }, 1400);
+
+  try{
+    const [header, base64Data] = dataUrl.split(',');
+    const mediaTypeMatch = header.match(/data:(.*);base64/);
+    const mediaType = mediaTypeMatch ? mediaTypeMatch[1] : 'image/jpeg';
+
+    const response = await fetch(WORKER_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        image: base64Data,
+        mediaType: mediaType
+      })
+    });
+
+    if(!response.ok){
+      throw new Error('API request failed: ' + response.status);
+    }
+
+    const parsed = await response.json();
+
+    clearInterval(loadingInterval);
+    currentScan = { raw: parsed, image: dataUrl, scannedAt: Date.now() };
+    renderResult(currentScan);
+
+  }catch(err){
+    clearInterval(loadingInterval);
+    console.error('Scan error:', err);
+    renderScanError(dataUrl);
+  }
+}
+
+function renderLoading(dataUrl){
+  setActiveNav('');
+  document.getElementById('main').innerHTML = `
+    <div class="view loading-view">
+      <img class="preview-thumb" src="${dataUrl}" alt="scan preview" />
+      <div class="loading-ring"></div>
+      <div class="loading-text" id="loading-text">正在辨識酒標...</div>
+    </div>
+  `;
+}
+
+function renderScanError(dataUrl){
+  document.getElementById('main').innerHTML = `
+    <div class="view">
+      <div class="back-row" onclick="goHome()">← 返回</div>
+      <img class="preview-thumb" src="${dataUrl}" alt="scan preview" />
+      <div class="error-box">辨識失敗，可能係網絡問題或者相片唔夠清楚。請確保標籤清晰可見，再試一次。</div>
+      <div class="result-actions">
+        <button class="btn btn-primary btn-block" onclick="document.getElementById('fileInput').click()">再試一次</button>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------------- Result ---------------- */
+function confidenceTier(conf){
+  if(conf >= 80) return {cls:'seal-high', label:'high'};
+  if(conf >= 55) return {cls:'seal-medium', label:'medium'};
+  return {cls:'seal-low', label:'low'};
+}
+
+function renderResult(scanObj){
+  const r = scanObj.raw;
+  const id = r.id || {};
+  const vm = r.vm || {};
+  const rec = r.rec || {};
+  const tier = confidenceTier(id.conf || 0);
+
+  document.getElementById('main').innerHTML = `
+    <div class="view">
+      <div class="back-row" onclick="goHome()">← 返回</div>
+
+      <div class="label-card">
+        <div class="confidence-seal ${tier.cls}">
+          <div class="seal-pct">${id.conf ?? '—'}%</div>
+          <div class="seal-label">${tier.label}</div>
+        </div>
+        <div class="label-eyebrow">${escapeHtml(id.cat || 'unknown')}</div>
+        <div class="label-name">${escapeHtml(id.name || id.producer || '未能辨識')}</div>
+        <div class="label-sub">${escapeHtml(id.producer || '')}${id.region ? ' · ' + escapeHtml(id.region) : ''}</div>
+        <div class="label-facts">
+          <div><div class="fact-label">Vintage</div><div class="fact-value">${escapeHtml(id.vintage || '—')}</div></div>
+          <div><div class="fact-label">ABV</div><div class="fact-value">${escapeHtml(id.abv || '—')}</div></div>
+          <div><div class="fact-label">Volume</div><div class="fact-value">${escapeHtml(id.vol || '—')}</div></div>
+          <div><div class="fact-label">Region</div><div class="fact-value">${escapeHtml(id.region || '—')}</div></div>
+        </div>
+        ${id.note ? `<div class="label-note">${escapeHtml(id.note)}</div>` : ''}
+      </div>
+
+      ${renderRadar(vm)}
+
+      <div class="rec-card">
+        <h3>所以我而家應該點做？</h3>
+        <div class="rec-reason">${escapeHtml(rec.reason || '')}</div>
+        ${(rec.actions||[]).map((a,i)=>`
+          <div class="action-item">
+            <div class="action-rank">${['🥇','🥈','🥉'][i]||(i+1)}</div>
+            <div class="action-icon">${ACTION_ICONS[a.a]||'🍷'}</div>
+            <div class="action-body">
+              <div class="action-title">${escapeHtml(a.a||'')}</div>
+              <div class="action-reason">${escapeHtml(a.reason||'')}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="info-block">
+        <h3>🌡️ Storage Guide</h3>
+        <div class="storage-row"><div class="storage-tag">Unopened</div><div class="storage-desc">${escapeHtml((r.storage||{}).unopened || '暫無資料')}</div></div>
+        <div class="storage-row"><div class="storage-tag">Opened</div><div class="storage-desc">${escapeHtml((r.storage||{}).opened || '暫無資料')}</div></div>
+      </div>
+
+      <div class="info-block">
+        <h3>🍽️ Pairing Suggestions</h3>
+        ${(r.pairing||[]).map(p=>`<span class="pairing-pill">${escapeHtml(p)}</span>`).join('') || '<div class="storage-desc">暫無資料</div>'}
+      </div>
+
+      <div class="result-actions">
+        <button class="btn btn-primary btn-block" onclick="addToCellar()">+ Add to Cellar</button>
+      </div>
+      <div class="result-actions">
+        <button class="btn btn-ghost btn-block" onclick="document.getElementById('fileInput').click()">Scan another bottle</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderRadar(vm){
+  const order = ['mv','ql','dv','pv','sv','gv','cv','sto'];
+  const cx = 130, cy = 130, R = 95;
+  const n = order.length;
+  const points = order.map((k,i)=>{
+    const angle = (Math.PI*2*i/n) - Math.PI/2;
+    const val = Math.max(0, Math.min(100, vm[k] || 0));
+    const r = (val/100) * R;
+    return [cx + r*Math.cos(angle), cy + r*Math.sin(angle)];
+  });
+  const axisPoints = order.map((k,i)=>{
+    const angle = (Math.PI*2*i/n) - Math.PI/2;
+    return [cx + R*Math.cos(angle), cy + R*Math.sin(angle)];
+  });
+
+  const polygon = points.map(p=>p.join(',')).join(' ');
+  const rings = [0.25,0.5,0.75,1].map(f=>{
+    const ringPts = order.map((k,i)=>{
+      const angle = (Math.PI*2*i/n) - Math.PI/2;
+      return [cx + R*f*Math.cos(angle), cy + R*f*Math.sin(angle)].join(',');
+    }).join(' ');
+    return `<polygon points="${ringPts}" fill="none" stroke="#34382A" stroke-width="1"/>`;
+  }).join('');
+  const axes = axisPoints.map(p=>`<line x1="${cx}" y1="${cy}" x2="${p[0]}" y2="${p[1]}" stroke="#34382A" stroke-width="1"/>`).join('');
+
+  const legend = order.map(k=>`
+    <div class="legend-row"><span class="dim">${DIM_LABELS[k]}</span><span class="val">${vm[k] ?? '—'}</span></div>
+  `).join('');
+
+  return `
+    <div class="radar-wrap">
+      <h3>Bottle Value Map</h3>
+      <svg width="260" height="260" viewBox="0 0 260 260">
+        ${rings}
+        ${axes}
+        <polygon points="${polygon}" fill="rgba(201,162,75,0.28)" stroke="#C9A24B" stroke-width="2"/>
+        ${points.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="#C9A24B"/>`).join('')}
+      </svg>
+      <div class="radar-legend">${legend}</div>
+    </div>
+  `;
+}
+
+/* ---------------- Add to cellar ---------------- */
+function addToCellar(){
+  if(!currentScan) return;
+  const item = {
+    id: 'b_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+    status: 'unopened',
+    addedAt: Date.now(),
+    image: currentScan.image,
+    identification: mapId(currentScan.raw.id),
+    scan: currentScan.raw
+  };
+  cellar.unshift(item);
+  saveCellar();
+  renderDetail(item.id, true);
+}
+
+function mapId(id){
+  id = id || {};
+  return { name: id.name, producer: id.producer, category: id.cat, vintage: id.vintage, region: id.region };
+}
+
+/* ---------------- Cellar list ---------------- */
+let activeTab = 'all';
+function renderCellar(){
+  setActiveNav('nav-cellar');
+  const tabs = [
+    {id:'all', label:'All'},
+    {id:'unopened', label:'Unopened'},
+    {id:'opened', label:'Opened'},
+    {id:'archive', label:'Archive'}
+  ];
+  const filtered = cellar.filter(b=>{
+    if(activeTab==='all') return true;
+    if(activeTab==='archive') return ['finished','gifted','sold'].includes(b.status);
+    return b.status === activeTab;
+  });
+
+  document.getElementById('main').innerHTML = `
+    <div class="view">
+      <div class="section-head" style="margin-top:14px;"><h2>My Cellar</h2><span style="font-family:var(--mono); font-size:11px; color:var(--text-faint);">${cellar.length} bottles</span></div>
+      <div class="tabs">
+        ${tabs.map(t=>`<div class="tab ${activeTab===t.id?'active':''}" onclick="setTab('${t.id}')">${t.label}</div>`).join('')}
+      </div>
+      <div id="cellar-list">
+        ${filtered.length ? filtered.map(bottleCardHtml).join('') : `<div class="empty-state">呢個分類暫時未有酒。</div>`}
+      </div>
+    </div>
+  `;
+}
+function setTab(t){ activeTab = t; renderCellar(); }
+
+/* ---------------- Bottle detail ---------------- */
+function renderDetail(id, justAdded){
+  const b = cellar.find(x=>x.id===id);
+  if(!b){ renderCellar(); return; }
+  currentDetailId = id;
+  const idf = b.identification || {};
+  const r = b.scan || {};
+  const vm = r.vm || {};
+  const rec = r.rec || {};
+
+  const statuses = ['unopened','opened','finished','gifted','sold'];
+
+  document.getElementById('main').innerHTML = `
+    <div class="view">
+      <div class="back-row" onclick="renderCellar()">← 返回酒庫</div>
+      ${justAdded ? `<div class="error-box" style="background:rgba(110,146,101,0.12); border-color:var(--green-ok); color:#CFE4C8;">已加入酒庫 ✓</div>` : ''}
+
+      <div class="label-card">
+        <div class="label-eyebrow">${escapeHtml(idf.category || 'unknown')}</div>
+        <div class="label-name">${escapeHtml(idf.name || idf.producer || '未知酒款')}</div>
+        <div class="label-sub">${escapeHtml(idf.producer || '')}${idf.region ? ' · ' + escapeHtml(idf.region) : ''}</div>
+        <div class="label-facts">
+          <div><div class="fact-label">Vintage</div><div class="fact-value">${escapeHtml(idf.vintage || '—')}</div></div>
+          <div><div class="fact-label">Status</div><div class="fact-value">${escapeHtml(b.status)}</div></div>
+        </div>
+      </div>
+
+      <div class="status-actions">
+        ${statuses.map(s=>`<button class="status-btn ${b.status===s?'active':''}" onclick="setStatus('${b.id}','${s}')">${s}</button>`).join('')}
+      </div>
+
+      <div class="info-block">
+        <h3>你飲完覺得點？</h3>
+        <div class="storage-desc">評分會用嚟建立你嘅 Taste DNA，幫你以後預測邊支酒你會鍾意。</div>
+        <div class="star-row">
+          ${[1,2,3,4,5].map(n=>`<button class="star-btn ${b.personalRating>=n?'filled':''}" onclick="setRating('${b.id}',${n})">★</button>`).join('')}
+        </div>
+        ${b.personalRating ? `<div class="rating-display">你嘅評分: ${b.personalRating} / 5</div>` : ''}
+      </div>
+
+      ${renderRadar(vm)}
+
+      <div class="rec-card">
+        <h3>所以我而家應該點做？</h3>
+        <div class="rec-reason">${escapeHtml(rec.reason || '')}</div>
+        ${(rec.actions||[]).map((a,i)=>`
+          <div class="action-item">
+            <div class="action-rank">${['🥇','🥈','🥉'][i]||(i+1)}</div>
+            <div class="action-icon">${ACTION_ICONS[a.a]||'🍷'}</div>
+            <div class="action-body">
+              <div class="action-title">${escapeHtml(a.a||'')}</div>
+              <div class="action-reason">${escapeHtml(a.reason||'')}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="info-block">
+        <h3>🌡️ Storage Guide</h3>
+        <div class="storage-row"><div class="storage-tag">Unopened</div><div class="storage-desc">${escapeHtml((r.storage||{}).unopened || '暫無資料')}</div></div>
+        <div class="storage-row"><div class="storage-tag">Opened</div><div class="storage-desc">${escapeHtml((r.storage||{}).opened || '暫無資料')}</div></div>
+      </div>
+
+      <div class="info-block">
+        <h3>🍽️ Pairing Suggestions</h3>
+        ${(r.pairing||[]).map(p=>`<span class="pairing-pill">${escapeHtml(p)}</span>`).join('') || '<div class="storage-desc">暫無資料</div>'}
+      </div>
+
+      <div class="result-actions">
+        <button class="btn btn-wine btn-block" onclick="removeBottle('${b.id}')">從酒庫移除</button>
+      </div>
+    </div>
+  `;
+}
+
+function setStatus(id, status){
+  const b = cellar.find(x=>x.id===id);
+  if(!b) return;
+  b.status = status;
+  saveCellar();
+  renderDetail(id);
+}
+
+function removeBottle(id){
+  cellar = cellar.filter(x=>x.id!==id);
+  saveCellar();
+  renderCellar();
+}
+
+function setRating(id, n){
+  const b = cellar.find(x=>x.id===id);
+  if(!b) return;
+  b.personalRating = n;
+  saveCellar();
+  renderDetail(id);
+}
+
+/* ---------------- Taste DNA ---------------- */
+function computeTasteDNA(){
+  const rated = cellar.filter(b => b.personalRating && b.scan && b.scan.flavor);
+  if(!rated.length) return null;
+  const keys = Object.keys(FLAVOR_LABELS);
+  const totals = {}; let weightSum = 0;
+  keys.forEach(k => totals[k] = 0);
+  rated.forEach(b=>{
+    const w = b.personalRating;
+    keys.forEach(k=>{ totals[k] += (b.scan.flavor[k]||0) * w; });
+    weightSum += w;
+  });
+  const profile = {};
+  keys.forEach(k => profile[k] = Math.round(totals[k]/weightSum));
+  return { profile, sampleCount: rated.length };
+}
+
+function renderTasteDNA(){
+  const dna = computeTasteDNA();
+  document.getElementById('main').innerHTML = `
+    <div class="view">
+      <div class="back-row" onclick="goHome()">← 返回</div>
+      <div class="section-head" style="margin-top:6px;"><h2>Your Taste DNA</h2></div>
+      ${dna ? `
+        <div class="info-block">
+          <div class="storage-desc">基於 ${dna.sampleCount} 支已評分酒款計算出嚟嘅個人風味傾向。</div>
+        </div>
+        ${renderFlavorBars(dna.profile)}
+      ` : `
+        <div class="empty-state">評分至少一支酒之後，呢度就會顯示你嘅 Taste DNA。喺酒庫入面揀一支酒，俾個星級評分試下。</div>
+      `}
+    </div>
+  `;
+}
+
+function renderFlavorBars(profile){
+  const rows = Object.keys(FLAVOR_LABELS).map(k=>{
+    const val = profile[k] || 0;
+    return `
+      <div style="margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:5px;">
+          <span style="color:var(--text-muted);">${FLAVOR_LABELS[k]}</span>
+          <span style="font-family:var(--mono); color:var(--gold);">${val}</span>
+        </div>
+        <div style="height:6px; background:var(--line); border-radius:999px; overflow:hidden;">
+          <div style="height:100%; width:${val}%; background:var(--gold); border-radius:999px;"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  return `<div class="info-block">${rows}</div>`;
+}
+
+/* ---------------- Discover ---------------- */
+function renderDiscover(){
+  setActiveNav('nav-discover');
+  document.getElementById('main').innerHTML = `
+    <div class="view">
+      <div class="section-head" style="margin-top:14px;"><h2>Discover</h2></div>
+      <div class="empty-state">社群分享功能需要後端雲端資料庫（如 Cloudflare D1 或 KV）。目前你可以在首頁體驗完整的酒標辨識、價值分析與酒庫記錄！</div>
+    </div>
+  `;
+}
+
+/* ---------------- Settings ---------------- */
+function renderSettings(){
+  setActiveNav('');
+  document.getElementById('main').innerHTML = `
+    <div class="view">
+      <div class="back-row" onclick="goHome()">← 返回</div>
+      <div class="section-head" style="margin-top:6px;"><h2>Settings</h2></div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-title">分享部分酒庫</div>
+          <div class="toggle-desc">開啟後，你 Scan 加入酒庫嘅酒款資料會匿名分享俾其他用戶（目前為展示功能）。</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" ${settings.shareCellar?'checked':''} onchange="toggleShare(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="section-head"><h2>Your Taste DNA</h2><a onclick="renderTasteDNA()">查看 →</a></div>
+      <div class="empty-state" style="padding:16px 0;">評分你飲過嘅酒，建立你嘅個人風味檔案。</div>
+    </div>
+  `;
+}
+
+function toggleShare(checked){
+  settings.shareCellar = checked;
+  saveSettings();
+}
+
+/* ---------------- utils ---------------- */
+function escapeHtml(str){
+  if(str===undefined || str===null) return '';
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+/* ---------------- init ---------------- */
+(function init(){
+  loadCellar();
+  loadSettings();
+  goHome();
+})();
+</script>
+</body>
+</html>
