@@ -1,5 +1,5 @@
 /* BottleSense app.js
- * 旗艦完整版：含城市天際線探索、分享到公開池、首支酒手遊引繼/註冊彈窗、多語言、HUD相機
+ * 旗艦完整版：含向量世界地圖釘選產區、Favicon 支援、探索池發布、首酒引繼、HUD 相機
  */
 
 const main = document.getElementById('main');
@@ -70,8 +70,8 @@ const I18N = {
     btn_close: "關閉",
     copied_toast: "✓ 已複製專屬連結至剪貼簿！",
     published_toast: "✓ 已成功發布至酒友探索池！",
-    explore_title: "都市夜色・酒友探索",
-    explore_hint: "點擊天際線上的微光節點，看看同好在此刻分享的佳釀。",
+    explore_title: "世界產區・酒友探索",
+    explore_hint: "地圖已釘選各款名釀產地與同好分享地點，點擊光點直達酒款！",
     confirm_delete: "確定要從酒庫移除這瓶酒？"
   },
   en: {
@@ -120,8 +120,8 @@ const I18N = {
     btn_close: "Close",
     copied_toast: "✓ Link copied to clipboard!",
     published_toast: "✓ Published to Community Feed!",
-    explore_title: "City Skyline & Community",
-    explore_hint: "Tap on skyline glowing beacons to discover fellow tasters' shared bottles.",
+    explore_title: "World Terroir & Community",
+    explore_hint: "Map pins indicate origin regions & fellow pours. Tap any beacon to view bottle!",
     confirm_delete: "Are you sure you want to remove this bottle?"
   }
 };
@@ -525,7 +525,6 @@ function renderBottleDetail(id) {
         <button class="btn btn-ghost" style="padding:8px 14px; font-size:14px;" onclick="${currentView === 'cellar' ? 'renderCellar()' : 'goHome()'}">
           ${t('back')}
         </button>
-        <!-- 2. 分享入口：引導私密分享或社群公開發布 -->
         <button class="share-plane-btn" onclick="openShareActionSheet('${esc(b.id)}')">
           ${TELEGRAM_PLANE_SVG}
           <span>${t('share_bottle')}</span>
@@ -821,9 +820,6 @@ async function saveNewSession(bottleId) {
   renderBottleDetail(bottleId);
 }
 
-/* =======================================================================
-   2. 釐清分享流程：私密好友分享 vs 探索池公開發布 (ActionSheet)
-======================================================================= */
 function openShareActionSheet(bottleId, sessionId = null) {
   const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
   if (!b) return;
@@ -836,12 +832,10 @@ function openShareActionSheet(bottleId, sessionId = null) {
         </h3>
         
         <div style="display:flex; flex-direction:column; gap:10px;">
-          <!-- 選項一：公開到社群探索池 -->
           <button class="btn btn-primary btn-block" onclick="publishToCommunityPool('${esc(b.id)}', '${esc(sessionId||'')}'); closeModal();">
             🌍 ${currentLang==='zh'?'發布到酒友公開探索池':'Publish to Community Feed'}
           </button>
           
-          <!-- 選項二：手機/私密連結分享給好友 -->
           <button class="btn btn-ghost btn-block" onclick="executePrivateShare('${esc(b.id)}', '${esc(sessionId||'')}'); closeModal();">
             📲 ${currentLang==='zh'?'發送給朋友 (私密專屬連結)':'Share with Friends (Private Link)'}
           </button>
@@ -855,7 +849,6 @@ function openShareActionSheet(bottleId, sessionId = null) {
   `;
 }
 
-// 發布到探索池 (寫入 Worker /api/explore/publish)
 async function publishToCommunityPool(bottleId, sessionId) {
   const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
   if (!b) return;
@@ -868,7 +861,7 @@ async function publishToCommunityPool(bottleId, sessionId) {
     image: b.image,
     personalRating: s ? s.rating : (b.personalRating || 5),
     diary: { notes: s ? s.notes : (b.tastings?.[0]?.notes || '品鑑佳釀') },
-    location: s?.location || '城市角落',
+    location: s?.location || b.identification?.region || b.tags?.region || '世界名釀',
     publishedAt: Date.now()
   };
 
@@ -884,7 +877,6 @@ async function publishToCommunityPool(bottleId, sessionId) {
   }
 }
 
-// 私密好友分享 (原生選單或複製連結)
 function executePrivateShare(bottleId, sessionId) {
   if (sessionId) shareSingleSession(bottleId, sessionId);
   else shareSingleBottle(bottleId);
@@ -966,8 +958,29 @@ async function shareSingleSession(bottleId, sessionId) {
 }
 
 /* =======================================================================
-   1. 探索頁面 (城市天際線 Skyline Vector + 社群酒友公開池)
+   1. 世界地圖輪廓 (World Map Vector Radar + 產地真實經緯坐標釘選)
 ======================================================================= */
+// 世界名酒產區等角投影坐標對應表 (SVG 1000x500 畫布百分比)
+const TERROIR_COORDINATES = {
+  // 蘇格蘭 / 英國
+  '蘇格蘭': { x: 485, y: 155 }, '英國': { x: 486, y: 165 }, 'Scotland': { x: 485, y: 155 }, 'UK': { x: 486, y: 165 },
+  // 法國 (波爾多 / 香檳 / 勃艮第)
+  '法國': { x: 495, y: 190 }, '波爾多': { x: 493, y: 195 }, '香檳': { x: 497, y: 185 }, '勃艮第': { x: 498, y: 190 }, 'France': { x: 495, y: 190 },
+  // 義大利 / 西班牙
+  '義大利': { x: 515, y: 205 }, '意大利': { x: 515, y: 205 }, '西班牙': { x: 482, y: 215 }, 'Italy': { x: 515, y: 205 }, 'Spain': { x: 482, y: 215 },
+  // 日本 (余市 / 山崎 / 沖繩 / 東京)
+  '日本': { x: 865, y: 210 }, '余市': { x: 875, y: 190 }, '北海道': { x: 875, y: 190 }, '山崎': { x: 860, y: 215 }, '沖繩': { x: 835, y: 250 }, 'Japan': { x: 865, y: 210 },
+  // 台灣 / 香港 / 中國
+  '台灣': { x: 825, y: 255 }, 'Taiwan': { x: 825, y: 255 }, '香港': { x: 810, y: 260 }, 'Hong Kong': { x: 810, y: 260 }, '中國': { x: 770, y: 220 },
+  // 美國 (納帕 / 加州 / 肯塔基)
+  '美國': { x: 230, y: 200 }, '加州': { x: 190, y: 210 }, '納帕': { x: 190, y: 205 }, 'USA': { x: 230, y: 200 },
+  // 澳洲 / 紐西蘭
+  '澳洲': { x: 870, y: 390 }, '澳大利亞': { x: 870, y: 390 }, '紐西蘭': { x: 950, y: 430 }, 'Australia': { x: 870, y: 390 }
+};
+
+let mapZoom = 1;
+let mapPanX = 0, mapPanY = 0;
+
 async function renderExplore() {
   currentView = 'explore';
   setActiveNav('nav-explore');
@@ -976,17 +989,51 @@ async function renderExplore() {
     <div class="view" style="padding-bottom: 50px;">
       <div class="section-head"><h2>${t('explore_title')}</h2></div>
 
-      <!-- 簡約城市輪廓天際線雷達 (City Skyline) -->
-      <div class="skyline-radar-container">
-        <svg class="skyline-svg" viewBox="0 0 600 220" preserveAspectRatio="none">
-          <!-- 遠景淡色大樓輪廓 -->
-          <polygon points="0,220 0,160 40,160 40,140 70,140 70,170 120,170 120,110 160,110 160,180 220,180 220,130 260,130 260,190 320,190 320,100 370,100 370,160 420,160 420,120 460,120 460,170 510,170 510,130 550,130 550,180 600,180 600,220" fill="rgba(212,175,55,0.06)" />
-          <!-- 前景深色現代線條 -->
-          <polygon points="0,220 0,180 30,180 30,150 60,150 60,185 90,185 90,130 110,130 110,90 130,70 150,90 150,190 200,190 200,140 240,140 240,195 290,195 290,115 330,115 330,200 380,200 380,120 410,120 410,180 470,180 470,85 500,85 500,190 560,190 560,150 600,150 600,220" fill="rgba(212,175,55,0.12)" stroke="#D4AF37" stroke-width="1.5" stroke-opacity="0.3" />
+      <!-- 世界地圖輪廓雷達容器 -->
+      <div class="world-radar-container" id="worldRadarBox">
+        <svg class="world-map-svg" id="worldSvgMap" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet">
+          <!-- 經緯線網格 -->
+          <g class="world-grid-lines">
+            <line x1="0" y1="250" x2="1000" y2="250" />
+            <line x1="0" y1="125" x2="1000" y2="125" />
+            <line x1="0" y1="375" x2="1000" y2="375" />
+            <line x1="500" y1="0" x2="500" y2="500" />
+            <line x1="250" y1="0" x2="250" y2="500" />
+            <line x1="750" y1="0" x2="750" y2="500" />
+          </g>
+          
+          <!-- 黑金向量世界陸地輪廓 (北美、南美、歐洲、非洲、亞洲、大洋洲) -->
+          <g class="world-land-mass">
+            <!-- 北美洲 -->
+            <path d="M120,60 L240,40 L310,80 L290,140 L240,170 L260,230 L200,260 L180,240 L130,170 L90,120 Z" />
+            <!-- 南美洲 -->
+            <path d="M250,280 L340,310 L370,360 L320,460 L280,480 L260,380 Z" />
+            <!-- 歐洲 -->
+            <path d="M460,90 L540,80 L560,140 L520,180 L460,190 L440,130 Z" />
+            <!-- 非洲 -->
+            <path d="M460,200 L560,200 L590,290 L530,410 L470,350 L430,260 Z" />
+            <!-- 亞洲主要板塊 -->
+            <path d="M570,80 L840,60 L920,130 L870,220 L760,280 L680,270 L600,160 Z" />
+            <!-- 日本群島 -->
+            <path d="M860,180 L885,195 L870,230 L855,220 Z" />
+            <!-- 台灣島 -->
+            <path d="M822,250 L830,253 L826,262 L820,258 Z" />
+            <!-- 澳洲與大洋洲 -->
+            <path d="M800,340 L910,320 L940,390 L880,440 L790,410 Z" />
+            <!-- 英國與愛爾蘭 -->
+            <path d="M475,135 L495,140 L488,168 L470,160 Z" />
+          </g>
         </svg>
 
-        <!-- 天際線酒友光點 -->
-        <div class="radar-points-layer" id="radarNodesLayer"></div>
+        <!-- 釘選圖層 -->
+        <div id="geoPinsContainer" style="position:absolute; inset:0; pointer-events:none;"></div>
+
+        <!-- 放大縮小 HUD 控制 -->
+        <div class="map-controls-hud">
+          <button class="map-hud-btn" onclick="zoomWorldMap(1.25)">+</button>
+          <button class="map-hud-btn" onclick="zoomWorldMap(0.8)">−</button>
+          <button class="map-hud-btn" onclick="resetWorldMap()">↺</button>
+        </div>
       </div>
 
       <div style="font-size:12.5px; color:var(--text-faint); margin-top:-10px; margin-bottom:18px;">
@@ -1000,15 +1047,81 @@ async function renderExplore() {
     </div>
   `;
 
-  renderSkylineRadarFeed();
+  initWorldMapInteractions();
+  renderWorldPinsAndFeed();
 }
 
-async function renderSkylineRadarFeed() {
+function initWorldMapInteractions() {
+  const container = document.getElementById('worldRadarBox');
+  if (!container) return;
+
+  container.onwheel = (e) => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.15 : 0.85;
+    zoomWorldMap(factor);
+  };
+
+  let isDraggingMap = false;
+  let startX = 0, startY = 0;
+
+  container.onmousedown = (e) => {
+    isDraggingMap = true;
+    startX = e.clientX - mapPanX;
+    startY = e.clientY - mapPanY;
+  };
+
+  window.onmousemove = (e) => {
+    if (!isDraggingMap) return;
+    mapPanX = e.clientX - startX;
+    mapPanY = e.clientY - startY;
+    updateWorldMapTransform();
+  };
+
+  window.onmouseup = () => isDraggingMap = false;
+}
+
+function zoomWorldMap(factor) {
+  mapZoom = Math.min(3.5, Math.max(0.8, mapZoom * factor));
+  updateWorldMapTransform();
+}
+
+function resetWorldMap() {
+  mapZoom = 1; mapPanX = 0; mapPanY = 0;
+  updateWorldMapTransform();
+}
+
+function updateWorldMapTransform() {
+  const svg = document.getElementById('worldSvgMap');
+  const pins = document.getElementById('geoPinsContainer');
+  const transform = `translate(${mapPanX}px, ${mapPanY}px) scale(${mapZoom})`;
+  if (svg) svg.style.transform = transform;
+  if (pins) pins.style.transform = transform;
+}
+
+// 根據國家/產區精確取得 SVG 百分比位置
+function resolveTerroirPos(country, region) {
+  const key = [region, country].find(k => k && TERROIR_COORDINATES[k]);
+  if (key) {
+    const pt = TERROIR_COORDINATES[key];
+    return { top: (pt.y / 500) * 100, left: (pt.x / 1000) * 100 };
+  }
+  // 隨機分布在世界知名葡萄酒帶
+  const fallbackList = [
+    { top: 38, left: 49.5 }, // 法國
+    { top: 31, left: 48.5 }, // 蘇格蘭
+    { top: 43, left: 86.5 }, // 日本
+    { top: 41, left: 22.0 }, // 美國
+    { top: 76, left: 86.0 }  // 澳洲
+  ];
+  return fallbackList[Math.floor(Math.random() * fallbackList.length)];
+}
+
+async function renderWorldPinsAndFeed() {
   try {
     const res = await fetch(`${WORKER_API_URL}/api/explore`);
     const publicFeed = res.ok ? await res.json() : [];
     const feedEl = document.getElementById('explore-feed');
-    const nodesLayer = document.getElementById('radarNodesLayer');
+    const pinsLayer = document.getElementById('geoPinsContainer');
     if (!feedEl) return;
 
     if (!publicFeed.length) {
@@ -1016,21 +1129,21 @@ async function renderSkylineRadarFeed() {
       return;
     }
 
-    // 渲染天際線互動光點 (散落在城市高樓間)
-    if (nodesLayer) {
-      const positions = [
-        {top: 45, left: 24}, {top: 35, left: 48}, {top: 55, left: 72}, {top: 38, left: 85}, {top: 60, left: 15}
-      ];
-      nodesLayer.innerHTML = publicFeed.slice(0, 5).map((b, i) => {
-        const pos = positions[i] || {top: 50, left: 50};
+    // 1. 於世界地圖釘選光點
+    if (pinsLayer) {
+      pinsLayer.innerHTML = publicFeed.slice(0, 10).map((b) => {
+        const country = b.identification?.country || b.tags?.country || '';
+        const region = b.identification?.region || b.tags?.region || '';
+        const pos = resolveTerroirPos(country, region);
         return `
-          <div class="radar-node" style="top:${pos.top}%; left:${pos.left}%;" onclick="highlightFeedItem('${esc(b.id)}')">
+          <div class="geo-pin-node" style="top:${pos.top}%; left:${pos.left}%; pointer-events:auto;" onclick="highlightFeedItem('${esc(b.id)}')" title="${esc(bottleName(b))}">
             🍷
           </div>
         `;
       }).join('');
     }
 
+    // 2. 社群動態列表
     feedEl.innerHTML = publicFeed.map(b => `
       <div class="bottle-card" id="feed-card-${esc(b.id)}" style="margin-bottom:14px; transition: border-color 0.3s ease;">
         <div class="bottle-photo-box">${b.image ? `<img src="${esc(b.image)}">` : '🍷'}</div>
@@ -1038,7 +1151,7 @@ async function renderSkylineRadarFeed() {
           <div class="bottle-name">${esc(b.identification?.name || '酒款')}</div>
           <div style="font-size:13px; color:var(--gold); margin-top:3px;">★ ${b.personalRating||5}/5 ・ ${esc(b.author||'品飲同好')}</div>
           <div style="font-size:14px; color:var(--text-muted); margin-top:5px;">"${esc(b.diary?.notes || '無額外筆記')}"</div>
-          ${b.location ? `<div style="font-size:11px; color:var(--text-faint); margin-top:3px;">📍 ${esc(b.location)}</div>` : ''}
+          <div style="font-size:12px; color:var(--text-faint); margin-top:4px;">📍 ${esc(b.identification?.country || '')} ${esc(b.identification?.region || b.location || '')}</div>
         </div>
       </div>
     `).join('');
@@ -1203,7 +1316,6 @@ function initCropInteractions() {
   viewport.addEventListener('touchend', onPointerUp);
 }
 
-// 確認裁切並觸發辨識
 async function confirmCropAndScan() {
   const cropImg = document.getElementById('cropTargetImage');
   closeCropModal();
@@ -1252,7 +1364,6 @@ async function confirmCropAndScan() {
     window.cellar.unshift(bottle);
     await saveBottleToDB(bottle);
 
-    // 3. 第一支酒成功存入後，觸發手遊式註冊/引繼提問
     if (isFirstBottle && !localStorage.getItem('bottlesense_registered')) {
       promptFirstBottleRegistration(bottle.id);
     } else {
@@ -1264,9 +1375,6 @@ async function confirmCropAndScan() {
   }
 }
 
-/* =======================================================================
-   3. 手遊式首酒註冊 / 帳號引繼提示機制 (Registration/Takeover Modal)
-======================================================================= */
 function promptFirstBottleRegistration(bottleId) {
   const syncKey = localStorage.getItem('bottlesense_sync_key') || '';
 
@@ -1281,7 +1389,6 @@ function promptFirstBottleRegistration(bottleId) {
           為防止未來更換手機或清除瀏覽器快取時藏酒遺失，建議立即綁定身分，或將你的專屬引繼碼妥善備份：
         </p>
 
-        <!-- 方案 A：快速綁定 -->
         <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px;">
           <div style="font-size:12px; font-weight:600; color:var(--gold); margin-bottom:6px;">方案 A：設定暱稱與備份密碼</div>
           <input type="text" id="reg-name" class="text-input" style="margin-top:0; padding:8px; font-size:13px;" placeholder="品飲家稱號 (姓名/暱稱)">
@@ -1291,7 +1398,6 @@ function promptFirstBottleRegistration(bottleId) {
           </button>
         </div>
 
-        <!-- 方案 B：手遊引繼碼警示模式 -->
         <div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25); border-radius:12px; padding:12px; margin-bottom:14px;">
           <div style="font-size:11.5px; color:#f87171; font-weight:600; margin-bottom:4px;">⚠️ 略過綁定警示：</div>
           <div style="font-size:11px; color:var(--text-muted); line-height:1.5;">
