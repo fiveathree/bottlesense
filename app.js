@@ -1,5 +1,11 @@
 /* BottleSense app.js
- * 旗艦完整版：含向量世界地圖釘選與自由平移拖曳、首頁隨機抽酒6格、Know Your Bottle排版優化、單行極致收窄轉移列
+ * 完整旗艦版：
+ * 1. 探索頁採用高質感金線黑底世界地圖，支援上下左右平移與滑鼠滾輪/手勢縮放
+ * 2. 智慧真實地理座標釘選 (蘇格蘭、法國、日本、美國等)
+ * 3. 首頁 6 格工整排列 (含 🎲 隨機賞味抽取)
+ * 4. Know your bottle: 酒款介紹與專業處置建議置頂，品飲歷程與轉移列下移
+ * 5. 轉移藏酒空間改為單行極致收窄膠囊列
+ * 6. 支援繁英雙語即時切換、HUD 對位相機與首酒引繼/註冊彈窗
  */
 
 const main = document.getElementById('main');
@@ -10,6 +16,10 @@ const galleryInput = document.getElementById('galleryInput');
 const TELEGRAM_PLANE_SVG = `<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>`;
 const EDIT_PENCIL_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
 const ACTION_ICONS = { drink:"🥃", pair:"🍽️", share:"👥", gift:"🎁", collect:"💎", sell:"💰", store:"🌡️", keep:"💎" };
+
+// 採用用戶指定的高質感金線世界地圖
+const GOLD_WORLD_MAP_URL = "https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&w=1200&q=80"; // 備用或直接載入同款金線地圖
+const LOCAL_MAP_ASSET = "./world_map_gold.jpg"; // 若放置在本地同目錄可使用
 
 let currentView = 'home';
 let currentScene = 'cooler';
@@ -71,7 +81,7 @@ const I18N = {
     btn_close: "關閉",
     copied_toast: "✓ 已複製專屬連結至剪貼簿！",
     published_toast: "✓ 已成功發布至酒友探索池！",
-    explore_title: "世界名釀・酒友足跡",
+    explore_title: "世界名釀・金線地圖",
     explore_hint: "地圖已釘選各款名釀產地與同好分享地點，可上下左右拖曳與縮放！",
     confirm_delete: "確定要從酒庫移除這瓶酒？",
     no_random_bottle: "酒窖目前暫無藏酒，無法隨機抽選！"
@@ -123,7 +133,7 @@ const I18N = {
     btn_close: "Close",
     copied_toast: "✓ Link copied to clipboard!",
     published_toast: "✓ Published to Community Feed!",
-    explore_title: "World Terroir & Community Radar",
+    explore_title: "World Terroir & Golden Map",
     explore_hint: "Terroir origins and pours are pinned. Pan and zoom around the globe!",
     confirm_delete: "Are you sure you want to remove this bottle?",
     no_random_bottle: "Cellar is empty. Cannot pick a surprise bottle!"
@@ -223,7 +233,7 @@ function goHome() {
   renderHome();
 }
 
-/* ---------------- 3. 首頁湊齊 6 格 (加隨機抽酒) ---------------- */
+/* ---------------- 首頁湊齊 6 格 (加隨機抽酒) ---------------- */
 function renderHome() {
   currentView = 'home';
   setActiveNav('nav-home');
@@ -454,11 +464,13 @@ function bottleCardHTML(b) {
 
         <div class="bottle-info">
           <div style="display:flex; align-items:center;">
-            <div class="bottle-name">${esc(bottleName(b))}</div>${b.isFavorite ? '<span class="fav-star-badge">★</span>' : ''}
+            <div class="bottle-name">${esc(bottleName(b))}</div>
+            ${b.isFavorite ? '<span class="fav-star-badge">★</span>' : ''}
           </div>
-          <div class="bottle-sub">${esc(safeIdentification(b).producer \vert{}\vert{} '')}${vintage ? ' · ' + esc(vintage) : ''}</div>
+          <div class="bottle-sub">${esc(safeIdentification(b).producer || '')}${vintage ? ' · ' + esc(vintage) : ''}</div>
           <div class="tag-cluster">
-            <span class="tag-badge">${esc(cat)}</span>${region ? `<span class="tag-badge secondary">${esc(region)}</span>` : ''}
+            <span class="tag-badge">${esc(cat)}</span>
+            ${region ? `<span class="tag-badge secondary">${esc(region)}</span>` : ''}
             ${pourCount > 0 ? `<span class="tag-badge" style="background:rgba(56,189,248,0.15); color:var(--cyan-glow); border-color:rgba(56,189,248,0.3);">${currentLang==='zh'?'品飲':'Pours'} ×${pourCount}</span>` : ''}
             ${b.personalRating ? `<span class="tag-badge secondary">★ ${b.personalRating}/5</span>` : ''}
           </div>
@@ -553,7 +565,7 @@ function renderBottleDetail(id) {
 
       ${img ? `<div class="detail-photo-hero"><img src="${esc(img)}" alt=""></div>` : ''}
 
-      <!-- 核心身分卡片 (拉高最先閱讀) -->
+      <!-- 1. 核心身分卡片 (拉高最先閱讀) -->
       <div class="label-card">
         ${confidence ? `
           <div class="confidence-seal ${confidence >= 80 ? 'seal-high' : confidence >= 55 ? 'seal-medium' : 'seal-low'}">
@@ -565,7 +577,7 @@ function renderBottleDetail(id) {
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
           <div class="label-eyebrow" style="margin-bottom:0;">${esc(bottleCategory(b))}</div>
           <button class="edit-badge-btn" onclick="openEditBottleModal('${esc(b.id)}')">
-            ${EDIT_PENCIL_SVG}${t('edit_info')}
+            ${EDIT_PENCIL_SVG} ${t('edit_info')}
           </button>
         </div>
 
@@ -580,13 +592,13 @@ function renderBottleDetail(id) {
         </div>
       </div>
 
-      <!-- 八維價值地圖雷達圖 (Know your bottle 核心) -->
+      <!-- 2. 八維價值地圖雷達圖 (Know your bottle 核心) -->
       ${renderRadar(vm)}
 
-      <!-- 專業處置建議 (移至上方，先知點做) -->
+      <!-- 3. 專業處置建議 (置頂，先知點做) -->
       ${renderRecommendation(rec)}
 
-      <!-- 5. 轉移藏酒空間 (一行過極致收窄) -->
+      <!-- 4. 轉移藏酒空間 (一行過極致收窄膠囊列) -->
       <div class="info-block">
         <h3 style="font-size:14px; margin-bottom:6px;">${t('transfer_title')}</h3>
         <div class="destination-strip">
@@ -598,7 +610,7 @@ function renderBottleDetail(id) {
         </div>
       </div>
 
-      <!-- 品飲歷史時間軸 (移至處置建議下方) -->
+      <!-- 5. 品飲歷史時間軸 (順延置於下方) -->
       <div class="info-block">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <h3>${t('timeline_title')} (${(b.tastings || []).length})</h3>
@@ -613,7 +625,7 @@ function renderBottleDetail(id) {
             <div class="timeline-card">
               <div class="timeline-header">
                 <div>
-                  <span class="timeline-time">#${idx+1} · ${esc(tItem.dateStr || tItem.date || '')}</span>
+                  <span class="timeline-time">#${idx+1} ·${esc(tItem.dateStr || tItem.date || '')}</span>
                   <div style="color:var(--gold); font-size:14px; margin-top:2px;">${'★'.repeat(tItem.rating || 5)}</div>
                 </div>
                 <button class="timeline-share-btn" onclick="openShareActionSheet('${esc(b.id)}', '${esc(tItem.id)}')" title="Share this pour">
@@ -677,7 +689,8 @@ function renderRadar(vm) {
     <div class="radar-wrap">
       <h3>${currentLang === 'zh' ? '八維價值地圖' : 'Value Profile Map'}</h3>
       <svg width="260" height="260" viewBox="0 0 260 260">
-        ${rings}${axes}
+        ${rings}
+        ${axes}
         <polygon points="${polygon}" fill="rgba(212,175,55,0.25)" stroke="#D4AF37" stroke-width="2"/>
         ${points.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="#D4AF37"/>`).join('')}
       </svg>
@@ -691,7 +704,8 @@ function renderRecommendation(rec) {
   return `
     <div class="rec-card">
       <h3>${currentLang === 'zh' ? '專業處置建議' : 'Sommelier Guidance'}</h3>
-      <div class="rec-reason">${esc(rec.reason \vert{}\vert{} '')}</div>${(rec.actions || [
+      <div class="rec-reason">${esc(rec.reason || '')}</div>
+      ${(rec.actions || [
         {a:"drink", reason: currentLang==='zh'?"現在正是最佳風味表現期":"Peak drinking window is now"},
         {a:"share", reason: currentLang==='zh'?"適合與同好一同品嚐":"Great for social gatherings"},
         {a:"store", reason: currentLang==='zh'?"常溫避光存放即可":"Keep in dark temperature-stable storage"}
@@ -723,4 +737,876 @@ function openEditBottleModal(id) {
 
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="closeModal()">
-      <div class="
+      <div class="modal-card" style="max-width:380px; text-align:left;" onclick="event.stopPropagation()">
+        <div style="font-family:var(--serif); font-size:19px; font-weight:700; margin-bottom:14px; color:var(--gold);">
+          ✏️ ${t('edit_info')}
+        </div>
+        <div style="font-size:12.5px; font-family:var(--mono); color:var(--text-faint);">${currentLang==='zh'?'酒款名稱':'Bottle Name'}</div>
+        <input type="text" id="edit-name" class="text-input" value="${esc(bottleName(b))}">
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px;">
+          <div>
+            <div style="font-size:12.5px; font-family:var(--mono); color:var(--text-faint);">${currentLang==='zh'?'酒類別':'Category'}</div>
+            <input type="text" id="edit-category" class="text-input" value="${esc(bottleCategory(b))}">
+          </div>
+          <div>
+            <div style="font-size:12.5px; font-family:var(--mono); color:var(--text-faint);">${currentLang==='zh'?'年份':'Vintage'}</div>
+            <input type="text" id="edit-vintage" class="text-input" value="${esc(bottleVintage(b))}">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px;">
+          <div>
+            <div style="font-size:12.5px; font-family:var(--mono); color:var(--text-faint);">${currentLang==='zh'?'國家':'Country'}</div>
+            <input type="text" id="edit-country" class="text-input" value="${esc(bottleCountry(b))}">
+          </div>
+          <div>
+            <div style="font-size:12.5px; font-family:var(--mono); color:var(--text-faint);">${currentLang==='zh'?'產區':'Region'}</div>
+            <input type="text" id="edit-region" class="text-input" value="${esc(bottleRegion(b))}">
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:18px;">
+          <button class="btn btn-ghost btn-block" onclick="closeModal()">${currentLang==='zh'?'取消':'Cancel'}</button>
+          <button class="btn btn-primary btn-block" onclick="saveEditedBottle('${esc(b.id)}')">${currentLang==='zh'?'儲存':'Save'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function saveEditedBottle(id) {
+  const b = (window.cellar || []).find(x => String(x.id) === String(id));
+  if (!b) return;
+
+  b.identification.name = document.getElementById('edit-name').value.trim();
+  b.tags.category = document.getElementById('edit-category').value.trim();
+  b.tags.vintage = document.getElementById('edit-vintage').value.trim();
+  b.tags.country = document.getElementById('edit-country').value.trim();
+  b.tags.region = document.getElementById('edit-region').value.trim();
+
+  await saveBottleToDB(b);
+  closeModal();
+  renderBottleDetail(id);
+}
+
+let currentSessionRating = 5;
+function openAddSessionModal(bottleId) {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  const defaultIso = now.toISOString().slice(0, 16);
+  currentSessionRating = 5;
+
+  modalContainer.innerHTML = `
+    <div class="modal-overlay" onclick="closeModal()">
+      <div class="modal-card" style="max-width:390px; text-align:left;" onclick="event.stopPropagation()">
+        <div style="font-family:var(--serif); font-size:19px; font-weight:700; margin-bottom:12px; color:var(--gold);">
+          ${t('btn_add_log')}
+        </div>
+        <div style="font-size:12.5px; font-family:var(--mono); color:var(--text-faint);">${currentLang==='zh'?'日期與時間':'Date & Time'}</div>
+        <input type="datetime-local" id="sess-date" class="text-input" value="${defaultIso}">
+
+        <div style="font-size:12.5px; font-family:var(--mono); color:var(--text-faint); margin-top:8px;">${currentLang==='zh'?'地點 / 酒吧':'Venue / Location'}</div>
+        <input type="text" id="sess-loc" class="text-input" placeholder="${currentLang==='zh'?'例如：尖沙咀 Whisky Bar / 屋企陽台':'e.g. Balcony at home, Bar'}">
+
+        <div style="font-size:12.5px; font-family:var(--mono); color:var(--text-faint); margin-top:8px;">${currentLang==='zh'?'同飲同伴':'Companions'}</div>
+        <input type="text" id="sess-comp" class="text-input" placeholder="${currentLang==='zh'?'例如：好友相聚、獨酌深思':'e.g. Solo, Rex, Friends'}">
+
+        <div style="font-size:12.5px; font-family:var(--mono); color:var(--text-faint); margin-top:8px;">${currentLang==='zh'?'評分':'Rating'}</div>
+        <div class="star-row">
+          ${[1,2,3,4,5].map(n => `<button class="star-btn filled" id="sess-star-${n}" onclick="setModalRating(${n})">★</button>`).join('')}
+        </div>
+
+        <div style="font-size:12.5px; font-family:var(--mono); color:var(--text-faint); margin-top:8px;">${currentLang==='zh'?'品飲感受與筆記':'Tasting Impressions'}</div>
+        <textarea id="sess-notes" class="text-input" style="height:80px; resize:none;"></textarea>
+
+        <div style="display:flex; gap:10px; margin-top:18px;">
+          <button class="btn btn-ghost btn-block" onclick="closeModal()">${currentLang==='zh'?'取消':'Cancel'}</button>
+          <button class="btn btn-primary btn-block" onclick="saveNewSession('${esc(bottleId)}')">${currentLang==='zh'?'儲存品飲':'Save Pour'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function setModalRating(n) {
+  currentSessionRating = n;
+  for (let i = 1; i <= 5; i++) {
+    const el = document.getElementById(`sess-star-${i}`);
+    if (el) el.classList.toggle('filled', i <= n);
+  }
+}
+
+async function saveNewSession(bottleId) {
+  const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
+  if (!b) return;
+
+  const rawDate = document.getElementById('sess-date').value;
+  const newSession = {
+    id: 't_' + Date.now(),
+    dateStr: rawDate ? rawDate.replace('T', ' ') : new Date().toLocaleString(),
+    location: document.getElementById('sess-loc').value.trim(),
+    companions: document.getElementById('sess-comp').value.trim(),
+    rating: currentSessionRating,
+    notes: document.getElementById('sess-notes').value.trim()
+  };
+
+  b.tastings.unshift(newSession);
+  b.personalRating = newSession.rating;
+  await saveBottleToDB(b);
+  closeModal();
+  renderBottleDetail(bottleId);
+}
+
+function openShareActionSheet(bottleId, sessionId = null) {
+  const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
+  if (!b) return;
+
+  modalContainer.innerHTML = `
+    <div class="modal-overlay" onclick="closeModal()">
+      <div class="modal-card" style="text-align:left;" onclick="event.stopPropagation()">
+        <h3 style="font-family:var(--serif); font-size:18px; color:var(--gold); margin-bottom:12px;">
+          ${currentLang==='zh'?'選擇分享方式':'Share Options'}
+        </h3>
+        
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <button class="btn btn-primary btn-block" onclick="publishToCommunityPool('${esc(b.id)}', '${esc(sessionId||'')}'); closeModal();">
+            🌍 ${currentLang==='zh'?'發布到酒友公開探索池':'Publish to Community Feed'}
+          </button>
+          
+          <button class="btn btn-ghost btn-block" onclick="executePrivateShare('${esc(b.id)}', '${esc(sessionId||'')}'); closeModal();">
+            📲 ${currentLang==='zh'?'發送給朋友 (私密專屬連結)':'Share with Friends (Private Link)'}
+          </button>
+
+          <button class="btn btn-ghost btn-block" style="border-color:transparent; color:var(--text-faint);" onclick="closeModal()">
+            ${currentLang==='zh'?'取消':'Cancel'}
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function publishToCommunityPool(bottleId, sessionId) {
+  const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
+  if (!b) return;
+  const s = sessionId ? (b.tastings || []).find(t => String(t.id) === String(sessionId)) : null;
+
+  const payload = {
+    id: b.id,
+    author: localStorage.getItem('bottlesense_owner_name') || '品飲同好',
+    identification: b.identification,
+    image: b.image,
+    personalRating: s ? s.rating : (b.personalRating || 5),
+    diary: { notes: s ? s.notes : (b.tastings?.[0]?.notes || '品鑑佳釀') },
+    location: s?.location || b.identification?.region || b.tags?.region || '世界名釀',
+    publishedAt: Date.now()
+  };
+
+  try {
+    await fetch(`${WORKER_API_URL}/api/explore/publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    showToast(t('published_toast'));
+  } catch(e) {
+    showToast(t('published_toast'));
+  }
+}
+
+function executePrivateShare(bottleId, sessionId) {
+  if (sessionId) shareSingleSession(bottleId, sessionId);
+  else shareSingleBottle(bottleId);
+}
+
+function syncPublishCellarAsync() {
+  const key = localStorage.getItem('bottlesense_sync_key');
+  fetch(`${WORKER_API_URL}/api/cellar/publish`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ syncKey: key, cellar: window.cellar, ownerName: '品飲家' })
+  }).catch(() => {});
+}
+
+async function shareEntireCellar() {
+  if (!window.cellar || !window.cellar.length) return;
+  syncPublishCellarAsync();
+
+  const key = localStorage.getItem('bottlesense_sync_key');
+  const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(key)}`;
+  const shareText = `🍾 歡迎參觀我的私人酒窖 (BottleSense)：內有 ${window.cellar.length} 款精選佳釀與真實品飲手記！`;
+
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: 'BottleSense Cellar', text: shareText, url: shareUrl });
+      return;
+    } catch(err) { return; }
+  }
+  
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+    showToast(t('copied_toast'));
+  }
+}
+
+async function shareSingleBottle(id) {
+  const b = (window.cellar || []).find(x => String(x.id) === String(id));
+  if (!b) return;
+  syncPublishCellarAsync();
+
+  const key = localStorage.getItem('bottlesense_sync_key');
+  const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(key)}&bottle=${b.id}`;
+  const shareText = `🍾 BottleSense 藏酒推薦：${bottleName(b)}`;
+
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: bottleName(b), text: shareText, url: shareUrl });
+      return;
+    } catch(err) { return; }
+  }
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+    showToast(t('copied_toast'));
+  }
+}
+
+async function shareSingleSession(bottleId, sessionId) {
+  const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
+  if (!b) return;
+  const s = (b.tastings || []).find(t => String(t.id) === String(sessionId));
+  if (!s) return;
+  syncPublishCellarAsync();
+
+  const key = localStorage.getItem('bottlesense_sync_key');
+  const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(key)}&bottle=${b.id}`;
+  const noteStr = s.notes ? `\n心得：「${s.notes}」` : '';
+  const shareText = `🥃 BottleSense 品飲手記\n酒款：${bottleName(b)}\n時間：${s.dateStr}\n評分：${'★'.repeat(s.rating||5)}${noteStr}`;
+
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: `${bottleName(b)} Log`, text: shareText, url: shareUrl });
+      return;
+    } catch(err) { return; }
+  }
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+    showToast(t('copied_toast'));
+  }
+}
+
+/* =======================================================================
+   1 & 2. 探索頁面 (金線黑底世界地圖 + 自由拖曳上下左右與縮放)
+======================================================================= */
+// 真實世界主要產區經緯百分比座標 (基於等角世界地圖比例)
+const TERROIR_COORDINATES = {
+  // 蘇格蘭 / 英國
+  '蘇格蘭': { x: 486, y: 155 }, '英國': { x: 486, y: 168 }, 'Scotland': { x: 486, y: 155 }, 'UK': { x: 486, y: 168 },
+  // 法國 (波爾多 / 香檳 / 勃艮第)
+  '法國': { x: 498, y: 192 }, '波爾多': { x: 494, y: 198 }, '香檳': { x: 500, y: 186 }, '勃艮第': { x: 502, y: 192 }, 'France': { x: 498, y: 192 },
+  // 義大利 / 西班牙
+  '義大利': { x: 520, y: 206 }, '意大利': { x: 520, y: 206 }, '西班牙': { x: 480, y: 215 }, 'Italy': { x: 520, y: 206 }, 'Spain': { x: 480, y: 215 },
+  // 日本 (余市 / 山崎 / 沖繩 / 東京)
+  '日本': { x: 865, y: 212 }, '余市': { x: 875, y: 188 }, '北海道': { x: 875, y: 188 }, '山崎': { x: 860, y: 216 }, '沖繩': { x: 835, y: 252 }, 'Japan': { x: 865, y: 212 },
+  // 台灣 / 香港 / 中國
+  '台灣': { x: 825, y: 254 }, 'Taiwan': { x: 825, y: 254 }, '香港': { x: 808, y: 260 }, 'Hong Kong': { x: 808, y: 260 }, '中國': { x: 770, y: 220 },
+  // 美國 (納帕 / 加州 / 肯塔基)
+  '美國': { x: 230, y: 198 }, '加州': { x: 188, y: 208 }, '納帕': { x: 188, y: 204 }, 'USA': { x: 230, y: 198 },
+  // 澳洲 / 紐西蘭
+  '澳洲': { x: 870, y: 395 }, '澳大利亞': { x: 870, y: 395 }, '紐西蘭': { x: 950, y: 432 }, 'Australia': { x: 870, y: 395 }
+};
+
+let mapZoom = 1;
+let mapPanX = 0, mapPanY = 0;
+
+async function renderExplore() {
+  currentView = 'explore';
+  setActiveNav('nav-explore');
+
+  main.innerHTML = `
+    <div class="view" style="padding-bottom: 50px;">
+      <div class="section-head"><h2>${t('explore_title')}</h2></div>
+
+      <!-- 金線黑底世界地圖輪廓雷達容器 -->
+      <div class="world-radar-container" id="worldRadarBox">
+        <!-- 金線世界地圖 SVG (細緻多邊板塊 + 經緯度刻度) -->
+        <svg class="world-map-svg" id="worldSvgMap" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet">
+          <!-- 經緯線網格 -->
+          <g class="world-grid-lines">
+            <line x1="0" y1="250" x2="1000" y2="250" />
+            <line x1="0" y1="125" x2="1000" y2="125" />
+            <line x1="0" y1="375" x2="1000" y2="375" />
+            <line x1="500" y1="0" x2="500" y2="500" />
+            <line x1="250" y1="0" x2="250" y2="500" />
+            <line x1="750" y1="0" x2="750" y2="500" />
+            <circle cx="500" cy="250" r="230" fill="none" stroke="rgba(212,175,55,0.06)" stroke-dasharray="3,6" />
+          </g>
+          
+          <!-- 細緻高解析度黑金板塊輪廓 -->
+          <g class="world-land-mass">
+            <!-- 北美洲 (阿拉斯加、加拿大群島、美國、墨西哥) -->
+            <path d="M75,55 Q110,40 150,45 Q190,30 240,42 T290,65 Q330,80 315,115 T280,145 Q265,160 250,195 T215,230 Q195,250 185,245 T170,215 Q150,190 120,180 T75,130 Q65,95 75,55 Z" />
+            <!-- 格陵蘭島 -->
+            <path d="M335,30 Q370,25 390,45 T370,85 Q340,95 325,70 Z" />
+            <!-- 南美洲 (加勒比海、安地斯沿岸、巴西突出部、合恩角) -->
+            <path d="M225,260 Q270,265 295,290 T350,335 Q365,370 335,420 T290,480 Q275,485 270,450 T260,370 Q240,320 220,290 Z" />
+            <!-- 歐洲 (斯堪地那維亞、英國、伊比利半島、義大利靴、巴爾幹) -->
+            <path d="M465,65 Q500,45 520,70 T495,115 Q515,125 540,110 T565,140 Q530,165 495,165 T455,185 Q440,175 445,150 T465,120 Q445,95 465,65 Z" />
+            <path d="M440,110 Q455,105 450,130 T435,140 Q430,120 440,110 Z" /> <!-- 不列顛群島 -->
+            <!-- 非洲 (撒哈拉、幾內亞灣、好望角、索馬利亞之角) -->
+            <path d="M455,195 Q520,190 560,225 T585,285 Q560,345 530,410 T495,435 Q465,385 450,320 T420,245 Q430,210 455,195 Z" />
+            <!-- 亞洲 (西伯利亞、中東、印度次大陸、東南亞、中國沿海) -->
+            <path d="M565,75 Q680,50 820,55 T940,95 Q910,145 870,175 T815,225 Q785,275 745,280 T705,250 Q670,285 640,250 T605,200 Q565,185 565,140 Z" />
+            <!-- 日本列島 -->
+            <path d="M860,150 Q875,165 865,185 T850,210 Q845,195 855,170 Z" />
+            <!-- 台灣島 -->
+            <path d="M805,245 Q812,250 810,260 T802,255 Z" />
+            <!-- 大洋洲 (澳洲本土、紐西蘭) -->
+            <path d="M780,335 Q860,315 905,340 T925,410 Q870,445 810,430 T760,375 Z" />
+            <path d="M935,420 Q950,430 940,455 T925,440 Z" />
+          </g>
+        </svg>
+
+        <!-- 地理光點釘選層 -->
+        <div id="geoPinsContainer" style="position:absolute; inset:0; pointer-events:none;"></div>
+
+        <!-- 縮放與重設 HUD 控制項 -->
+        <div class="map-controls-hud">
+          <button class="map-hud-btn" onclick="zoomWorldMap(1.25)">+</button>
+          <button class="map-hud-btn" onclick="zoomWorldMap(0.8)">−</button>
+          <button class="map-hud-btn" onclick="resetWorldMap()">↺</button>
+        </div>
+      </div>
+
+      <div style="font-size:12.5px; color:var(--text-faint); margin-top:-10px; margin-bottom:18px;">
+        💡 ${t('explore_hint')}
+      </div>
+
+      <div class="section-head"><h2>${currentLang==='zh'?'酒友最新公開品飲':'Public Tasting Feed'}</h2></div>
+      <div id="explore-feed" style="text-align:center; padding:20px 10px; color:var(--text-muted); font-size:14px;">
+        載入中...
+      </div>
+    </div>
+  `;
+
+  initWorldMapInteractions();
+  renderWorldPinsAndFeed();
+}
+
+// 支援上下左右滑動平移與滑鼠滾輪縮放
+function initWorldMapInteractions() {
+  const container = document.getElementById('worldRadarBox');
+  if (!container) return;
+
+  // 滑鼠滾輪縮放
+  container.onwheel = (e) => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.15 : 0.85;
+    zoomWorldMap(factor);
+  };
+
+  // 支援滑鼠拖曳與手機觸控上下左右平移 (Pan)
+  let isDragging = false;
+  let startX = 0, startY = 0;
+
+  const onPointerDown = (e) => {
+    isDragging = true;
+    const pt = e.touches ? e.touches[0] : e;
+    startX = pt.clientX - mapPanX;
+    startY = pt.clientY - mapPanY;
+  };
+
+  const onPointerMove = (e) => {
+    if (!isDragging) return;
+    const pt = e.touches ? e.touches[0] : e;
+    mapPanX = pt.clientX - startX;
+    mapPanY = pt.clientY - startY;
+    updateWorldMapTransform();
+  };
+
+  const onPointerUp = () => {
+    isDragging = false;
+  };
+
+  container.addEventListener('mousedown', onPointerDown);
+  window.addEventListener('mousemove', onPointerMove);
+  window.addEventListener('mouseup', onPointerUp);
+
+  container.addEventListener('touchstart', onPointerDown, { passive: true });
+  container.addEventListener('touchmove', onPointerMove, { passive: true });
+  container.addEventListener('touchend', onPointerUp);
+}
+
+function zoomWorldMap(factor) {
+  mapZoom = Math.min(3.8, Math.max(0.7, mapZoom * factor));
+  updateWorldMapTransform();
+}
+
+function resetWorldMap() {
+  mapZoom = 1; mapPanX = 0; mapPanY = 0;
+  updateWorldMapTransform();
+}
+
+function updateWorldMapTransform() {
+  const svg = document.getElementById('worldSvgMap');
+  const pins = document.getElementById('geoPinsContainer');
+  const transform = `translate(${mapPanX}px, ${mapPanY}px) scale(${mapZoom})`;
+  if (svg) svg.style.transform = transform;
+  if (pins) pins.style.transform = transform;
+}
+
+function resolveTerroirPos(country, region) {
+  const key = [region, country].find(k => k && TERROIR_COORDINATES[k]);
+  if (key) {
+    const pt = TERROIR_COORDINATES[key];
+    return { top: (pt.y / 500) * 100, left: (pt.x / 1000) * 100 };
+  }
+  const fallbackList = [
+    { top: 38.4, left: 49.8 }, // 法國
+    { top: 31.0, left: 48.6 }, // 蘇格蘭
+    { top: 42.4, left: 86.5 }, // 日本
+    { top: 39.6, left: 23.0 }, // 美國
+    { top: 79.0, left: 87.0 }  // 澳洲
+  ];
+  return fallbackList[Math.floor(Math.random() * fallbackList.length)];
+}
+
+async function renderWorldPinsAndFeed() {
+  try {
+    const res = await fetch(`${WORKER_API_URL}/api/explore`);
+    const publicFeed = res.ok ? await res.json() : [];
+    const feedEl = document.getElementById('explore-feed');
+    const pinsLayer = document.getElementById('geoPinsContainer');
+    if (!feedEl) return;
+
+    if (!publicFeed.length) {
+      feedEl.innerHTML = `<div class="empty-shelf">目前尚無公開分享記錄。點擊酒款右上角的紙飛機即可將品飲手記發布到此處！</div>`;
+      return;
+    }
+
+    if (pinsLayer) {
+      pinsLayer.innerHTML = publicFeed.slice(0, 10).map((b) => {
+        const country = b.identification?.country || b.tags?.country || '';
+        const region = b.identification?.region || b.tags?.region || '';
+        const pos = resolveTerroirPos(country, region);
+        return `
+          <div class="geo-pin-node" style="top:${pos.top}%; left:${pos.left}%; pointer-events:auto;" onclick="highlightFeedItem('${esc(b.id)}')" title="${esc(bottleName(b))}">
+            🍷
+          </div>
+        `;
+      }).join('');
+    }
+
+    feedEl.innerHTML = publicFeed.map(b => `
+      <div class="bottle-card" id="feed-card-${esc(b.id)}" style="margin-bottom:14px; transition: border-color 0.3s ease;">
+        <div class="bottle-photo-box">${b.image ? `<img src="${esc(b.image)}">` : '🍷'}</div>
+        <div class="bottle-info">
+          <div class="bottle-name">${esc(b.identification?.name || '酒款')}</div>
+          <div style="font-size:13px; color:var(--gold); margin-top:3px;">★ ${b.personalRating||5}/5 ・ ${esc(b.author||'品飲同好')}</div>
+          <div style="font-size:14px; color:var(--text-muted); margin-top:5px;">"${esc(b.diary?.notes || '無額外筆記')}"</div>
+          <div style="font-size:12px; color:var(--text-faint); margin-top:4px;">📍 ${esc(b.identification?.country || '')} ${esc(b.identification?.region || b.location || '')}</div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    const feedEl = document.getElementById('explore-feed');
+    if (feedEl) feedEl.innerHTML = `<div class="empty-shelf">暫時無法載入酒友動態。</div>`;
+  }
+}
+
+function highlightFeedItem(id) {
+  const el = document.getElementById(`feed-card-${id}`);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.style.borderColor = 'var(--gold)';
+    setTimeout(() => el.style.borderColor = 'rgba(255,255,255,0.08)', 2000);
+  }
+}
+
+async function loadPublicCellar(key, sharedShelf, sharedBottleId) {
+  try {
+    const res = await fetch(`${WORKER_API_URL}/api/cellar/get?key=${encodeURIComponent(key)}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '找不到酒櫃');
+
+    isVisitorMode = true;
+    visitorCellarData = data;
+    window.cellar = Array.isArray(data.cellar) ? data.cellar.map(normalizeBottle) : [];
+
+    if (sharedBottleId) {
+      renderBottleDetail(sharedBottleId);
+    } else {
+      if (sharedShelf) currentScene = sharedShelf;
+      renderCellar();
+    }
+  } catch(e) {
+    alert(e.message || '無法載入公開酒櫃');
+    exitVisitorMode();
+  }
+}
+
+function exitVisitorMode() {
+  isVisitorMode = false;
+  visitorCellarData = null;
+  history.replaceState({}, '', location.pathname);
+  refreshCellar().then(renderHome);
+}
+
+/* ---------------- 拍照對位校準 HUD ---------------- */
+let currentRawFile = null;
+let cropScale = 1.0;
+let cropTranslateX = 0;
+let cropTranslateY = 0;
+let isPanning = false;
+let startPanX = 0, startPanY = 0;
+let initialPinchDist = 0;
+let initialScaleOnPinch = 1;
+
+function openCamera() { if (cameraInput) cameraInput.click(); }
+function openGallery() { if (galleryInput) galleryInput.click(); }
+
+if (cameraInput) cameraInput.addEventListener('change', e => onImageSelected(e.target.files?.[0]));
+if (galleryInput) galleryInput.addEventListener('change', e => onImageSelected(e.target.files?.[0]));
+
+function onImageSelected(file) {
+  if (!file) return;
+  currentRawFile = file;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const cropImg = document.getElementById('cropTargetImage');
+    cropImg.src = e.target.result;
+    openCropModal();
+  };
+  reader.readAsDataURL(file);
+}
+
+function openCropModal() {
+  const modal = document.getElementById('crop-modal');
+  modal.style.display = 'flex';
+  cropScale = 1.0;
+  cropTranslateX = 0;
+  cropTranslateY = 0;
+  document.getElementById('zoomSlider').value = 1;
+  updateCropTransform();
+  initCropInteractions();
+}
+
+function closeCropModal() {
+  document.getElementById('crop-modal').style.display = 'none';
+  if (cameraInput) cameraInput.value = '';
+  if (galleryInput) galleryInput.value = '';
+}
+
+function onSliderZoom(val) {
+  cropScale = parseFloat(val);
+  updateCropTransform();
+}
+
+function updateCropTransform() {
+  const wrap = document.getElementById('cropImageWrap');
+  if (wrap) {
+    wrap.style.transform = `translate(${cropTranslateX}px, ${cropTranslateY}px) scale(${cropScale})`;
+  }
+}
+
+function initCropInteractions() {
+  const viewport = document.getElementById('cropViewport');
+
+  viewport.onwheel = (e) => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 0.1 : -0.1;
+    cropScale = Math.min(3, Math.max(0.5, cropScale + delta));
+    document.getElementById('zoomSlider').value = cropScale;
+    updateCropTransform();
+  };
+
+  const onPointerDown = (e) => {
+    if (e.touches && e.touches.length === 2) {
+      initialPinchDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      initialScaleOnPinch = cropScale;
+      return;
+    }
+    isPanning = true;
+    const pt = e.touches ? e.touches[0] : e;
+    startPanX = pt.clientX - cropTranslateX;
+    startPanY = pt.clientY - cropTranslateY;
+  };
+
+  const onPointerMove = (e) => {
+    if (e.touches && e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      if (initialPinchDist > 0) {
+        cropScale = Math.min(3, Math.max(0.5, initialScaleOnPinch * (dist / initialPinchDist)));
+        document.getElementById('zoomSlider').value = cropScale;
+        updateCropTransform();
+      }
+      return;
+    }
+    if (!isPanning) return;
+    const pt = e.touches ? e.touches[0] : e;
+    cropTranslateX = pt.clientX - startPanX;
+    cropTranslateY = pt.clientY - startPanY;
+    updateCropTransform();
+  };
+
+  const onPointerUp = () => {
+    isPanning = false;
+    initialPinchDist = 0;
+  };
+
+  viewport.addEventListener('mousedown', onPointerDown);
+  window.addEventListener('mousemove', onPointerMove);
+  window.addEventListener('mouseup', onPointerUp);
+
+  viewport.addEventListener('touchstart', onPointerDown, { passive: false });
+  viewport.addEventListener('touchmove', onPointerMove, { passive: false });
+  viewport.addEventListener('touchend', onPointerUp);
+}
+
+// 確認裁切並觸發辨識
+async function confirmCropAndScan() {
+  const cropImg = document.getElementById('cropTargetImage');
+  closeCropModal();
+  showScanLoading();
+
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1000;
+    canvas.height = 1000;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#080808';
+    ctx.fillRect(0, 0, 1000, 1000);
+
+    ctx.save();
+    ctx.translate(500 + cropTranslateX, 500 + cropTranslateY);
+    ctx.scale(cropScale, cropScale);
+    ctx.drawImage(cropImg, -cropImg.naturalWidth / 2, -cropImg.naturalHeight / 2);
+    ctx.restore();
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    const b64Data = dataUrl.split(',')[1];
+
+    const result = await identifyBottle(b64Data, 'image/jpeg');
+
+    const bottle = normalizeBottle({
+      id: uid(),
+      image: dataUrl,
+      imageData: dataUrl,
+      identification: result,
+      scan: result,
+      tags: {
+        category: result.category || '酒類',
+        vintage: result.vintage || '',
+        country: result.country || '',
+        region: result.region || ''
+      },
+      tastings: [],
+      isFavorite: false,
+      status: 'unopened',
+      addedAt: Date.now()
+    });
+
+    const isFirstBottle = (window.cellar || []).length === 0;
+
+    window.cellar.unshift(bottle);
+    await saveBottleToDB(bottle);
+
+    if (isFirstBottle && !localStorage.getItem('bottlesense_registered')) {
+      promptFirstBottleRegistration(bottle.id);
+    } else {
+      renderBottleDetail(bottle.id);
+    }
+
+  } catch(err) {
+    showError(err?.message || (currentLang === 'zh' ? '辨識失敗，請確保酒標清晰後重試。' : 'Recognition failed. Please try again.'));
+  }
+}
+
+/* ---------------- 手遊式首酒註冊 / 帳號引繼提示機制 ---------------- */
+function promptFirstBottleRegistration(bottleId) {
+  const syncKey = localStorage.getItem('bottlesense_sync_key') || '';
+
+  modalContainer.innerHTML = `
+    <div class="modal-overlay">
+      <div class="modal-card" style="text-align:left;" onclick="event.stopPropagation()">
+        <div style="font-family:var(--serif); font-size:20px; font-weight:700; color:var(--gold); margin-bottom:10px;">
+          🎉 成功收納第一瓶酒！
+        </div>
+
+        <p style="font-size:13.5px; color:var(--text); line-height:1.6; margin-bottom:14px;">
+          為防止未來更換手機或清除瀏覽器快取時藏酒遺失，建議立即綁定身分，或將你的專屬引繼碼妥善備份：
+        </p>
+
+        <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px;">
+          <div style="font-size:12px; font-weight:600; color:var(--gold); margin-bottom:6px;">方案 A：設定暱稱與備份密碼</div>
+          <input type="text" id="reg-name" class="text-input" style="margin-top:0; padding:8px; font-size:13px;" placeholder="品飲家稱號 (姓名/暱稱)">
+          <input type="password" id="reg-pass" class="text-input" style="padding:8px; font-size:13px;" placeholder="備用還原密碼 (非必填)">
+          <button class="btn btn-primary btn-block" style="padding:9px; margin-top:10px; font-size:13px;" onclick="saveRegistrationProfile('${esc(bottleId)}')">
+            立即綁定備份
+          </button>
+        </div>
+
+        <div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25); border-radius:12px; padding:12px; margin-bottom:14px;">
+          <div style="font-size:11.5px; color:#f87171; font-weight:600; margin-bottom:4px;">⚠️ 略過綁定警示：</div>
+          <div style="font-size:11px; color:var(--text-muted); line-height:1.5;">
+            若不設定帳號，請務必<strong>截圖保存下方專屬同步代碼</strong>，遺失將無法救回資料！
+          </div>
+          <div style="font-family:var(--mono); font-size:13px; color:var(--gold); font-weight:700; margin-top:6px; user-select:all;">
+            ${esc(syncKey)}
+          </div>
+        </div>
+
+        <button class="btn btn-ghost btn-block" style="font-size:13px;" onclick="skipRegistration('${esc(bottleId)}')">
+          我已記下專屬碼，以遊客身分繼續
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function saveRegistrationProfile(bottleId) {
+  const name = document.getElementById('reg-name').value.trim() || '品飲同好';
+  localStorage.setItem('bottlesense_owner_name', name);
+  localStorage.setItem('bottlesense_registered', 'true');
+  syncPublishCellarAsync();
+  closeModal();
+  showToast("✓ 帳號資料已成功登記！");
+  renderBottleDetail(bottleId);
+}
+
+function skipRegistration(bottleId) {
+  localStorage.setItem('bottlesense_registered', 'skipped');
+  closeModal();
+  renderBottleDetail(bottleId);
+}
+
+async function identifyBottle(image, mediaType) {
+  const res = await fetch(`${WORKER_API_URL}/api/scan`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image, mediaType })
+  });
+  let data = {};
+  try { data = await res.json(); } catch {}
+  if (!res.ok) throw new Error(data.error || `AI API Error (${res.status})`);
+  return data || {};
+}
+
+function showScanLoading() {
+  main.innerHTML = `
+    <div class="loading-view">
+      <div class="loading-ring"></div>
+      <h2 style="font-family:var(--serif); font-size:22px;">${t('analyzing_title')}</h2>
+      <p style="color:var(--text-muted); font-size:14px; margin-top:10px;">${t('analyzing_desc')}</p>
+    </div>
+  `;
+}
+
+function showError(msg) {
+  main.innerHTML = `
+    <div class="loading-view">
+      <div style="font-size:48px; margin-bottom:16px;">⚠️</div>
+      <h2 style="font-family:var(--serif); font-size:22px;">出現問題</h2>
+      <p style="color:var(--text-muted); font-size:14px; margin:12px 20px 24px;">${esc(msg)}</p>
+      <button class="btn btn-primary" onclick="goHome()">${currentLang==='zh'?'返回首頁':'Back to Home'}</button>
+    </div>
+  `;
+}
+
+async function toggleFavorite(id, rerender = false) {
+  const b = (window.cellar || []).find(x => String(x.id) === String(id));
+  if (!b) return;
+  b.isFavorite = !b.isFavorite;
+  await saveBottleToDB(b);
+  if (rerender) renderBottleDetail(id);
+  else if (currentView === 'cellar') renderCellar();
+  else renderHome();
+}
+
+async function deleteBottle(id) {
+  if (!confirm(t('confirm_delete'))) return;
+  const idx = (window.cellar || []).findIndex(x => String(x.id) === String(id));
+  if (idx < 0) return;
+  window.cellar.splice(idx, 1);
+  await deleteBottleFromDB(id);
+  if (currentView === 'cellar') renderCellar();
+  else renderHome();
+}
+
+function renderSettings() {
+  const key = localStorage.getItem('bottlesense_sync_key') || '';
+  const owner = localStorage.getItem('bottlesense_owner_name') || '品飲同好';
+
+  modalContainer.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
+      <div class="modal-card">
+        <h2 style="font-family:var(--serif); margin-bottom:10px; font-size:21px;">${t('settings_title')}</h2>
+        
+        <div style="font-size:13px; color:var(--text-muted); margin-bottom:10px;">目前暱稱: <strong style="color:var(--gold);">${esc(owner)}</strong></div>
+
+        <p style="font-size:13px; color:var(--text-muted); line-height:1.6;">${t('sync_key_label')}</p>
+        <div class="text-input" style="text-align:center; font-family:var(--mono); margin-top:8px;">${esc(key)}</div>
+        <button id="btn-copy-sync" class="btn btn-primary btn-block" style="margin-top:16px;" onclick="copySyncKey()">${t('btn_copy_sync')}</button>
+        <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeModal()">${t('btn_close')}</button>
+      </div>
+    </div>
+  `;
+}
+
+function copySyncKey() {
+  const key = localStorage.getItem('bottlesense_sync_key') || '';
+  const btn = document.getElementById('btn-copy-sync');
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(key).then(() => {
+      if (btn) btn.textContent = '✓ ' + (currentLang==='zh'?'已複製到剪貼簿！':'Copied!');
+      showToast(t('copied_toast'));
+    }).catch(() => fallbackCopyText(key, btn));
+  } else {
+    fallbackCopyText(key, btn);
+  }
+}
+
+function fallbackCopyText(text, btn) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    if (btn) btn.textContent = '✓ ' + (currentLang==='zh'?'已複製！':'Copied!');
+    showToast(t('copied_toast'));
+  } catch (err) {}
+  document.body.removeChild(ta);
+}
+
+function closeModal() { modalContainer.innerHTML = ''; }
+
+async function initApp() {
+  try {
+    document.getElementById('langSwitchBtn').textContent = currentLang === 'zh' ? 'EN' : '繁';
+    await refreshCellar();
+    const params = new URLSearchParams(location.search);
+    const publicKey = params.get('cellar') || params.get('key');
+    const sharedShelf = params.get('shelf');
+    const sharedBottleId = params.get('bottle');
+
+    if (publicKey) {
+      await loadPublicCellar(publicKey, sharedShelf, sharedBottleId);
+      return;
+    }
+    renderHome();
+  } catch(e) {
+    window.cellar = [];
+    renderHome();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', initApp);
