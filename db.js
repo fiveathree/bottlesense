@@ -1,9 +1,8 @@
-// db.js - 永久鎖定 BottleSenseDB，絕不改名
+// db.js - 永久鎖定 BottleSenseDB，管理本地儲存與跨庫遷移
 const DB_NAME = 'BottleSenseDB';
 const STORE_NAME = 'bottles';
 const WORKER_API_URL = "https://bottlesense-api.fiveathree.workers.dev";
 
-// 全域保證存在
 window.cellar = [];
 
 let mySyncKey = localStorage.getItem('bottlesense_sync_key') || '';
@@ -26,7 +25,6 @@ function openDB(name = DB_NAME) {
   });
 }
 
-// 自動掃描救回所有舊版本資料庫，並標準化資料結構防報錯
 async function loadCellarWithMigration() {
   const oldDbNames = ['BottleSenseDB', 'BottleSenseDB_V7', 'BottleSenseDB_V6', 'BottleSenseDB_V5', 'BottleSenseDB_V4', 'BottleSenseDB_V3'];
   let allFound = [];
@@ -45,7 +43,6 @@ async function loadCellarWithMigration() {
         for (const rawItem of items) {
           if (rawItem && rawItem.id && !seenIds.has(rawItem.id)) {
             seenIds.add(rawItem.id);
-            // 防呆補齊必備物件，防止讀取 undefined 搞到畫面空白
             const item = {
               ...rawItem,
               status: rawItem.status || 'unopened',
@@ -83,7 +80,9 @@ async function saveBottleToDB(bottle) {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).put(bottle);
     syncToCloudKV();
-  } catch(e) { console.error('DB save error', e); }
+  } catch(e) {
+    console.error('DB save error', e);
+  }
 }
 
 async function deleteBottleFromDB(id) {
@@ -92,7 +91,9 @@ async function deleteBottleFromDB(id) {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).delete(id);
     syncToCloudKV();
-  } catch(e) { console.error('DB delete error', e); }
+  } catch(e) {
+    console.error('DB delete error', e);
+  }
 }
 
 async function syncToCloudKV() {
