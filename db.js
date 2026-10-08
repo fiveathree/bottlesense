@@ -3,6 +3,9 @@ const DB_NAME = 'BottleSenseDB';
 const STORE_NAME = 'bottles';
 const WORKER_API_URL = "https://bottlesense-api.fiveathree.workers.dev";
 
+// 全域保證存在
+window.cellar = [];
+
 let mySyncKey = localStorage.getItem('bottlesense_sync_key') || '';
 if (!mySyncKey) {
   mySyncKey = 'BTL-' + Math.random().toString(36).substring(2,6).toUpperCase() + '-' + Math.random().toString(36).substring(2,6).toUpperCase();
@@ -23,7 +26,7 @@ function openDB(name = DB_NAME) {
   });
 }
 
-// 自動掃描救回所有舊版本資料庫
+// 自動掃描救回所有舊版本資料庫，並標準化資料結構防報錯
 async function loadCellarWithMigration() {
   const oldDbNames = ['BottleSenseDB', 'BottleSenseDB_V7', 'BottleSenseDB_V6', 'BottleSenseDB_V5', 'BottleSenseDB_V4', 'BottleSenseDB_V3'];
   let allFound = [];
@@ -39,9 +42,23 @@ async function loadCellarWithMigration() {
           req.onsuccess = () => res(req.result || []);
           req.onerror = () => res([]);
         });
-        for (const item of items) {
-          if (item && item.id && !seenIds.has(item.id)) {
-            seenIds.add(item.id);
+        for (const rawItem of items) {
+          if (rawItem && rawItem.id && !seenIds.has(rawItem.id)) {
+            seenIds.add(rawItem.id);
+            // 防呆補齊必備物件，防止讀取 undefined 搞到畫面空白
+            const item = {
+              ...rawItem,
+              status: rawItem.status || 'unopened',
+              identification: rawItem.identification || {},
+              tags: rawItem.tags || {
+                category: rawItem.identification?.category || '酒類',
+                vintage: rawItem.identification?.vintage || '',
+                country: rawItem.identification?.country || '',
+                region: rawItem.identification?.region || ''
+              },
+              tastings: rawItem.tastings || [],
+              isFavorite: !!rawItem.isFavorite
+            };
             allFound.push(item);
           }
         }
@@ -56,7 +73,8 @@ async function loadCellarWithMigration() {
     for (const b of allFound) store.put(b);
   } catch(e) {}
 
-  return allFound.sort((a,b) => (b.addedAt || 0) - (a.addedAt || 0));
+  window.cellar = allFound.sort((a,b) => (b.addedAt || 0) - (a.addedAt || 0));
+  return window.cellar;
 }
 
 async function saveBottleToDB(bottle) {
