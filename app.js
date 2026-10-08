@@ -1,4 +1,4 @@
-// app.js - 核心互動邏輯
+// app.js - 核心互動邏輯 (修復 undefined 報錯與酒架空白問題)
 const TELEGRAM_PLANE_SVG = `<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>`;
 const EDIT_PENCIL_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
 const DIM_LABELS = { mv:"市場價值", ql:"品質", dv:"飲用價值", pv:"配餐價值", sv:"社交話題", gv:"送禮價值", cv:"收藏價值", sto:"保存價值" };
@@ -19,7 +19,7 @@ function setActiveNav(id){
 }
 
 function goHome(){ 
-  if(isVisitorMode) exitVisitorMode();
+  isVisitorMode = false;
   setActiveNav('nav-home'); 
   renderHome(); 
 }
@@ -69,11 +69,11 @@ function exitVisitorMode(){
 /* ---------------- 首頁 ---------------- */
 function renderHome(){
   setActiveNav('nav-home');
-  const countCooler = window.cellar.filter(b => b.status === 'unopened').length;
-  const countWood = window.cellar.filter(b => b.status === 'opened').length;
-  const countBar = window.cellar.filter(b => ['finished','gifted','sold'].includes(b.status)).length;
-  const countWish = window.cellar.filter(b => b.status === 'wishlist').length;
-  const countFav = window.cellar.filter(b => b.isFavorite).length;
+  const countCooler = (window.cellar || []).filter(b => b && b.status === 'unopened').length;
+  const countWood = (window.cellar || []).filter(b => b && b.status === 'opened').length;
+  const countBar = (window.cellar || []).filter(b => b && ['finished','gifted','sold'].includes(b.status)).length;
+  const countWish = (window.cellar || []).filter(b => b && b.status === 'wishlist').length;
+  const countFav = (window.cellar || []).filter(b => b && b.isFavorite).length;
 
   document.getElementById('main').innerHTML = `
     <div class="view">
@@ -109,14 +109,16 @@ function openScene(scene){
   renderCellar();
 }
 
-/* ---------------- 酒窖主頁面 ---------------- */
+/* ---------------- 酒窖主頁面 (防呆修復核心) ---------------- */
 function renderCellar(){
   setActiveNav('nav-cellar');
-  const coolerBottles = window.cellar.filter(b => b.status === 'unopened');
-  const woodBottles = window.cellar.filter(b => b.status === 'opened');
-  const barBottles = window.cellar.filter(b => ['finished','gifted','sold'].includes(b.status));
-  const wishBottles = window.cellar.filter(b => b.status === 'wishlist');
-  const favBottles = window.cellar.filter(b => b.isFavorite);
+  const safeCellar = window.cellar || [];
+
+  const coolerBottles = safeCellar.filter(b => b && b.status === 'unopened');
+  const woodBottles = safeCellar.filter(b => b && b.status === 'opened');
+  const barBottles = safeCellar.filter(b => b && ['finished','gifted','sold'].includes(b.status));
+  const wishBottles = safeCellar.filter(b => b && b.status === 'wishlist');
+  const favBottles = safeCellar.filter(b => b && b.isFavorite);
 
   let spaceList = [];
   let shelfTitle = '';
@@ -128,21 +130,28 @@ function renderCellar(){
   else if (currentScene === 'wishlist') { spaceList = wishBottles; shelfTitle = '🏷️ 願望清單 (想買)'; }
   else { spaceList = favBottles; shelfTitle = '⭐ 心頭好精選 (最愛)'; shelfKey = 'fav'; }
 
-  // 提取標籤供篩選
+  // 防呆標籤安全提取 (防止 b.tags 為 undefined 導致 Crash)
   const filterSet = new Set();
   spaceList.forEach(b => {
-    if (b.tags?.category) filterSet.add(b.tags.category);
-    if (b.tags?.region && b.tags.region !== '未知產區') filterSet.add(b.tags.region);
-    if (b.tags?.vintage && b.tags.vintage !== '無年份') filterSet.add(b.tags.vintage);
+    if(!b) return;
+    const cat = b.tags?.category || b.identification?.category;
+    const reg = b.tags?.region || b.identification?.region;
+    const vin = b.tags?.vintage || b.identification?.vintage;
+
+    if (cat) filterSet.add(cat);
+    if (reg && reg !== '未知產區') filterSet.add(reg);
+    if (vin && vin !== '無年份') filterSet.add(vin);
   });
   const filterOptions = ['all', ...Array.from(filterSet)];
 
+  // 篩選藏酒
   const activeList = (activeFilter === 'all')
     ? spaceList
     : spaceList.filter(b => {
-        const cat = b.tags?.category || '';
-        const reg = b.tags?.region || '';
-        const vin = b.tags?.vintage || '';
+        if(!b) return false;
+        const cat = b.tags?.category || b.identification?.category || '';
+        const reg = b.tags?.region || b.identification?.region || '';
+        const vin = b.tags?.vintage || b.identification?.vintage || '';
         return cat === activeFilter || reg === activeFilter || vin === activeFilter;
       });
 
@@ -165,7 +174,7 @@ function renderCellar(){
         <div class="scene-tab ${currentScene==='favorite'?'active-fav':''}" onclick="switchScene('favorite')"><span class="scene-icon">⭐</span><div class="scene-name">最愛</div><div class="scene-count">${favBottles.length}</div></div>
       </div>
 
-      <!-- 篩選列 -->
+      <!-- 篩選條 -->
       ${filterOptions.length > 1 ? `
         <div class="filter-row">
           ${filterOptions.map(opt => `
@@ -176,7 +185,7 @@ function renderCellar(){
         </div>
       ` : ''}
 
-      <!-- 中間酒架主體格 -->
+      <!-- 中間酒架主體格 (保證一定渲染) -->
       <div class="shelf-container shelf-${shelfKey}">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <div style="font-family:var(--serif); font-size:14px; font-weight:600;">${shelfTitle}</div>
@@ -187,7 +196,7 @@ function renderCellar(){
         </div>
 
         <div class="shelf-beam"></div>
-        <div>
+        <div id="shelf-items-box">
           ${activeList.length ? activeList.map(b => bottleCardHtml(b)).join('') : '<div class="empty-shelf">此空間暫無藏酒</div>'}
         </div>
         <div class="shelf-beam"></div>
@@ -210,9 +219,12 @@ function setShelfFilter(f){
 }
 
 function bottleCardHtml(b){
+  if(!b) return '';
   const idf = b.identification || {};
   const tags = b.tags || {};
   const pourCount = (b.tastings || []).length;
+  const vintageText = tags.vintage || idf.vintage || '';
+  const catText = tags.category || idf.category || '酒類';
 
   return `
     <div class="swipe-item-wrapper" id="wrap-${b.id}">
@@ -231,9 +243,9 @@ function bottleCardHtml(b){
             <div class="bottle-name">${escapeHtml(idf.name || '酒款')}</div>
             ${b.isFavorite ? `<span class="fav-star-badge">★</span>` : ''}
           </div>
-          <div class="bottle-sub">${escapeHtml(idf.producer || '')} · ${escapeHtml(tags.vintage || '')}</div>
+          <div class="bottle-sub">${escapeHtml(idf.producer || '')}${vintageText ? ' · ' + escapeHtml(vintageText) : ''}</div>
           <div class="tag-cluster">
-            <span class="tag-badge">${escapeHtml(tags.category || '酒類')}</span>
+            <span class="tag-badge">${escapeHtml(catText)}</span>
             ${tags.region ? `<span class="tag-badge secondary">${escapeHtml(tags.region)}</span>` : ''}
             ${pourCount > 0 ? `<span class="tag-badge" style="background:rgba(56,189,248,0.15); color:var(--cyan-glow); border-color:rgba(56,189,248,0.3);">品飲 ×${pourCount}</span>` : ''}
             ${b.personalRating ? `<span class="tag-badge secondary">★ ${b.personalRating}/5</span>` : ''}
@@ -300,7 +312,7 @@ function attachSwipeListeners(){
 }
 
 function confirmToggleFavorite(id){
-  const b = window.cellar.find(x => x.id === id);
+  const b = window.cellar.find(x => x && x.id === id);
   if(!b) return;
   const isFav = !!b.isFavorite;
   showModal({
@@ -318,7 +330,7 @@ function confirmToggleFavorite(id){
 }
 
 function confirmDeleteBottle(id){
-  const b = window.cellar.find(x => x.id === id);
+  const b = window.cellar.find(x => x && x.id === id);
   if(!b) return;
   showModal({
     title: '確定移除此酒？',
@@ -326,7 +338,7 @@ function confirmDeleteBottle(id){
     confirmText: '確定移除',
     confirmColor: 'var(--wine-bright)',
     onConfirm: async () => {
-      window.cellar = window.cellar.filter(x => x.id !== id);
+      window.cellar = window.cellar.filter(x => x && x.id !== id);
       await deleteBottleFromDB(id);
       closeModal();
       renderCellar();
@@ -354,7 +366,7 @@ function closeModal(){ document.getElementById('modal-container').innerHTML = ''
 
 /* ---------------- 詳情頁 ---------------- */
 function renderDetail(id){
-  const b = window.cellar.find(x => x.id === id);
+  const b = window.cellar.find(x => x && x.id === id);
   if(!b) return;
 
   const idf = b.identification || {};
@@ -482,9 +494,8 @@ function renderDetail(id){
   `;
 }
 
-/* ---------------- 編輯酒款彈窗 ---------------- */
 function openEditBottleModal(id){
-  const b = window.cellar.find(x => x.id === id);
+  const b = window.cellar.find(x => x && x.id === id);
   if(!b) return;
   const idf = b.identification || {};
   const tags = b.tags || {};
@@ -534,7 +545,7 @@ function openEditBottleModal(id){
 }
 
 async function saveEditedBottle(id){
-  const b = window.cellar.find(x => x.id === id);
+  const b = window.cellar.find(x => x && x.id === id);
   if(!b) return;
 
   if(!b.identification) b.identification = {};
@@ -564,7 +575,7 @@ function renderRadar(vm){
   const n = order.length;
   const points = order.map((k,i)=>{
     const angle = (Math.PI*2*i/n) - Math.PI/2;
-    const val = Math.max(0, Math.min(100, vm[k] || 75));
+    const val = Math.max(0, Math.min(100, (vm && vm[k]) || 75));
     const r = (val/100) * R;
     return [cx + r*Math.cos(angle), cy + r*Math.sin(angle)];
   });
@@ -584,7 +595,7 @@ function renderRadar(vm){
   const axes = axisPoints.map(p=>`<line x1="${cx}" y1="${cy}" x2="${p[0]}" y2="${p[1]}" stroke="#2E3224" stroke-width="1"/>`).join('');
 
   const legend = order.map(k=>`
-    <div class="legend-row"><span class="dim">${DIM_LABELS[k]}</span><span class="val">${vm[k] ?? '75'}</span></div>
+    <div class="legend-row"><span class="dim">${DIM_LABELS[k]}</span><span class="val">${(vm && vm[k]) ?? '75'}</span></div>
   `).join('');
 
   return `
@@ -601,7 +612,7 @@ function renderRadar(vm){
   `;
 }
 
-/* ---------------- 原生時間選擇品飲彈窗 ---------------- */
+/* ---------------- 時間選擇品飲彈窗 ---------------- */
 let currentSessionRating = 5;
 
 function openAddSessionModal(bottleId){
@@ -655,7 +666,7 @@ function setModalRating(n){
 }
 
 async function saveNewSession(bottleId){
-  const b = window.cellar.find(x => x.id === bottleId);
+  const b = window.cellar.find(x => x && x.id === bottleId);
   if(!b) return;
 
   const rawDate = document.getElementById('sess-date').value;
@@ -711,7 +722,7 @@ async function shareEntireCellar(){
 }
 
 async function shareCurrentShelf(){
-  const count = window.cellar.filter(b => b.status === currentScene).length;
+  const count = (window.cellar || []).filter(b => b && b.status === currentScene).length;
   await syncPublishCellar();
 
   const names = { cooler:'未飲電子酒櫃', wood:'已飲實木酒架', bar:'飲完吧台', wishlist:'想買願望清單', favorite:'心頭好最愛' };
@@ -729,7 +740,7 @@ async function shareCurrentShelf(){
 }
 
 async function shareSingleBottle(id){
-  const b = window.cellar.find(x => x.id === id);
+  const b = window.cellar.find(x => x && x.id === id);
   if(!b) return;
   await syncPublishCellar();
 
@@ -748,7 +759,7 @@ async function shareSingleBottle(id){
 }
 
 async function shareSingleSession(bottleId, sessionId){
-  const b = window.cellar.find(x => x.id === bottleId);
+  const b = window.cellar.find(x => x && x.id === bottleId);
   if(!b) return;
   const s = (b.tastings || []).find(t => t.id === sessionId);
   if(!s) return;
@@ -776,13 +787,13 @@ async function shareSingleSession(bottleId, sessionId){
 /* ---------------- 訪客展示頁 ---------------- */
 function renderVisitorShowroom(){
   const data = visitorCellarData;
-  const list = data.cellar || [];
+  const list = data?.cellar || [];
   
-  const coolerBottles = list.filter(b => b.status === 'unopened');
-  const woodBottles = list.filter(b => b.status === 'opened');
-  const barBottles = list.filter(b => ['finished','gifted','sold'].includes(b.status));
-  const wishBottles = list.filter(b => b.status === 'wishlist');
-  const favBottles = list.filter(b => b.isFavorite);
+  const coolerBottles = list.filter(b => b && b.status === 'unopened');
+  const woodBottles = list.filter(b => b && b.status === 'opened');
+  const barBottles = list.filter(b => b && ['finished','gifted','sold'].includes(b.status));
+  const wishBottles = list.filter(b => b && b.status === 'wishlist');
+  const favBottles = list.filter(b => b && b.isFavorite);
 
   let activeList = [];
   let shelfTitle = '';
@@ -842,7 +853,7 @@ function renderVisitorShowroom(){
 }
 
 function renderVisitorBottleDetail(bottleId){
-  const b = visitorCellarData?.cellar?.find(x => x.id === bottleId);
+  const b = visitorCellarData?.cellar?.find(x => x && x.id === bottleId);
   if(!b) { renderVisitorShowroom(); return; }
   const idf = b.identification || {};
   const vm = b.scan?.vm || {};
@@ -907,7 +918,7 @@ async function likeSharedCellar(key){
 }
 
 async function forkBottleToMine(bottleId){
-  const bottle = visitorCellarData?.cellar?.find(x => x.id === bottleId);
+  const bottle = visitorCellarData?.cellar?.find(x => x && x.id === bottleId);
   if(!bottle) return;
   const clone = {
     ...bottle,
@@ -921,14 +932,14 @@ async function forkBottleToMine(bottleId){
 }
 
 async function moveStatus(id, newStatus){
-  const b = window.cellar.find(x => x.id === id);
+  const b = window.cellar.find(x => x && x.id === id);
   if(!b) return;
   b.status = newStatus;
   await saveBottleToDB(b);
   renderDetail(id);
 }
 
-/* ---------------- 拍照上傳與收納 ---------------- */
+/* ---------------- 拍照上傳流程 ---------------- */
 document.getElementById('cameraInput').addEventListener('change', handleUpload);
 document.getElementById('galleryInput').addEventListener('change', handleUpload);
 
@@ -1057,6 +1068,7 @@ function renderSettings(){
 
 function escapeHtml(str){ return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+/* ---------------- 啟動 ---------------- */
 (async function init(){
   window.cellar = await loadCellarWithMigration();
   checkUrlParams();
