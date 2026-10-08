@@ -1,5 +1,5 @@
 /* BottleSense app.js
- * 完整整合版：修正雙重 URL 顯示、無彈窗原生分享、5大空間與多重品飲時間軸
+ * 修正版：首頁點擊飛去內容、黑金影相、秒開分享不卡等待、設定複製支援、社群探索池
  */
 
 const main = document.getElementById('main');
@@ -145,10 +145,11 @@ function renderHome() {
         <h1>認識你的每一瓶酒</h1>
         <p>拍下酒標，AI 分析風味維度、最佳賞味期與處置決策。</p>
         <div class="scan-center-box">
+          <!-- 2. 首頁影相 Icon 改回質感黑金 -->
           <button class="scan-btn" onclick="openCamera()" aria-label="拍照辨識">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
-              <path d="M4 7h3l1.5-2h7L17 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z"/>
-              <circle cx="12" cy="13" r="3.5"/>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
             </svg>
           </button>
           <span class="upload-subtext" onclick="openGallery()">從相簿選照片</span>
@@ -192,6 +193,8 @@ function renderHome() {
       </div>
     </div>
   `;
+
+  attachSwipeListeners();
 }
 
 function recentBottleHTML() {
@@ -251,6 +254,7 @@ function renderCellar() {
     <div class="view" style="padding-bottom: 50px;">
       <div class="section-head" style="margin-top:8px;">
         <h2>私人酒窖全景</h2>
+        <!-- 3. 專注單一「分享全窖」，秒開分享選單 -->
         <button class="share-plane-btn" style="background:rgba(212,175,55,0.25);" onclick="shareEntireCellar()">
           ${TELEGRAM_PLANE_SVG}
           <span>分享全窖</span>
@@ -299,14 +303,7 @@ function renderCellar() {
 
       <!-- 中間擬真棚架 -->
       <div class="shelf-container shelf-${shelfKey}">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <div style="font-family:var(--serif); font-size:14px; font-weight:600;">${shelfTitle}</div>
-          <button class="share-plane-btn" onclick="shareCurrentShelf()">
-            ${TELEGRAM_PLANE_SVG}
-            <span>分享此架</span>
-          </button>
-        </div>
-
+        <div style="font-family:var(--serif); font-size:15px; font-weight:600; margin-bottom:8px;">${shelfTitle}</div>
         <div class="shelf-beam"></div>
         <div>
           ${activeList.length ? activeList.map(bottleCardHTML).join('') : '<div class="empty-shelf">此空間暫無藏酒</div>'}
@@ -348,7 +345,8 @@ function bottleCardHTML(b) {
         <span>刪除</span>
       </div>
 
-      <article class="bottle-card" id="card-${esc(b.id)}">
+      <!-- 1. 卡片點擊直飛單酒內容 -->
+      <article class="bottle-card" id="card-${esc(b.id)}" onclick="renderBottleDetail('${esc(b.id)}')">
         <div class="bottle-photo-box">
           ${img ? `<img src="${esc(img)}" alt="">` : `<div class="emoji-fallback">${categoryEmoji(cat)}</div>`}
         </div>
@@ -413,8 +411,6 @@ function attachSwipeListeners() {
         if (diffX > 40) card.style.transform = 'translateX(76px)';
         else if (diffX < -40) card.style.transform = 'translateX(-76px)';
         else card.style.transform = 'translateX(0px)';
-      } else {
-        renderBottleDetail(id);
       }
     };
 
@@ -427,7 +423,7 @@ function attachSwipeListeners() {
   });
 }
 
-/* ---------------- 酒款詳情頁 ---------------- */
+/* ---------------- 6. 酒款詳情頁 (大字體排版) ---------------- */
 function renderBottleDetail(id) {
   const b = (window.cellar || []).find(x => String(x.id) === String(id));
   if (!b) { renderCellar(); return; }
@@ -448,7 +444,7 @@ function renderBottleDetail(id) {
   main.innerHTML = `
     <div class="view" style="padding-bottom: 60px;">
       <div class="back-row">
-        <button class="btn btn-ghost" style="padding:7px 12px" onclick="${currentView === 'cellar' ? 'renderCellar()' : 'goHome()'}">
+        <button class="btn btn-ghost" style="padding:7px 12px; font-size:13px;" onclick="${currentView === 'cellar' ? 'renderCellar()' : 'goHome()'}">
           ← 返回
         </button>
         <button class="share-plane-btn" onclick="shareSingleBottle('${esc(b.id)}')">
@@ -498,13 +494,13 @@ function renderBottleDetail(id) {
 
       <!-- 品飲歷史時間軸 -->
       <div class="info-block">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
           <h3>🥃 品飲記錄時間軸 (${(b.tastings || []).length})</h3>
-          <button class="btn btn-primary" style="padding:5px 12px; font-size:11.5px;" onclick="openAddSessionModal('${esc(b.id)}')">
+          <button class="btn btn-primary" style="padding:6px 14px; font-size:12px;" onclick="openAddSessionModal('${esc(b.id)}')">
             ＋ 記錄這次品飲
           </button>
         </div>
-        <div style="font-size:11px; color:var(--text-faint); margin-bottom:10px;">記錄不同時間、地點與同伴帶來的獨特體驗。</div>
+        <div style="font-size:12px; color:var(--text-faint); margin-bottom:12px;">記錄不同時間、地點與同伴帶來的獨特體驗。</div>
 
         <div class="timeline-list">
           ${(b.tastings || []).length ? b.tastings.map((t, idx) => `
@@ -512,7 +508,7 @@ function renderBottleDetail(id) {
               <div class="timeline-header">
                 <div>
                   <span class="timeline-time">#${idx+1} ·${esc(t.dateStr || t.date || '')}</span>
-                  <div style="color:var(--gold); font-size:12px; margin-top:2px;">${'★'.repeat(t.rating || 5)}</div>
+                  <div style="color:var(--gold); font-size:13px; margin-top:2px;">${'★'.repeat(t.rating || 5)}</div>
                 </div>
                 <button class="timeline-share-btn" onclick="shareSingleSession('${esc(b.id)}', '${esc(t.id)}')" title="分享這次品飲">
                   ${TELEGRAM_PLANE_SVG}
@@ -524,12 +520,12 @@ function renderBottleDetail(id) {
               </div>
               ${t.notes ? `<div class="timeline-notes">"${esc(t.notes)}"</div>` : ''}
             </div>
-          `).join('') : '<div style="font-size:12px; color:var(--text-faint); text-align:center; padding:16px 0;">尚未記錄品飲歷史，點擊上方按鈕記錄你的第一杯！</div>'}
+          `).join('') : '<div style="font-size:13px; color:var(--text-faint); text-align:center; padding:16px 0;">尚未記錄品飲歷史，點擊上方按鈕記錄你的第一杯！</div>'}
         </div>
       </div>
 
       ${renderRadar(vm)}
-      ${renderRecommendation(rec, b)}
+      ${renderRecommendation(rec)}
 
       <div style="margin-top:20px;">
         <button class="btn btn-wine btn-block" onclick="deleteBottle('${esc(b.id)}')">從酒庫中移除</button>
@@ -624,35 +620,35 @@ function openEditBottleModal(id) {
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="closeModal()">
       <div class="modal-card" style="max-width:380px; text-align:left;" onclick="event.stopPropagation()">
-        <div style="font-family:var(--serif); font-size:17px; font-weight:600; margin-bottom:12px; color:var(--gold);">
+        <div style="font-family:var(--serif); font-size:18px; font-weight:600; margin-bottom:14px; color:var(--gold);">
           ✏️ 修正酒款資訊
         </div>
-        <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint);">酒款名稱</div>
+        <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint);">酒款名稱</div>
         <input type="text" id="edit-name" class="text-input" value="${esc(bottleName(b))}">
 
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px;">
           <div>
-            <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint);">酒類別</div>
+            <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint);">酒類別</div>
             <input type="text" id="edit-category" class="text-input" value="${esc(bottleCategory(b))}">
           </div>
           <div>
-            <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint);">年份</div>
+            <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint);">年份</div>
             <input type="text" id="edit-vintage" class="text-input" value="${esc(bottleVintage(b))}">
           </div>
         </div>
 
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px;">
           <div>
-            <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint);">國家</div>
+            <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint);">國家</div>
             <input type="text" id="edit-country" class="text-input" value="${esc(bottleCountry(b))}">
           </div>
           <div>
-            <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint);">產區</div>
+            <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint);">產區</div>
             <input type="text" id="edit-region" class="text-input" value="${esc(bottleRegion(b))}">
           </div>
         </div>
 
-        <div style="display:flex; gap:10px; margin-top:16px;">
+        <div style="display:flex; gap:10px; margin-top:18px;">
           <button class="btn btn-ghost btn-block" onclick="closeModal()">取消</button>
           <button class="btn btn-primary btn-block" onclick="saveEditedBottle('${esc(b.id)}')">儲存</button>
         </div>
@@ -686,27 +682,27 @@ function openAddSessionModal(bottleId) {
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="closeModal()">
       <div class="modal-card" style="max-width:380px; text-align:left;" onclick="event.stopPropagation()">
-        <div style="font-family:var(--serif); font-size:17px; font-weight:600; margin-bottom:12px; color:var(--gold);">
+        <div style="font-family:var(--serif); font-size:18px; font-weight:600; margin-bottom:12px; color:var(--gold);">
           ＋ 記錄這次品飲時光
         </div>
-        <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint);">日期與時間</div>
+        <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint);">日期與時間</div>
         <input type="datetime-local" id="sess-date" class="text-input" value="${defaultIso}">
 
-        <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); margin-top:8px;">地點 / 酒吧</div>
+        <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint); margin-top:8px;">地點 / 酒吧</div>
         <input type="text" id="sess-loc" class="text-input" placeholder="例如：尖沙咀 Whisky Bar / 屋企陽台">
 
-        <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); margin-top:8px;">同飲同伴</div>
+        <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint); margin-top:8px;">同飲同伴</div>
         <input type="text" id="sess-comp" class="text-input" placeholder="例如：好友相聚、獨酌深思">
 
-        <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); margin-top:8px;">評分</div>
+        <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint); margin-top:8px;">評分</div>
         <div class="star-row">
           ${[1,2,3,4,5].map(n => `<button class="star-btn filled" id="sess-star-${n}" onclick="setModalRating(${n})">★</button>`).join('')}
         </div>
 
-        <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); margin-top:8px;">品飲感受與筆記</div>
-        <textarea id="sess-notes" class="text-input" style="height:70px; resize:none;"></textarea>
+        <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint); margin-top:8px;">品飲感受與筆記</div>
+        <textarea id="sess-notes" class="text-input" style="height:76px; resize:none;"></textarea>
 
-        <div style="display:flex; gap:10px; margin-top:14px;">
+        <div style="display:flex; gap:10px; margin-top:16px;">
           <button class="btn btn-ghost btn-block" onclick="closeModal()">取消</button>
           <button class="btn btn-primary btn-block" onclick="saveNewSession('${esc(bottleId)}')">儲存品飲</button>
         </div>
@@ -744,21 +740,20 @@ async function saveNewSession(bottleId) {
   renderBottleDetail(bottleId);
 }
 
-/* ---------------- 分享機制 (修正雙重網址問題，只傳單一 URL，無彈窗) ---------------- */
-async function syncPublishCellar() {
+/* ---------------- 4. 極速分享 (非同步備份 + 單一 URL + 零 Alert) ---------------- */
+function syncPublishCellarAsync() {
   const key = localStorage.getItem('bottlesense_sync_key');
-  try {
-    await fetch(`${WORKER_API_URL}/api/cellar/publish`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ syncKey: key, cellar: window.cellar, ownerName: '品飲家' })
-    });
-  } catch(e) {}
+  fetch(`${WORKER_API_URL}/api/cellar/publish`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ syncKey: key, cellar: window.cellar, ownerName: '品飲家' })
+  }).catch(() => {});
 }
 
 async function shareEntireCellar() {
-  if (!window.cellar.length) return;
-  await syncPublishCellar();
+  if (!window.cellar || !window.cellar.length) return;
+  syncPublishCellarAsync(); // 4. 背景非同步同步，不卡頓
+
   const key = localStorage.getItem('bottlesense_sync_key');
   const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(key)}`;
   const shareText = `🍾 歡迎參觀我的私人酒窖 (BottleSense)：內有 ${window.cellar.length} 款精選佳釀與真實品飲手記！`;
@@ -780,33 +775,11 @@ async function shareEntireCellar() {
   }
 }
 
-async function shareCurrentShelf() {
-  const key = localStorage.getItem('bottlesense_sync_key');
-  const names = { cooler:'未飲電子酒櫃', wood:'已飲實木酒架', bar:'飲完吧台', wishlist:'想買願望清單', favorite:'心頭好最愛' };
-  const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(key)}&shelf=${currentScene}`;
-  const shareText = `🍷 邀請你睇我嘅 BottleSense [${names[currentScene]||'酒架'}]：`;
-
-  if (navigator.share) {
-    try {
-      await navigator.share({
-        title: names[currentScene],
-        text: shareText,
-        url: shareUrl
-      });
-      return;
-    } catch(err) {
-      return;
-    }
-  }
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
-  }
-}
-
 async function shareSingleBottle(id) {
   const b = (window.cellar || []).find(x => String(x.id) === String(id));
   if (!b) return;
-  await syncPublishCellar();
+  syncPublishCellarAsync();
+
   const key = localStorage.getItem('bottlesense_sync_key');
   const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(key)}&bottle=${b.id}`;
   const shareText = `🍾 BottleSense 藏酒推薦：${bottleName(b)}`;
@@ -833,7 +806,7 @@ async function shareSingleSession(bottleId, sessionId) {
   if (!b) return;
   const s = (b.tastings || []).find(t => String(t.id) === String(sessionId));
   if (!s) return;
-  await syncPublishCellar();
+  syncPublishCellarAsync();
 
   const key = localStorage.getItem('bottlesense_sync_key');
   const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(key)}&bottle=${b.id}`;
@@ -857,30 +830,45 @@ async function shareSingleSession(bottleId, sessionId) {
   }
 }
 
-/* ---------------- 探索與公開展示 ---------------- */
-function renderExplore() {
+/* ---------------- 7. 探索頁面 (查看公開酒友分享動態) ---------------- */
+async function renderExplore() {
   currentView = 'explore';
   setActiveNav('nav-explore');
-  const s = statCounts();
 
   main.innerHTML = `
     <div class="view" style="padding-bottom: 50px;">
-      <div class="section-head"><h2>探索酒窖</h2></div>
-      <div class="info-block">
-        <h3>酒窖統計</h3>
-        <div class="storage-row"><span class="storage-tag">TOTAL</span><span class="storage-desc">${s.total} 瓶酒</span></div>
-        <div class="storage-row"><span class="storage-tag">FAV</span><span class="storage-desc">${s.fav} 瓶收藏</span></div>
-      </div>
-      <div class="section-head"><h2>快速切換空間</h2></div>
-      <div class="destination-grid">
-        <div class="dest-card" onclick="openScene('cooler')"><span class="icon">⚡</span><span class="title">未飲櫃</span></div>
-        <div class="dest-card" onclick="openScene('wood')"><span class="icon">🪵</span><span class="title">已飲架</span></div>
-        <div class="dest-card" onclick="openScene('bar')"><span class="icon">🥃</span><span class="title">吧台</span></div>
-        <div class="dest-card" onclick="openScene('wishlist')"><span class="icon">🏷️</span><span class="title">想買</span></div>
-        <div class="dest-card" onclick="openScene('favorite')"><span class="icon">⭐</span><span class="title">最愛</span></div>
+      <div class="section-head"><h2>探索酒友評價</h2></div>
+      <div id="explore-feed" style="text-align:center; padding:30px 10px; color:var(--text-muted); font-size:13px;">
+        載入周圍酒友動態中...
       </div>
     </div>
   `;
+
+  try {
+    const res = await fetch(`${WORKER_API_URL}/api/explore`);
+    const publicFeed = res.ok ? await res.json() : [];
+    const feedEl = document.getElementById('explore-feed');
+    if (!feedEl) return;
+
+    if (!publicFeed.length) {
+      feedEl.innerHTML = `<div class="empty-shelf">目前尚無公開分享記錄。點擊酒款右上角的紙飛機即可將品飲手記分享到此處！</div>`;
+      return;
+    }
+
+    feedEl.innerHTML = publicFeed.map(b => `
+      <div class="bottle-card" style="margin-bottom:12px;">
+        <div class="bottle-photo-box">${b.image ? `<img src="${esc(b.image)}">` : '🍷'}</div>
+        <div class="bottle-info">
+          <div class="bottle-name">${esc(b.identification?.name || '酒款')}</div>
+          <div style="font-size:12px; color:var(--gold); margin-top:3px;">★ ${b.personalRating||5}/5 ・ ${esc(b.author||'品飲同好')}</div>
+          <div style="font-size:13px; color:var(--text-muted); margin-top:4px;">"${esc(b.diary?.notes || '無額外筆記')}"</div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    const feedEl = document.getElementById('explore-feed');
+    if (feedEl) feedEl.innerHTML = `<div class="empty-shelf">暫時無法載入酒友動態，請稍後重試。</div>`;
+  }
 }
 
 async function loadPublicCellar(key, sharedShelf, sharedBottleId) {
@@ -912,7 +900,7 @@ function exitVisitorMode() {
   refreshCellar().then(renderHome);
 }
 
-/* ---------------- 拍照與檔案處理 (強化 1000px 壓縮與 AI 辨識成功率) ---------------- */
+/* ---------------- 拍照與檔案處理 ---------------- */
 function openCamera() { if (cameraInput) cameraInput.click(); }
 function openGallery() { if (galleryInput) galleryInput.click(); }
 
@@ -922,7 +910,6 @@ if (galleryInput) galleryInput.addEventListener('change', e => handleImageFile(e
 async function handleImageFile(file) {
   if (!file) return;
   try {
-    // 最佳化至 1000px，大幅提升傳輸速度與 AI 辨識穩定度
     currentImageData = await resizeImage(file, 1000, 0.85);
     showScanLoading();
     const result = await identifyBottle(currentImageData.data, currentImageData.mediaType);
@@ -997,7 +984,7 @@ function showScanLoading() {
     <div class="loading-view">
       <div class="loading-ring"></div>
       <h2 style="font-family:var(--serif); font-size:20px;">正在辨識酒標</h2>
-      <p style="color:var(--text-muted); font-size:12px; margin-top:8px;">AI 正在分析酒款、年份及產區…</p>
+      <p style="color:var(--text-muted); font-size:13px; margin-top:8px;">AI 正在分析酒款、年份及產區…</p>
     </div>
   `;
 }
@@ -1007,7 +994,7 @@ function showError(msg) {
     <div class="loading-view">
       <div style="font-size:42px; margin-bottom:16px;">⚠️</div>
       <h2 style="font-family:var(--serif); font-size:20px;">出現問題</h2>
-      <p style="color:var(--text-muted); font-size:12px; margin:10px 20px 20px;">${esc(msg)}</p>
+      <p style="color:var(--text-muted); font-size:13px; margin:10px 20px 20px;">${esc(msg)}</p>
       <button class="btn btn-primary" onclick="goHome()">返回首頁</button>
     </div>
   `;
@@ -1033,15 +1020,16 @@ async function deleteBottle(id) {
   else renderHome();
 }
 
+/* ---------------- 5. 設定彈窗 (修復複製同步碼) ---------------- */
 function renderSettings() {
   const key = localStorage.getItem('bottlesense_sync_key') || '';
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
       <div class="modal-card">
-        <h2 style="font-family:var(--serif); margin-bottom:10px;">設定</h2>
-        <p style="font-size:11px; color:var(--text-muted); line-height:1.6;">你的專屬同步碼 (Sync Key)</p>
-        <div class="text-input" style="text-align:center;">${esc(key)}</div>
-        <button class="btn btn-primary btn-block" style="margin-top:14px;" onclick="copySyncKey()">複製同步碼</button>
+        <h2 style="font-family:var(--serif); margin-bottom:10px; font-size:20px;">設定</h2>
+        <p style="font-size:12px; color:var(--text-muted); line-height:1.6;">你的專屬同步碼 (Sync Key)</p>
+        <div class="text-input" style="text-align:center; font-family:var(--mono); margin-top:8px;">${esc(key)}</div>
+        <button id="btn-copy-sync" class="btn btn-primary btn-block" style="margin-top:14px;" onclick="copySyncKey()">複製同步碼</button>
         <button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="closeModal()">關閉</button>
       </div>
     </div>
@@ -1050,7 +1038,27 @@ function renderSettings() {
 
 function copySyncKey() {
   const key = localStorage.getItem('bottlesense_sync_key') || '';
-  if (navigator.clipboard) navigator.clipboard.writeText(key);
+  const btn = document.getElementById('btn-copy-sync');
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(key).then(() => {
+      if (btn) btn.textContent = '✓ 已複製到剪貼簿！';
+    }).catch(() => fallbackCopyText(key, btn));
+  } else {
+    fallbackCopyText(key, btn);
+  }
+}
+
+function fallbackCopyText(text, btn) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    if (btn) btn.textContent = '✓ 已複製到剪貼簿！';
+  } catch (err) {}
+  document.body.removeChild(ta);
 }
 
 function closeModal() { modalContainer.innerHTML = ''; }
