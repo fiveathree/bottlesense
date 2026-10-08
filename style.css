@@ -169,3 +169,59 @@ main{ flex: 1; padding: 4px 16px 110px; overflow-y: auto; }
 
 .modal-overlay{ position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 999; padding: 20px; }
 .modal-card{ background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 22px 18px; width: 100%; max-width: 340px; text-align: center; }
+
+/* ---------- 品飲歷史時間軸 (Tasting Timeline) ---------- */
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+.timeline-card {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  position: relative;
+}
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 6px;
+}
+.timeline-time {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--gold);
+}
+.timeline-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.timeline-notes {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text);
+  font-style: italic;
+  background: rgba(0,0,0,0.25);
+  padding: 8px 10px;
+  border-radius: 8px;
+  border-left: 2px solid var(--gold);
+}
+.timeline-share-btn {
+  background: transparent;
+  border: none;
+  color: var(--gold);
+  cursor: pointer;
+  padding: 4px;
+}
+.timeline-share-btn svg {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+}
