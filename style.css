@@ -17,7 +17,6 @@
   --text-faint: #676554;
   --radius: 16px;
   
-  /* Google Fonts 免費字體組 */
   --serif: 'Noto Serif TC', serif;
   --sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --mono: 'JetBrains Mono', monospace;
@@ -40,7 +39,6 @@ body {
   font-size: 16px;
 }
 
-/* PC 端 Responsive 自動寬螢幕適應 */
 #app {
   width: 100%;
   max-width: 500px;
@@ -65,7 +63,6 @@ body {
   }
 }
 
-/* 頂部導覽列 */
 .topbar {
   display: flex;
   align-items: center;
@@ -95,7 +92,6 @@ body {
   align-items: center;
 }
 
-/* 繁英切換按鈕 */
 .lang-switch-btn {
   padding: 6px 12px;
   border-radius: 999px;
@@ -135,7 +131,6 @@ body {
   height: 18px;
 }
 
-/* 主滾動區域安全底距 */
 main {
   flex: 1;
   padding: 4px 18px calc(115px + env(safe-area-inset-bottom));
@@ -151,7 +146,6 @@ main {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* 按鈕樣式與尺寸升級 */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -199,7 +193,6 @@ main {
   width: 100%;
 }
 
-/* 首頁 Scan Hero 區域 (黑金相機) */
 .scan-hero {
   margin-top: 14px;
   border: 1px solid var(--line);
@@ -264,7 +257,6 @@ main {
   color: var(--gold);
 }
 
-/* 五大空間統計卡片 Grid */
 .stat-grid-5 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -319,7 +311,6 @@ main {
   color: var(--gold);
 }
 
-/* 5 大空間切換 Tabs */
 .cellar-scene-tabs {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -379,7 +370,6 @@ main {
   color: var(--rose-glow);
 }
 
-/* 篩選 Chip 列 */
 .filter-row {
   display: flex;
   gap: 8px;
@@ -413,7 +403,6 @@ main {
   font-weight: 700;
 }
 
-/* 五大空間專屬主題酒架與發光樑柱 */
 .shelf-container {
   border-radius: 18px;
   padding: 18px 14px 22px;
@@ -482,7 +471,6 @@ main {
   box-shadow: 0 0 10px rgba(251, 113, 133, 0.35);
 }
 
-/* 滑動手勢卡片與外框 */
 .swipe-item-wrapper {
   position: relative;
   overflow: hidden;
@@ -601,7 +589,6 @@ main {
   margin-left: auto;
 }
 
-/* 詳情頁 Hero 圖片與分享按鈕 */
 .detail-photo-hero {
   width: 100%;
   height: 260px;
@@ -648,7 +635,6 @@ main {
   fill: currentColor;
 }
 
-/* 空間轉移網格 */
 .destination-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -706,7 +692,6 @@ main {
   to { transform: rotate(360deg); }
 }
 
-/* AI 身分卡 (大字體排版) */
 .label-card {
   margin-top: 16px;
   border-radius: 20px;
@@ -785,7 +770,6 @@ main {
   font-weight: 500;
 }
 
-/* 八維價值地圖雷達圖 */
 .radar-wrap {
   margin-top: 16px;
   background: var(--surface);
@@ -819,7 +803,6 @@ main {
 .legend-row .dim { color: var(--text-muted); }
 .legend-row .val { font-family: var(--mono); color: var(--gold); font-size: 14.5px; font-weight: 600; }
 
-/* 決策建議與資訊卡 */
 .rec-card {
   margin-top: 16px;
   background: var(--surface);
@@ -914,7 +897,6 @@ main {
   border-color: var(--gold-dim);
 }
 
-/* 底部導覽列 (Bottom Nav) */
 .bottomnav {
   position: fixed;
   bottom: 0;
@@ -967,7 +949,6 @@ main {
   font-size: 15px;
 }
 
-/* 彈窗浮層 (Modal) */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -989,7 +970,6 @@ main {
   text-align: center;
 }
 
-/* 品飲時間軸與編輯按鈕 */
 .timeline-list {
   display: flex;
   flex-direction: column;
@@ -1062,9 +1042,7 @@ main {
   color: var(--gold);
 }
 
-/* =======================================================
-   新功能 1 & 2: 擬真酒瓶對齊 HUD 與 雙指/滾輪縮放外框模態
-======================================================= */
+/* 拍照對齊 HUD 與縮放 */
 .crop-modal {
   position: fixed;
   inset: 0;
@@ -1112,7 +1090,6 @@ main {
   user-select: none;
 }
 
-/* 似信用卡框的酒瓶輪廓 HUD */
 .bottle-guide-frame {
   position: absolute;
   width: 260px;
@@ -1180,53 +1157,54 @@ main {
 }
 
 /* =======================================================
-   新需求 4: 探索地圖 Outline 樣式 (Leaflet 覆蓋)
+   1. 簡約城市輪廓 (City Skyline Vector Radar)
 ======================================================= */
-.explore-map-container {
+.skyline-radar-container {
   width: 100%;
-  height: 320px;
-  border-radius: 18px;
-  overflow: hidden;
+  height: 220px;
+  background: radial-gradient(100% 120% at 50% 100%, #1e2013 0%, #0d0e09 100%);
   border: 1px solid var(--line);
-  margin-bottom: 20px;
+  border-radius: 18px;
   position: relative;
-  background: #111;
+  overflow: hidden;
+  margin-bottom: 20px;
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
 }
-#exploreMap {
+.skyline-svg {
+  position: absolute;
+  bottom: 0;
+  left: 0;
   width: 100%;
   height: 100%;
+  pointer-events: none;
 }
-.map-locate-btn {
+.radar-points-layer {
   position: absolute;
-  bottom: 14px;
-  right: 14px;
-  z-index: 1000;
-  background: var(--surface);
-  border: 1px solid var(--gold);
-  color: var(--gold);
-  padding: 7px 14px;
-  border-radius: 999px;
+  inset: 0;
+}
+.radar-node {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(212, 175, 55, 0.2);
+  border: 1.5px solid var(--gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 12px;
-  font-family: var(--mono);
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  transform: translate(-50%, -50%);
+  animation: radarPulse 2.4s infinite ease-in-out;
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
+}
+@keyframes radarPulse {
+  0% { transform: translate(-50%, -50%) scale(0.95); box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.5); }
+  70% { transform: translate(-50%, -50%) scale(1.15); box-shadow: 0 0 0 10px rgba(212, 175, 55, 0); }
+  100% { transform: translate(-50%, -50%) scale(0.95); box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
 }
 
-/* 仿暗黑地圖圖磚調整 */
-.leaflet-tile {
-  filter: brightness(0.65) invert(1) contrast(3) hue-rotate(200deg) saturate(0.35);
-}
-.leaflet-popup-content-wrapper {
-  background: var(--surface) !important;
-  color: var(--text) !important;
-  border: 1px solid var(--gold-dim);
-  border-radius: 12px !important;
-}
-.leaflet-popup-tip {
-  background: var(--surface) !important;
-}
-
-/* Toast 提示條 (PC 端複製回饋) */
+/* Toast 提示條 */
 .toast {
   position: fixed;
   top: 24px;
