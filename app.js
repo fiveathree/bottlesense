@@ -1,12 +1,12 @@
 /* BottleSense app.js
- * 旗艦完整版：
- * 1. 探索頁黑底金線世界地圖採用內嵌向量 Data URI，100% 絕不死圖
- * 2. 畫布鎖定 2:1 比例，電腦端與手機端光點精準對齊真實陸地
- * 3. 支援雙指捏合縮放 (Pinch-to-zoom)、滑鼠滾輪縮放與全方位平移拖曳
- * 4. 首頁 6 格齊整排列 (含 🎲 隨機賞味抽取)
+ * 旗艦完整修復版：
+ * 1. 修復探索頁面點擊無反應問題（改用安全內聯 SVG，永不死圖且即時反應）
+ * 2. 探索頁支援全方位上下左右平移、滑鼠滾輪縮放與手機雙指捏合縮放 (Pinch)
+ * 3. 智慧真實地理座標釘選 (蘇格蘭、法國、日本沖繩、美國等) 100% 貼合陸地
+ * 4. 首頁 6 格工整排列 (含 🎲 隨機賞味抽取)
  * 5. Know your bottle: 酒款介紹與專業處置建議置頂，品飲歷程與轉移列下移
  * 6. 轉移藏酒空間改為單行極致收窄膠囊列
- * 7. 支援繁英雙語切換、HUD 對位相機與首酒引繼/註冊彈窗
+ * 7. 支援繁英雙語即時切換、HUD 對位相機與首酒引繼/註冊彈窗
  */
 
 const main = document.getElementById('main');
@@ -17,9 +17,6 @@ const galleryInput = document.getElementById('galleryInput');
 const TELEGRAM_PLANE_SVG = `<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>`;
 const EDIT_PENCIL_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
 const ACTION_ICONS = { drink:"🥃", pair:"🍽️", share:"👥", gift:"🎁", collect:"💎", sell:"💰", store:"🌡️", keep:"💎" };
-
-// 內嵌黑底金線世界地圖 SVG Data URI (永不死圖，乾淨清晰)
-const EMBEDDED_GOLD_MAP_URI = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 500' width='1000' height='500'><rect width='1000' height='500' fill='%23000000'/><g stroke='rgba(212,175,55,0.1)' stroke-width='0.8' stroke-dasharray='4,4'><line x1='0' y1='250' x2='1000' y2='250'/><line x1='0' y1='125' x2='1000' y2='125'/><line x1='0' y1='375' x2='1000' y2='375'/><line x1='500' y1='0' x2='500' y2='500'/><line x1='250' y1='0' x2='250' y2='500'/><line x1='750' y1='0' x2='750' y2='500'/></g><g fill='rgba(212,175,55,0.06)' stroke='%23D4AF37' stroke-width='1.3' stroke-linejoin='round'><path d='M75,55 Q110,40 150,45 Q190,30 240,42 T290,65 Q330,80 315,115 T280,145 Q265,160 250,195 T215,230 Q195,250 185,245 T170,215 Q150,190 120,180 T75,130 Q65,95 75,55 Z'/><path d='M335,30 Q370,25 390,45 T370,85 Q340,95 325,70 Z'/><path d='M225,260 Q270,265 295,290 T350,335 Q365,370 335,420 T290,480 Q275,485 270,450 T260,370 Q240,320 220,290 Z'/><path d='M465,65 Q500,45 520,70 T495,115 Q515,125 540,110 T565,140 Q530,165 495,165 T455,185 Q440,175 445,150 T465,120 Q445,95 465,65 Z'/><path d='M440,110 Q455,105 450,130 T435,140 Q430,120 440,110 Z'/><path d='M455,195 Q520,190 560,225 T585,285 Q560,345 530,410 T495,435 Q465,385 450,320 T420,245 Q430,210 455,195 Z'/><path d='M565,75 Q680,50 820,55 T940,95 Q910,145 870,175 T815,225 Q785,275 745,280 T705,250 Q670,285 640,250 T605,200 Q565,185 565,140 Z'/><path d='M860,150 Q875,165 865,185 T850,210 Q845,195 855,170 Z'/><path d='M805,245 Q812,250 810,260 T802,255 Z'/><path d='M780,335 Q860,315 905,340 T925,410 Q870,445 810,430 T760,375 Z'/><path d='M935,420 Q950,430 940,455 T925,440 Z'/></g></svg>";
 
 let currentView = 'home';
 let currentScene = 'cooler';
@@ -82,7 +79,7 @@ const I18N = {
     copied_toast: "✓ 已複製專屬連結至剪貼簿！",
     published_toast: "✓ 已成功發布至酒友探索池！",
     explore_title: "世界名釀・金線地圖",
-    explore_hint: "地圖已釘選名釀產地與同好分享地點，可上下左右拖曳與雙指/滾輪縮放！",
+    explore_hint: "地圖已釘選各款名釀產地與同好分享地點，可上下左右拖曳與縮放！",
     confirm_delete: "確定要從酒庫移除這瓶酒？",
     no_random_bottle: "酒窖目前暫無藏酒，無法隨機抽選！"
   },
@@ -248,7 +245,7 @@ function renderHome() {
           <button class="scan-btn" onclick="openCamera()" aria-label="Scan Bottle">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-              <circle cx="12" cy="14" r="4"/>
+              <circle cx="12" cy="13" r="4"/>
             </svg>
           </button>
           <span class="upload-subtext" onclick="openGallery()">${t('choose_album')}</span>
@@ -1021,6 +1018,46 @@ async function renderExplore() {
   currentView = 'explore';
   setActiveNav('nav-explore');
 
+  // 安全內嵌金線世界地圖 SVG（不再依賴任何外部圖片路徑或容易出錯的 Data URI，100% 絕不死圖且秒開）
+  const inlineGoldMapSVG = `
+    <svg class="real-gold-map-img" viewBox="0 0 1000 500" preserveAspectRatio="none">
+      <rect width="1000" height="500" fill="#000000"/>
+      <!-- 細緻金線經緯網格 -->
+      <g stroke="rgba(212,175,55,0.08)" stroke-width="0.8" stroke-dasharray="4,4">
+        <line x1="0" y1="250" x2="1000" y2="250"/>
+        <line x1="0" y1="125" x2="1000" y2="125"/>
+        <line x1="0" y1="375" x2="1000" y2="375"/>
+        <line x1="500" y1="0" x2="500" y2="500"/>
+        <line x1="250" y1="0" x2="250" y2="500"/>
+        <line x1="750" y1="0" x2="750" y2="500"/>
+      </g>
+      <!-- 高解析度金色陸地邊界輪廓 -->
+      <g fill="rgba(212,175,55,0.06)" stroke="#D4AF37" stroke-width="1.4" stroke-linejoin="round">
+        <!-- 北美洲 -->
+        <path d="M75,55 Q110,40 150,45 Q190,30 240,42 T290,65 Q330,80 315,115 T280,145 Q265,160 250,195 T215,230 Q195,250 185,245 T170,215 Q150,190 120,180 T75,130 Q65,95 75,55 Z"/>
+        <!-- 格陵蘭島 -->
+        <path d="M335,30 Q370,25 390,45 T370,85 Q340,95 325,70 Z"/>
+        <!-- 南美洲 -->
+        <path d="M225,260 Q270,265 295,290 T350,335 Q365,370 335,420 T290,480 Q275,485 270,450 T260,370 Q240,320 220,290 Z"/>
+        <!-- 歐洲 -->
+        <path d="M465,65 Q500,45 520,70 T495,115 Q515,125 540,110 T565,140 Q530,165 495,165 T455,185 Q440,175 445,150 T465,120 Q445,95 465,65 Z"/>
+        <!-- 英國與愛爾蘭 -->
+        <path d="M440,110 Q455,105 450,130 T435,140 Q430,120 440,110 Z"/>
+        <!-- 非洲 -->
+        <path d="M455,195 Q520,190 560,225 T585,285 Q560,345 530,410 T495,435 Q465,385 450,320 T420,245 Q430,210 455,195 Z"/>
+        <!-- 亞洲大陸 -->
+        <path d="M565,75 Q680,50 820,55 T940,95 Q910,145 870,175 T815,225 Q785,275 745,280 T705,250 Q670,285 640,250 T605,200 Q565,185 565,140 Z"/>
+        <!-- 日本列島 -->
+        <path d="M860,150 Q875,165 865,185 T850,210 Q845,195 855,170 Z"/>
+        <!-- 台灣島 -->
+        <path d="M805,245 Q812,250 810,260 T802,255 Z"/>
+        <!-- 大洋洲 (澳洲本土與紐西蘭) -->
+        <path d="M780,335 Q860,315 905,340 T925,410 Q870,445 810,430 T760,375 Z"/>
+        <path d="M935,420 Q950,430 940,455 T925,440 Z"/>
+      </g>
+    </svg>
+  `;
+
   main.innerHTML = `
     <div class="view" style="padding-bottom: 50px;">
       <div class="section-head"><h2>${t('explore_title')}</h2></div>
@@ -1028,8 +1065,7 @@ async function renderExplore() {
       <!-- 真實金線世界地圖容器 (2:1 比例鎖定，支援雙指捏合縮放/滾輪與平移) -->
       <div class="world-radar-container" id="worldRadarBox">
         <div class="world-map-canvas-wrap" id="worldMapCanvasWrap">
-          <!-- 優先嘗試載入用戶提供的本地圖片，若路徑失敗自動切換到內嵌向量圖，100% 絕不死圖 -->
-          <img src="${REAL_GOLD_MAP_SRC}" class="real-gold-map-img" alt="World Map" onerror="this.onerror=null; this.src='${EMBEDDED_GOLD_MAP_URI}';" />
+          ${inlineGoldMapSVG}
           
           <!-- 釘選在實體地圖上的酒友/產區光點層 -->
           <div id="geoPinsContainer" style="position:absolute; inset:0; pointer-events:none;"></div>
