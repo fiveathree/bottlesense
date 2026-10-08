@@ -259,6 +259,7 @@ function renderHome() {
         <a onclick="renderCellar()">${t('open_cellar')}</a>
       </div>
 
+      <!-- 6 格工整排列 -->
       <div class="stat-grid-6">
         <div class="stat-card" onclick="openScene('cooler')">
           <div class="stat-num" style="color:var(--cyan-glow);">${s.cooler}</div>
@@ -280,6 +281,7 @@ function renderHome() {
           <div class="stat-num" style="color:var(--rose-glow);">${s.fav}</div>
           <div class="stat-label">${t('space_fav')}</div>
         </div>
+        <!-- 第 6 格：隨機抽酒欣賞 -->
         <div class="stat-card" onclick="pickRandomBottle()">
           <div class="stat-num" style="color:var(--gold);">🎲</div>
           <div class="stat-label">${t('space_random')}</div>
@@ -993,7 +995,7 @@ async function shareSingleSession(bottleId, sessionId) {
 }
 
 /* =======================================================================
-   真實金線世界地圖：釘選產區 + 上下左右自由平移拖曳 + 滾輪縮放
+   真實金線世界地圖：釘選產區 + 上下左右自由平移拖曳 + 滾輪縮放 + 雙指捏合縮放
 ======================================================================= */
 // 真實世界金線地圖對應坐標庫 (百分比 %：top, left)
 const REAL_IMAGE_GEO_POINTS = {
@@ -1027,7 +1029,7 @@ async function renderExplore() {
       <!-- 真實金線世界地圖容器 (支援手勢/滑鼠滾輪縮放與全方位平移) -->
       <div class="world-radar-container" id="worldRadarBox">
         <div class="world-map-canvas-wrap" id="worldMapCanvasWrap">
-          <img src="${REAL_GOLD_MAP_SRC}" class="real-gold-map-img" alt="World Map" onerror="this.src='https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&w=1200&q=80'" />
+          <img src="${REAL_GOLD_MAP_SRC}" class="real-gold-map-img" alt="World Map" />
           
           <!-- 釘選在實體地圖上的酒友/產區光點層 -->
           <div id="geoPinsContainer" style="position:absolute; inset:0; pointer-events:none;"></div>
@@ -1056,11 +1058,12 @@ async function renderExplore() {
   renderRealWorldPinsAndFeed();
 }
 
-// 支援上下左右滑動平移與滑鼠滾輪縮放
+// 支援上下左右滑動平移、滑鼠滾輪縮放與手機雙指捏合縮放 (Pinch-to-zoom)
 function initRealMapInteractions() {
   const container = document.getElementById('worldRadarBox');
   if (!container) return;
 
+  // 滑鼠滾輪縮放 (PC)
   container.onwheel = (e) => {
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.15 : 0.85;
@@ -1069,33 +1072,75 @@ function initRealMapInteractions() {
 
   let isDragging = false;
   let startX = 0, startY = 0;
+  let initialPinchDist = 0;
+  let initialZoomOnPinch = 1;
 
-  const onPointerDown = (e) => {
+  // 滑鼠事件
+  container.addEventListener('mousedown', (e) => {
     isDragging = true;
-    const pt = e.touches ? e.touches[0] : e;
-    startX = pt.clientX - mapPanX;
-    startY = pt.clientY - mapPanY;
-  };
+    startX = e.clientX - mapPanX;
+    startY = e.clientY - mapPanY;
+  });
 
-  const onPointerMove = (e) => {
+  window.addEventListener('mousemove', (e) => {
     if (!isDragging) return;
-    const pt = e.touches ? e.touches[0] : e;
-    mapPanX = pt.clientX - startX;
-    mapPanY = pt.clientY - startY;
+    mapPanX = e.clientX - startX;
+    mapPanY = e.clientY - startY;
     updateRealMapTransform();
-  };
+  });
 
-  const onPointerUp = () => {
+  window.addEventListener('mouseup', () => {
     isDragging = false;
-  };
+  });
 
-  container.addEventListener('mousedown', onPointerDown);
-  window.addEventListener('mousemove', onPointerMove);
-  window.addEventListener('mouseup', onPointerUp);
+  // 觸控事件 (支援單指平移與雙指捏合縮放)
+  container.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      isDragging = false;
+      initialPinchDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      initialZoomOnPinch = mapZoom;
+      return;
+    }
+    if (e.touches.length === 1) {
+      isDragging = true;
+      startX = e.touches[0].clientX - mapPanX;
+      startY = e.touches[0].clientY - mapPanY;
+    }
+  }, { passive: false });
 
-  container.addEventListener('touchstart', onPointerDown, { passive: true });
-  container.addEventListener('touchmove', onPointerMove, { passive: true });
-  container.addEventListener('touchend', onPointerUp);
+  container.addEventListener('touchmove', (e) => {
+    // 雙指放大縮小
+    if (e.touches.length === 2 && initialPinchDist > 0) {
+      e.preventDefault();
+      const currentDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const factor = currentDist / initialPinchDist;
+      mapZoom = Math.min(4.0, Math.max(0.7, initialZoomOnPinch * factor));
+      updateRealMapTransform();
+      return;
+    }
+    // 單指上下左右拖曳平移
+    if (isDragging && e.touches.length === 1) {
+      e.preventDefault();
+      mapPanX = e.touches[0].clientX - startX;
+      mapPanY = e.touches[0].clientY - startY;
+      updateRealMapTransform();
+    }
+  }, { passive: false });
+
+  container.addEventListener('touchend', (e) => {
+    if (e.touches.length < 2) {
+      initialPinchDist = 0;
+    }
+    if (e.touches.length === 0) {
+      isDragging = false;
+    }
+  });
 }
 
 function zoomWorldMap(factor) {
