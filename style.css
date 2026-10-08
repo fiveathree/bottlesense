@@ -93,7 +93,7 @@ body {
 /* 核心滾動區域：加上安全底距防止被底部 Menu 遮擋 */
 main {
   flex: 1;
-  padding: 4px 16px calc(100px + env(safe-area-inset-bottom));
+  padding: 4px 16px calc(110px + env(safe-area-inset-bottom));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
