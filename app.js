@@ -1,6 +1,6 @@
 /* BottleSense app.js
  * 完整旗艦版：
- * 1. 探索頁採用高質感金線黑底世界地圖，支援上下左右平移與滑鼠滾輪/手勢縮放
+ * 1. 探索頁採用高質感金線黑底世界地圖實體圖，支援上下左右平移與滑鼠滾輪/手勢縮放
  * 2. 智慧真實地理座標釘選 (蘇格蘭、法國、日本、美國等)
  * 3. 首頁 6 格工整排列 (含 🎲 隨機賞味抽取)
  * 4. Know your bottle: 酒款介紹與專業處置建議置頂，品飲歷程與轉移列下移
@@ -17,9 +17,8 @@ const TELEGRAM_PLANE_SVG = `<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.0
 const EDIT_PENCIL_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
 const ACTION_ICONS = { drink:"🥃", pair:"🍽️", share:"👥", gift:"🎁", collect:"💎", sell:"💰", store:"🌡️", keep:"💎" };
 
-// 採用用戶指定的高質感金線世界地圖
-const GOLD_WORLD_MAP_URL = "https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&w=1200&q=80"; // 備用或直接載入同款金線地圖
-const LOCAL_MAP_ASSET = "./world_map_gold.jpg"; // 若放置在本地同目錄可使用
+// 用戶提供的黑底金線真實圖片檔案名稱
+const REAL_GOLD_MAP_SRC = "./world_map.jpg";
 
 let currentView = 'home';
 let currentScene = 'cooler';
@@ -260,7 +259,6 @@ function renderHome() {
         <a onclick="renderCellar()">${t('open_cellar')}</a>
       </div>
 
-      <!-- 6 格工整排列 -->
       <div class="stat-grid-6">
         <div class="stat-card" onclick="openScene('cooler')">
           <div class="stat-num" style="color:var(--cyan-glow);">${s.cooler}</div>
@@ -282,7 +280,6 @@ function renderHome() {
           <div class="stat-num" style="color:var(--rose-glow);">${s.fav}</div>
           <div class="stat-label">${t('space_fav')}</div>
         </div>
-        <!-- 第 6 格：隨機抽酒欣賞 -->
         <div class="stat-card" onclick="pickRandomBottle()">
           <div class="stat-num" style="color:var(--gold);">🎲</div>
           <div class="stat-label">${t('space_random')}</div>
@@ -533,7 +530,7 @@ function attachSwipeListeners() {
   });
 }
 
-/* ---------------- 4. Know your bottle: 酒款介紹拉高，處置建議置頂，轉移與時間軸移後 ---------------- */
+/* ---------------- Know your bottle: 介紹與建議置頂，品飲歷程與轉移列下移 ---------------- */
 function renderBottleDetail(id) {
   const b = (window.cellar || []).find(x => String(x.id) === String(id));
   if (!b) { renderCellar(); return; }
@@ -598,7 +595,7 @@ function renderBottleDetail(id) {
       <!-- 3. 專業處置建議 (置頂，先知點做) -->
       ${renderRecommendation(rec)}
 
-      <!-- 4. 轉移藏酒空間 (一行過極致收窄膠囊列) -->
+      <!-- 4. 轉移藏酒空間 (單行極致收窄膠囊列) -->
       <div class="info-block">
         <h3 style="font-size:14px; margin-bottom:6px;">${t('transfer_title')}</h3>
         <div class="destination-strip">
@@ -996,24 +993,24 @@ async function shareSingleSession(bottleId, sessionId) {
 }
 
 /* =======================================================================
-   1 & 2. 探索頁面 (金線黑底世界地圖 + 自由拖曳上下左右與縮放)
+   真實金線世界地圖：釘選產區 + 上下左右自由平移拖曳 + 滾輪縮放
 ======================================================================= */
-// 真實世界主要產區經緯百分比座標 (基於等角世界地圖比例)
-const TERROIR_COORDINATES = {
-  // 蘇格蘭 / 英國
-  '蘇格蘭': { x: 486, y: 155 }, '英國': { x: 486, y: 168 }, 'Scotland': { x: 486, y: 155 }, 'UK': { x: 486, y: 168 },
+// 真實世界金線地圖對應坐標庫 (百分比 %：top, left)
+const REAL_IMAGE_GEO_POINTS = {
+  // 英國 / 蘇格蘭 (威士忌聖地)
+  '蘇格蘭': { top: 22.5, left: 47.8 }, '英國': { top: 24.5, left: 47.8 }, 'Scotland': { top: 22.5, left: 47.8 }, 'UK': { top: 24.5, left: 47.8 },
   // 法國 (波爾多 / 香檳 / 勃艮第)
-  '法國': { x: 498, y: 192 }, '波爾多': { x: 494, y: 198 }, '香檳': { x: 500, y: 186 }, '勃艮第': { x: 502, y: 192 }, 'France': { x: 498, y: 192 },
+  '法國': { top: 28.5, left: 49.5 }, '波爾多': { top: 30.0, left: 48.8 }, '香檳': { top: 27.2, left: 49.8 }, '勃艮第': { top: 28.6, left: 50.2 }, 'France': { top: 28.5, left: 49.5 },
   // 義大利 / 西班牙
-  '義大利': { x: 520, y: 206 }, '意大利': { x: 520, y: 206 }, '西班牙': { x: 480, y: 215 }, 'Italy': { x: 520, y: 206 }, 'Spain': { x: 480, y: 215 },
+  '義大利': { top: 31.0, left: 52.2 }, '意大利': { top: 31.0, left: 52.2 }, '西班牙': { top: 32.5, left: 47.2 }, 'Italy': { top: 31.0, left: 52.2 }, 'Spain': { top: 32.5, left: 47.2 },
   // 日本 (余市 / 山崎 / 沖繩 / 東京)
-  '日本': { x: 865, y: 212 }, '余市': { x: 875, y: 188 }, '北海道': { x: 875, y: 188 }, '山崎': { x: 860, y: 216 }, '沖繩': { x: 835, y: 252 }, 'Japan': { x: 865, y: 212 },
+  '日本': { top: 32.0, left: 83.5 }, '余市': { top: 27.5, left: 84.5 }, '北海道': { top: 27.5, left: 84.5 }, '山崎': { top: 33.0, left: 83.0 }, '沖繩': { top: 39.0, left: 80.5 }, 'Japan': { top: 32.0, left: 83.5 },
   // 台灣 / 香港 / 中國
-  '台灣': { x: 825, y: 254 }, 'Taiwan': { x: 825, y: 254 }, '香港': { x: 808, y: 260 }, 'Hong Kong': { x: 808, y: 260 }, '中國': { x: 770, y: 220 },
+  '台灣': { top: 40.5, left: 79.5 }, 'Taiwan': { top: 40.5, left: 79.5 }, '香港': { top: 41.2, left: 77.8 }, 'Hong Kong': { top: 41.2, left: 77.8 }, '中國': { top: 33.0, left: 73.0 },
   // 美國 (納帕 / 加州 / 肯塔基)
-  '美國': { x: 230, y: 198 }, '加州': { x: 188, y: 208 }, '納帕': { x: 188, y: 204 }, 'USA': { x: 230, y: 198 },
+  '美國': { top: 31.0, left: 21.0 }, '加州': { top: 32.5, left: 16.5 }, '納帕': { top: 31.8, left: 16.5 }, 'USA': { top: 31.0, left: 21.0 },
   // 澳洲 / 紐西蘭
-  '澳洲': { x: 870, y: 395 }, '澳大利亞': { x: 870, y: 395 }, '紐西蘭': { x: 950, y: 432 }, 'Australia': { x: 870, y: 395 }
+  '澳洲': { top: 72.0, left: 80.5 }, '澳大利亞': { top: 72.0, left: 80.5 }, '紐西蘭': { top: 81.5, left: 91.0 }, 'Australia': { top: 72.0, left: 80.5 }
 };
 
 let mapZoom = 1;
@@ -1027,48 +1024,14 @@ async function renderExplore() {
     <div class="view" style="padding-bottom: 50px;">
       <div class="section-head"><h2>${t('explore_title')}</h2></div>
 
-      <!-- 金線黑底世界地圖輪廓雷達容器 -->
+      <!-- 真實金線世界地圖容器 (支援手勢/滑鼠滾輪縮放與全方位平移) -->
       <div class="world-radar-container" id="worldRadarBox">
-        <!-- 金線世界地圖 SVG (細緻多邊板塊 + 經緯度刻度) -->
-        <svg class="world-map-svg" id="worldSvgMap" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet">
-          <!-- 經緯線網格 -->
-          <g class="world-grid-lines">
-            <line x1="0" y1="250" x2="1000" y2="250" />
-            <line x1="0" y1="125" x2="1000" y2="125" />
-            <line x1="0" y1="375" x2="1000" y2="375" />
-            <line x1="500" y1="0" x2="500" y2="500" />
-            <line x1="250" y1="0" x2="250" y2="500" />
-            <line x1="750" y1="0" x2="750" y2="500" />
-            <circle cx="500" cy="250" r="230" fill="none" stroke="rgba(212,175,55,0.06)" stroke-dasharray="3,6" />
-          </g>
+        <div class="world-map-canvas-wrap" id="worldMapCanvasWrap">
+          <img src="${REAL_GOLD_MAP_SRC}" class="real-gold-map-img" alt="World Map" onerror="this.src='https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&w=1200&q=80'" />
           
-          <!-- 細緻高解析度黑金板塊輪廓 -->
-          <g class="world-land-mass">
-            <!-- 北美洲 (阿拉斯加、加拿大群島、美國、墨西哥) -->
-            <path d="M75,55 Q110,40 150,45 Q190,30 240,42 T290,65 Q330,80 315,115 T280,145 Q265,160 250,195 T215,230 Q195,250 185,245 T170,215 Q150,190 120,180 T75,130 Q65,95 75,55 Z" />
-            <!-- 格陵蘭島 -->
-            <path d="M335,30 Q370,25 390,45 T370,85 Q340,95 325,70 Z" />
-            <!-- 南美洲 (加勒比海、安地斯沿岸、巴西突出部、合恩角) -->
-            <path d="M225,260 Q270,265 295,290 T350,335 Q365,370 335,420 T290,480 Q275,485 270,450 T260,370 Q240,320 220,290 Z" />
-            <!-- 歐洲 (斯堪地那維亞、英國、伊比利半島、義大利靴、巴爾幹) -->
-            <path d="M465,65 Q500,45 520,70 T495,115 Q515,125 540,110 T565,140 Q530,165 495,165 T455,185 Q440,175 445,150 T465,120 Q445,95 465,65 Z" />
-            <path d="M440,110 Q455,105 450,130 T435,140 Q430,120 440,110 Z" /> <!-- 不列顛群島 -->
-            <!-- 非洲 (撒哈拉、幾內亞灣、好望角、索馬利亞之角) -->
-            <path d="M455,195 Q520,190 560,225 T585,285 Q560,345 530,410 T495,435 Q465,385 450,320 T420,245 Q430,210 455,195 Z" />
-            <!-- 亞洲 (西伯利亞、中東、印度次大陸、東南亞、中國沿海) -->
-            <path d="M565,75 Q680,50 820,55 T940,95 Q910,145 870,175 T815,225 Q785,275 745,280 T705,250 Q670,285 640,250 T605,200 Q565,185 565,140 Z" />
-            <!-- 日本列島 -->
-            <path d="M860,150 Q875,165 865,185 T850,210 Q845,195 855,170 Z" />
-            <!-- 台灣島 -->
-            <path d="M805,245 Q812,250 810,260 T802,255 Z" />
-            <!-- 大洋洲 (澳洲本土、紐西蘭) -->
-            <path d="M780,335 Q860,315 905,340 T925,410 Q870,445 810,430 T760,375 Z" />
-            <path d="M935,420 Q950,430 940,455 T925,440 Z" />
-          </g>
-        </svg>
-
-        <!-- 地理光點釘選層 -->
-        <div id="geoPinsContainer" style="position:absolute; inset:0; pointer-events:none;"></div>
+          <!-- 釘選在實體地圖上的酒友/產區光點層 -->
+          <div id="geoPinsContainer" style="position:absolute; inset:0; pointer-events:none;"></div>
+        </div>
 
         <!-- 縮放與重設 HUD 控制項 -->
         <div class="map-controls-hud">
@@ -1089,23 +1052,21 @@ async function renderExplore() {
     </div>
   `;
 
-  initWorldMapInteractions();
-  renderWorldPinsAndFeed();
+  initRealMapInteractions();
+  renderRealWorldPinsAndFeed();
 }
 
 // 支援上下左右滑動平移與滑鼠滾輪縮放
-function initWorldMapInteractions() {
+function initRealMapInteractions() {
   const container = document.getElementById('worldRadarBox');
   if (!container) return;
 
-  // 滑鼠滾輪縮放
   container.onwheel = (e) => {
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.15 : 0.85;
     zoomWorldMap(factor);
   };
 
-  // 支援滑鼠拖曳與手機觸控上下左右平移 (Pan)
   let isDragging = false;
   let startX = 0, startY = 0;
 
@@ -1121,7 +1082,7 @@ function initWorldMapInteractions() {
     const pt = e.touches ? e.touches[0] : e;
     mapPanX = pt.clientX - startX;
     mapPanY = pt.clientY - startY;
-    updateWorldMapTransform();
+    updateRealMapTransform();
   };
 
   const onPointerUp = () => {
@@ -1138,40 +1099,38 @@ function initWorldMapInteractions() {
 }
 
 function zoomWorldMap(factor) {
-  mapZoom = Math.min(3.8, Math.max(0.7, mapZoom * factor));
-  updateWorldMapTransform();
+  mapZoom = Math.min(4.0, Math.max(0.7, mapZoom * factor));
+  updateRealMapTransform();
 }
 
 function resetWorldMap() {
   mapZoom = 1; mapPanX = 0; mapPanY = 0;
-  updateWorldMapTransform();
+  updateRealMapTransform();
 }
 
-function updateWorldMapTransform() {
-  const svg = document.getElementById('worldSvgMap');
-  const pins = document.getElementById('geoPinsContainer');
-  const transform = `translate(${mapPanX}px, ${mapPanY}px) scale(${mapZoom})`;
-  if (svg) svg.style.transform = transform;
-  if (pins) pins.style.transform = transform;
+function updateRealMapTransform() {
+  const wrap = document.getElementById('worldMapCanvasWrap');
+  if (wrap) {
+    wrap.style.transform = `translate(${mapPanX}px, ${mapPanY}px) scale(${mapZoom})`;
+  }
 }
 
-function resolveTerroirPos(country, region) {
-  const key = [region, country].find(k => k && TERROIR_COORDINATES[k]);
+function resolveRealImagePinPos(country, region) {
+  const key = [region, country].find(k => k && REAL_IMAGE_GEO_POINTS[k]);
   if (key) {
-    const pt = TERROIR_COORDINATES[key];
-    return { top: (pt.y / 500) * 100, left: (pt.x / 1000) * 100 };
+    return REAL_IMAGE_GEO_POINTS[key];
   }
   const fallbackList = [
-    { top: 38.4, left: 49.8 }, // 法國
-    { top: 31.0, left: 48.6 }, // 蘇格蘭
-    { top: 42.4, left: 86.5 }, // 日本
-    { top: 39.6, left: 23.0 }, // 美國
-    { top: 79.0, left: 87.0 }  // 澳洲
+    { top: 28.5, left: 49.5 }, // 法國
+    { top: 22.5, left: 47.8 }, // 蘇格蘭
+    { top: 32.0, left: 83.5 }, // 日本
+    { top: 31.0, left: 21.0 }, // 美國
+    { top: 72.0, left: 80.5 }  // 澳洲
   ];
   return fallbackList[Math.floor(Math.random() * fallbackList.length)];
 }
 
-async function renderWorldPinsAndFeed() {
+async function renderRealWorldPinsAndFeed() {
   try {
     const res = await fetch(`${WORKER_API_URL}/api/explore`);
     const publicFeed = res.ok ? await res.json() : [];
@@ -1188,7 +1147,7 @@ async function renderWorldPinsAndFeed() {
       pinsLayer.innerHTML = publicFeed.slice(0, 10).map((b) => {
         const country = b.identification?.country || b.tags?.country || '';
         const region = b.identification?.region || b.tags?.region || '';
-        const pos = resolveTerroirPos(country, region);
+        const pos = resolveRealImagePinPos(country, region);
         return `
           <div class="geo-pin-node" style="top:${pos.top}%; left:${pos.left}%; pointer-events:auto;" onclick="highlightFeedItem('${esc(b.id)}')" title="${esc(bottleName(b))}">
             🍷
@@ -1369,7 +1328,6 @@ function initCropInteractions() {
   viewport.addEventListener('touchend', onPointerUp);
 }
 
-// 確認裁切並觸發辨識
 async function confirmCropAndScan() {
   const cropImg = document.getElementById('cropTargetImage');
   closeCropModal();
