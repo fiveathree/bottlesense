@@ -62,7 +62,7 @@ const I18N = {
     edit_info: "編輯資料",
     transfer_title: "📍 轉移藏酒空間",
     timeline_title: "🥃 品飲記錄時間軸",
-    btn_add_log: "＋ 記錄這次品飲",
+    btn_add_log: "記錄",
     timeline_hint: "記錄不同時間、地點與同伴帶來的獨特體驗。",
     no_logs: "尚未記錄品飲歷史，點擊上方按鈕記錄你的第一杯！",
     btn_remove: "從酒庫中移除",
@@ -114,7 +114,7 @@ const I18N = {
     edit_info: "Edit Details",
     transfer_title: "📍 Transfer Space",
     timeline_title: "🥃 Tasting Timeline",
-    btn_add_log: "+ Log This Pour",
+    btn_add_log: "Log",
     timeline_hint: "Record how flavor shifts with time, places and companions.",
     no_logs: "No tasting notes yet. Tap above to log your first pour!",
     btn_remove: "Remove from Cellar",
@@ -939,7 +939,7 @@ function openShareActionSheet(bottleId, sessionId = null) {
         </h3>
         
         <div style="display:flex; flex-direction:column; gap:10px;">
-          <button class="btn btn-primary btn-block" onclick="publishToCommunityPool('${esc(b.id)}', '${esc(sessionId||'')}'); closeModal();">
+          <button class="btn btn-primary btn-block" onclick="openPublishToCommunityDialog('${esc(b.id)}', '${esc(sessionId||'')}'); closeModal();">
             🌍 ${currentLang==='zh'?'發布到酒友公開探索池':'Publish to Community Feed'}
           </button>
           
@@ -956,31 +956,87 @@ function openShareActionSheet(bottleId, sessionId = null) {
   `;
 }
 
-async function publishToCommunityPool(bottleId, sessionId) {
+function openPublishToCommunityDialog(bottleId, sessionId) {
   const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
   if (!b) return;
-  const s = sessionId ? (b.tastings || []).find(t => String(t.id) === String(sessionId)) : null;
+  const s = sessionId ? (b.tastings || []).find(t => String(t.id) === String(sessionId)) : b.tastings?.[0];
+  const initialLoc = s?.location || "尖沙咀 Whisky Bar, 香港";
+  const initialNotes = s?.notes || "這支酒整體表現相當出色，香氣與尾韻平衡。";
+  const initialRating = s?.rating || b.personalRating || 5;
+
+  modalContainer.innerHTML = `
+    <div class="modal-overlay" onclick="closeModal()">
+      <div class="modal-card" style="text-align:left; max-width:400px;" onclick="event.stopPropagation()">
+        <h3 style="font-family:var(--serif); font-size:18px; color:var(--gold); margin-bottom:10px;">
+          🌍 發布到酒友公開探索池
+        </h3>
+        <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px; line-height:1.5;">
+          分享你的品飲足跡！酒友能在世界地圖上看見你<strong>在何處品飲這款佳釀</strong>：
+        </p>
+
+        <!-- 邊度飲呢支酒 (品飲地點) -->
+        <div style="font-size:12px; font-weight:700; color:var(--gold); margin-bottom:4px;">
+          🥂 你在哪裡品飲這支酒？（酒吧、餐廳、城市或屋企）
+        </div>
+        <input type="text" id="pub-venue-loc" class="text-input" style="margin-top:0; padding:10px; font-size:13.5px;" value="${esc(initialLoc)}" placeholder="例如：尖沙咀某酒吧、中環、日本東京居酒屋、屋企陽台">
+
+        <!-- 快捷標籤 -->
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; margin-bottom:12px;">
+          ${["尖沙咀", "中環", "銅鑼灣", "日本東京", "台北", "屋企陽台", "露營星空下"].map(t => `
+            <span style="font-size:11.5px; padding:3px 9px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); color:var(--text-muted); cursor:pointer;" onclick="setPubLocation('${t}')">${t}</span>
+          `).join("")}
+        </div>
+
+        <!-- 品飲心得手記 -->
+        <div style="font-size:12px; font-weight:700; color:var(--gold); margin-bottom:4px;">
+          📝 這次的品飲手記
+        </div>
+        <textarea id="pub-venue-notes" class="text-input" style="height:70px; resize:none; padding:8px 10px; font-size:13px;">${esc(initialNotes)}</textarea>
+
+        <div style="display:flex; gap:10px; margin-top:16px;">
+          <button class="btn btn-ghost btn-block" style="padding:10px; font-size:13px;" onclick="closeModal()">取消</button>
+          <button class="btn btn-primary btn-block" style="padding:10px; font-size:13px;" onclick="confirmPublishDrink('${esc(b.id)}', ${initialRating})">確認公開發布</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function setPubLocation(locName) {
+  const el = document.getElementById("pub-venue-loc");
+  if (el) el.value = locName + ", 香港";
+}
+
+async function confirmPublishDrink(bottleId, rating) {
+  const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
+  if (!b) return;
+
+  const loc = (document.getElementById("pub-venue-loc")?.value || "").trim() || "香港某品飲處";
+  const notes = (document.getElementById("pub-venue-notes")?.value || "").trim() || "品鑑佳釀";
 
   const payload = {
     id: b.id,
-    author: localStorage.getItem('bottlesense_owner_name') || '品飲同好',
+    author: localStorage.getItem("bottlesense_owner_name") || "品飲同好",
     identification: b.identification,
     image: b.image,
-    personalRating: s ? s.rating : (b.personalRating || 5),
-    diary: { notes: s ? s.notes : (b.tastings?.[0]?.notes || '品鑑佳釀') },
-    location: s?.location || b.identification?.region || b.tags?.region || '世界名釀',
+    personalRating: rating,
+    diary: { notes: notes },
+    location: loc,
     publishedAt: Date.now()
   };
 
+  closeModal();
+  showToast("正在發布品飲手記…");
+
   try {
     await fetch(`${WORKER_API_URL}/api/explore/publish`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
-    showToast(t('published_toast'));
+    showToast(t("published_toast"));
   } catch(e) {
-    showToast(t('published_toast'));
+    showToast(t("published_toast"));
   }
 }
 
@@ -1263,6 +1319,41 @@ function handleGoldMapError(img) {
   }
 }
 
+
+function resolveDrinkingPinPos(drinkingLocation, country, region) {
+  const loc = (drinkingLocation || "").toLowerCase();
+  
+  if (loc.includes("香港") || loc.includes("尖沙咀") || loc.includes("中環") || loc.includes("銅鑼灣") || loc.includes("旺角") || loc.includes("灣仔") || loc.includes("西貢") || loc.includes("hong kong") || loc.includes("hk")) {
+    return { top: 47.5, left: 76.1 };
+  }
+  if (loc.includes("澳門") || loc.includes("macau") || loc.includes("macao")) {
+    return { top: 47.6, left: 75.9 };
+  }
+  if (loc.includes("台灣") || loc.includes("台北") || loc.includes("台中") || loc.includes("高雄") || loc.includes("taiwan")) {
+    return { top: 47.4, left: 77.8 };
+  }
+  if (loc.includes("日本") || loc.includes("東京") || loc.includes("大阪") || loc.includes("京都") || loc.includes("沖繩") || loc.includes("japan") || loc.includes("tokyo")) {
+    return { top: 35.0, left: 82.9 };
+  }
+  if (loc.includes("英國") || loc.includes("倫敦") || loc.includes("蘇格蘭") || loc.includes("london") || loc.includes("uk")) {
+    return { top: 26.5, left: 47.5 };
+  }
+  if (loc.includes("法國") || loc.includes("巴黎") || loc.includes("france") || loc.includes("paris")) {
+    return { top: 35.9, left: 49.8 };
+  }
+  if (loc.includes("美國") || loc.includes("紐約") || loc.includes("加州") || loc.includes("usa") || loc.includes("new york")) {
+    return { top: 33.5, left: 18.0 };
+  }
+  if (loc.includes("新加坡") || loc.includes("singapore")) {
+    return { top: 56.5, left: 73.5 };
+  }
+  if (loc.includes("澳洲") || loc.includes("雪梨") || loc.includes("墨爾本") || loc.includes("australia") || loc.includes("sydney")) {
+    return { top: 79.0, left: 79.7 };
+  }
+  // 未明確提及飲酒城市時，依據酒款原產地定位
+  return resolveRealImagePinPos(country, region);
+}
+
 function resolveRealImagePinPos(country, region) {
   const key = [region, country].find(k => k && REAL_IMAGE_GEO_POINTS[k]);
   if (key) {
@@ -1298,32 +1389,63 @@ function flyMapToPin(pos, targetZoom = 1.7) {
   }, 650);
 }
 
-// 點擊地圖光點或下方酒款卡片之聯動處理：地圖移過去 + 開窗看分享者手記
-function onExploreItemClick(id) {
+// 點擊卡片其他範圍（非右下角詳情按鈕）：地圖平滑滾回視野並鏡頭飛過去該 Pin 點（不開彈窗）
+function onFeedCardClick(id) {
   const item = (window.currentExploreFeed || []).find(x => String(x.id) === String(id));
   if (!item) return;
 
-  // 1. 地圖平滑移過去該產區 Pin 點並放大
+  // 1. 平滑將地圖滾動至視野
+  const mapBox = document.getElementById("worldRadarBox");
+  if (mapBox) {
+    mapBox.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  // 2. 地圖平滑飛行至該酒款之飲酒地點 Pin
   const country = item.identification?.country || item.tags?.country || "";
   const region = item.identification?.region || item.tags?.region || "";
-  const pos = resolveRealImagePinPos(country, region);
-  flyMapToPin(pos, 1.75);
+  const pos = resolveDrinkingPinPos(item.location, country, region);
+  flyMapToPin(pos, 1.85);
 
-  // 2. 地圖光點發光放大動態
+  // 3. 地圖光點發出金色發光高亮脈衝
+  const pinEl = document.getElementById(`pin-${id}`);
+  if (pinEl) {
+    document.querySelectorAll(".geo-pin-node").forEach(p => p.classList.remove("active-pin-glow"));
+    pinEl.classList.add("active-pin-glow");
+    setTimeout(() => { if (pinEl) pinEl.classList.remove("active-pin-glow"); }, 3000);
+  }
+
+  // 4. 列表卡片短暫金色邊框反饋
+  const cardEl = document.getElementById(`feed-card-${id}`);
+  if (cardEl) {
+    cardEl.style.borderColor = "var(--gold)";
+    setTimeout(() => { if (cardEl) cardEl.style.borderColor = "rgba(255,255,255,0.08)"; }, 2500);
+  }
+}
+
+// 點擊地圖上的 Pin 光點：定位、高亮列表卡片並打開手記
+function onMapPinClick(id) {
+  const item = (window.currentExploreFeed || []).find(x => String(x.id) === String(id));
+  if (!item) return;
+
+  const cardEl = document.getElementById(`feed-card-${id}`);
+  if (cardEl) {
+    cardEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    cardEl.style.borderColor = "var(--gold)";
+    setTimeout(() => { if (cardEl) cardEl.style.borderColor = "rgba(255,255,255,0.08)"; }, 2500);
+  }
+
   const pinEl = document.getElementById(`pin-${id}`);
   if (pinEl) {
     document.querySelectorAll(".geo-pin-node").forEach(p => p.classList.remove("active-pin-glow"));
     pinEl.classList.add("active-pin-glow");
   }
 
-  // 3. 列表卡片短暫邊框高亮
-  const cardEl = document.getElementById(`feed-card-${id}`);
-  if (cardEl) {
-    cardEl.style.borderColor = "var(--gold)";
-    setTimeout(() => { if (cardEl) cardEl.style.borderColor = "rgba(255,255,255,0.08)"; }, 2500);
-  }
+  openPublicBottleModal(item);
+}
 
-  // 4. 打開分享者酒款與完整品飲手記彈窗
+function openPublicBottleModalById(id) {
+  const item = (window.currentExploreFeed || []).find(x => String(x.id) === String(id));
+  if (!item) return;
   openPublicBottleModal(item);
 }
 
@@ -1467,32 +1589,52 @@ async function renderRealWorldPinsAndFeed() {
     }
 
     if (pinsLayer) {
-      pinsLayer.innerHTML = publicFeed.slice(0, 10).map((b) => {
+      pinsLayer.innerHTML = publicFeed.slice(0, 15).map((b) => {
         const country = b.identification?.country || b.tags?.country || "";
         const region = b.identification?.region || b.tags?.region || "";
-        const pos = resolveRealImagePinPos(country, region);
+        const pos = resolveDrinkingPinPos(b.location, country, region);
         return `
-          <div class="geo-pin-node" id="pin-${esc(b.id)}" style="top:${pos.top}%; left:${pos.left}%; pointer-events:auto;" onclick="onExploreItemClick('${esc(b.id)}')" title="${esc(bottleName(b))}">
+          <div class="geo-pin-node" id="pin-${esc(b.id)}" style="top:${pos.top}%; left:${pos.left}%; pointer-events:auto;" onclick="onMapPinClick('${esc(b.id)}')" title="${esc(bottleName(b))}">
             🍷
           </div>
         `;
       }).join("");
     }
 
-    feedEl.innerHTML = publicFeed.map(b => `
-      <div class="bottle-card" id="feed-card-${esc(b.id)}" style="margin-bottom:14px; transition: border-color 0.3s ease; cursor:pointer;" onclick="onExploreItemClick('${esc(b.id)}')">
-        <div class="bottle-photo-box">${b.image ? `<img src="${esc(b.image)}">` : "🍷"}</div>
-        <div class="bottle-info">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div class="bottle-name">${esc(b.identification?.name || "酒款")}</div>
-            <span style="font-size:11px; color:var(--gold); font-family:var(--mono);">詳情 →</span>
+    feedEl.innerHTML = publicFeed.map(b => {
+      const name = b.identification?.name || "精選酒款";
+      const author = b.author || (currentLang === "zh" ? "品飲同好" : "Wine Lover");
+      const notes = b.diary?.notes || "這支酒整體表現相當出色，香氣與尾韻平衡。";
+      const drinkingSpot = b.location || (currentLang === "zh" ? "香港某酒吧" : "Pour Spot");
+      const origin = [formatFilterLabel(b.identification?.country), formatFilterLabel(b.identification?.region)].filter(Boolean).join(" · ") || (currentLang === "zh" ? "名釀產地" : "Terroir");
+
+      return `
+        <div class="explore-feed-card" id="feed-card-${esc(b.id)}" onclick="onFeedCardClick('${esc(b.id)}')">
+          <div class="bottle-photo-box">${b.image ? `<img src="${esc(b.image)}">` : "🍷"}</div>
+          
+          <div class="bottle-info" style="flex:1; min-width:0;">
+            <div class="bottle-name" style="font-size:16px; font-weight:700; color:var(--text); line-height:1.3; margin-bottom:3px; padding-right:75px;">
+              ${esc(name)}
+            </div>
+            <div style="font-size:13px; color:var(--gold); margin-bottom:4px;">
+              ★ ${b.personalRating || 5}/5 · <span style="color:var(--text-muted);">${esc(author)}</span>
+            </div>
+            <div style="font-size:13px; color:var(--text); line-height:1.5; font-style:italic; margin-bottom:6px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">
+              "${esc(notes)}"
+            </div>
+            <div style="font-size:11.5px; color:var(--text-faint); display:flex; flex-wrap:wrap; gap:8px;">
+              <span>🥂 ${esc(drinkingSpot)}</span>
+              <span>🍇 ${esc(origin)}</span>
+            </div>
           </div>
-          <div style="font-size:13px; color:var(--gold); margin-top:3px;">★ ${b.personalRating||5}/5 ・ ${esc(b.author||"品飲同好")}</div>
-          <div style="font-size:14px; color:var(--text); margin-top:5px; font-style:italic;">"${esc(b.diary?.notes || "無額外筆記")}"</div>
-          <div style="font-size:12px; color:var(--text-faint); margin-top:4px;">📍 ${esc(formatFilterLabel(b.identification?.country) || "")} ${esc(formatFilterLabel(b.identification?.region) || b.location || "")}</div>
+
+          <!-- 右下角專屬詳情按鈕：絕對一行過，點擊開啟品飲手記視窗 -->
+          <button class="explore-card-detail-btn" onclick="event.stopPropagation(); openPublicBottleModalById('${esc(b.id)}')">
+            ${currentLang === "zh" ? "詳情 →" : "Details →"}
+          </button>
         </div>
-      </div>
-    `).join("");
+      `;
+    }).join("");
   } catch(e) {
     const feedEl = document.getElementById("explore-feed");
     if (feedEl) feedEl.innerHTML = `<div class="empty-shelf">暫時無法載入酒友動態。</div>`;
