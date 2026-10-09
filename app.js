@@ -19,6 +19,8 @@ const EDIT_PENCIL_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="n
 const ACTION_ICONS = { drink:"🥃", pair:"🍽️", share:"👥", gift:"🎁", collect:"💎", sell:"💰", store:"🌡️", keep:"💎" };
 
 let currentView = 'home';
+let currentBottleDetailId = null;
+let previousViewBeforeDetail = 'home';
 let currentScene = 'cooler';
 let activeFilter = 'all';
 
@@ -57,6 +59,7 @@ const I18N = {
     share_cellar: "分享全窖",
     filter_all: "全部",
     empty_shelf: "此空間暫無藏酒",
+    confidence_label: "辨識度",
     back: "← 返回",
     share_bottle: "分享此酒",
     edit_info: "編輯資料",
@@ -108,6 +111,7 @@ const I18N = {
     shelf_fav_title: "⭐ Favorites (Top Pick)",
     share_cellar: "Share Cellar",
     filter_all: "All",
+    confidence_label: "CONF",
     empty_shelf: "No bottles in this space",
     back: "← Back",
     share_bottle: "Share Bottle",
@@ -212,14 +216,21 @@ function t(k) { return I18N[currentLang]?.[k] || I18N['zh'][k] || k; }
 function toggleLanguage() {
   currentLang = currentLang === 'zh' ? 'en' : 'zh';
   localStorage.setItem('bottlesense_lang', currentLang);
-  document.getElementById('langSwitchBtn').textContent = currentLang === 'zh' ? 'EN' : '繁';
+  const langBtn = document.getElementById('langSwitchBtn');
+  if (langBtn) langBtn.textContent = currentLang === 'zh' ? 'EN' : '繁';
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     if (key) el.innerHTML = t(key);
   });
-  if (currentView === 'home') renderHome();
-  else if (currentView === 'cellar') renderCellar();
-  else if (currentView === 'explore') renderExplore();
+  if (currentView === 'detail' && currentBottleDetailId) {
+    renderBottleDetail(currentBottleDetailId);
+  } else if (currentView === 'home') {
+    renderHome();
+  } else if (currentView === 'cellar') {
+    renderCellar();
+  } else if (currentView === 'explore') {
+    renderExplore();
+  }
 }
 
 function showToast(msg) {
@@ -303,6 +314,7 @@ function goHome() {
 /* ---------------- 首頁 6 格齊整佈局 (含隨機賞味) ---------------- */
 function renderHome() {
   currentView = 'home';
+  currentBottleDetailId = null;
   setActiveNav('nav-home');
   const s = statCounts();
 
@@ -395,6 +407,7 @@ function openScene(scene) {
 /* ---------------- 5 大空間酒窖渲染 ---------------- */
 function renderCellar() {
   currentView = 'cellar';
+  currentBottleDetailId = null;
   setActiveNav('nav-cellar');
 
   const c = window.cellar || [];
@@ -603,6 +616,12 @@ function renderBottleDetail(id) {
   const b = (window.cellar || []).find(x => String(x.id) === String(id));
   if (!b) { renderCellar(); return; }
 
+  if (currentView !== 'detail') {
+    previousViewBeforeDetail = currentView || 'home';
+  }
+  currentView = 'detail';
+  currentBottleDetailId = id;
+
   const x = safeIdentification(b);
   const img = bottleImage(b);
   const confidence = Number(x.conf ?? x.confidence ?? 0);
@@ -619,7 +638,7 @@ function renderBottleDetail(id) {
   main.innerHTML = `
     <div class="view" style="padding-bottom: 60px;">
       <div class="back-row">
-        <button class="btn btn-ghost" style="padding:8px 14px; font-size:14px;" onclick="${currentView === 'cellar' ? 'renderCellar()' : 'goHome()'}">
+        <button class="btn btn-ghost" style="padding:8px 14px; font-size:14px;" onclick="${previousViewBeforeDetail === 'cellar' ? 'renderCellar()' : 'goHome()'}">
           ${t('back')}
         </button>
         <button class="share-plane-btn" onclick="openShareActionSheet('${esc(b.id)}')">
@@ -635,7 +654,7 @@ function renderBottleDetail(id) {
         ${confidence ? `
           <div class="confidence-seal ${confidence >= 80 ? 'seal-high' : confidence >= 55 ? 'seal-medium' : 'seal-low'}">
             <div class="seal-pct">${Math.round(confidence)}%</div>
-            <div class="seal-label">=='zh'?'辨識度':'CONF'</div>
+            <div class="seal-label">${t('confidence_label')}</div>
           </div>
         ` : ''}
 
@@ -1150,6 +1169,7 @@ let mapPanX = 0, mapPanY = 0;
 
 async function renderExplore() {
   currentView = 'explore';
+  currentBottleDetailId = null;
   setActiveNav('nav-explore');
 
   // 嚴格依據使用者指定：直接載入附件真實黑底金邊世界地圖圖片，並內建 Loading 動畫與平滑淡入
@@ -2088,7 +2108,8 @@ async function deleteBottle(id) {
   if (idx < 0) return;
   window.cellar.splice(idx, 1);
   await deleteBottleFromDB(id);
-  if (currentView === 'cellar') renderCellar();
+  currentBottleDetailId = null;
+  if (previousViewBeforeDetail === 'cellar') renderCellar();
   else renderHome();
 }
 
