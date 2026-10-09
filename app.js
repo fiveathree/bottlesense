@@ -894,8 +894,19 @@ function openAddSessionModal(bottleId) {
         <div style="font-size:12.5px; font-family:var(--mono); color:var(--text-faint);">${currentLang==='zh'?'日期與時間':'Date & Time'}</div>
         <input type="datetime-local" id="sess-date" class="text-input" value="${defaultIso}">
 
-        <div style="font-size:12.5px; font-family:var(--mono); color:var(--text-faint); margin-top:8px;">${currentLang==='zh'?'地點 / 酒吧':'Venue / Location'}</div>
-        <input type="text" id="sess-loc" class="text-input" placeholder="${currentLang==='zh'?'例如：尖沙咀 Whisky Bar / 屋企陽台':'e.g. Balcony at home, Bar'}">
+        <div style="font-size:12.5px; font-family:var(--mono); color:var(--text-faint); margin-top:8px; display:flex; justify-content:space-between; align-items:center;">
+          <span>${currentLang==='zh'?'地點 / 酒吧':'Venue / Location'}</span>
+          <span style="font-size:10.5px; color:var(--text-faint);">${currentLang==='zh'?'（可複選標籤）':'(Multi-select)'}</span>
+        </div>
+        <input type="text" id="sess-loc" class="text-input" placeholder="${currentLang==='zh'?'例如：中環 屋企陽台、台中、高雄、東京居酒屋':'e.g. Central Balcony, Taichung, Kaohsiung, Tokyo'}" oninput="updateSessTagHighlight()">
+        <div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; margin-bottom:4px;">
+          ${(currentLang === 'zh'
+            ? ["中環", "尖沙咀", "銅鑼灣", "旺角", "台中", "高雄", "台北", "東京", "大阪", "屋企陽台", "酒吧", "居酒屋", "露營星空下"]
+            : ["Central", "TST", "Causeway Bay", "Mong Kok", "Taichung", "Kaohsiung", "Taipei", "Tokyo", "Osaka", "Balcony", "Bar", "Izakaya", "Camping"]
+          ).map(t => `
+            <span class="sess-loc-tag" data-tag="${t}" style="font-size:11px; padding:3px 8px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); color:var(--text-muted); cursor:pointer; user-select:none; transition:all 0.15s ease;" onclick="toggleSessLocationTag('${t}')">${t}</span>
+          `).join("")}
+        </div>
 
         <div style="font-size:12.5px; font-family:var(--mono); color:var(--text-faint); margin-top:8px;">${currentLang==='zh'?'同飲同伴':'Companions'}</div>
         <input type="text" id="sess-comp" class="text-input" placeholder="${currentLang==='zh'?'例如：好友相聚、獨酌深思':'e.g. Solo, Rex, Friends'}">
@@ -915,6 +926,43 @@ function openAddSessionModal(bottleId) {
       </div>
     </div>
   `;
+}
+
+function toggleSessLocationTag(tag) {
+  const input = document.getElementById("sess-loc");
+  if (!input) return;
+  let val = (input.value || "").trim();
+  if (!val) {
+    input.value = tag;
+  } else if (val.includes(tag)) {
+    const escTag = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(^|\\s|·|,)${escTag}(\\s|·|,|$)`, 'g');
+    let newVal = val.replace(regex, ' ').replace(/\\s+/g, ' ').trim();
+    input.value = newVal;
+  } else {
+    input.value = `${val} ${tag}`.trim();
+  }
+  updateSessTagHighlight();
+}
+
+function updateSessTagHighlight() {
+  const input = document.getElementById("sess-loc");
+  if (!input) return;
+  const val = input.value || "";
+  document.querySelectorAll(".sess-loc-tag").forEach(tagEl => {
+    const tagText = tagEl.getAttribute("data-tag");
+    if (tagText && val.includes(tagText)) {
+      tagEl.style.background = "rgba(212, 175, 55, 0.22)";
+      tagEl.style.borderColor = "var(--gold)";
+      tagEl.style.color = "var(--gold)";
+      tagEl.style.fontWeight = "600";
+    } else {
+      tagEl.style.background = "var(--surface-2)";
+      tagEl.style.borderColor = "var(--line)";
+      tagEl.style.color = "var(--text-muted)";
+      tagEl.style.fontWeight = "400";
+    }
+  });
 }
 
 function setModalRating(n) {
@@ -979,51 +1027,92 @@ function openPublishToCommunityDialog(bottleId, sessionId) {
   const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
   if (!b) return;
   const s = sessionId ? (b.tastings || []).find(t => String(t.id) === String(sessionId)) : b.tastings?.[0];
-  const initialLoc = s?.location || "尖沙咀 Whisky Bar, 香港";
-  const initialNotes = s?.notes || "這支酒整體表現相當出色，香氣與尾韻平衡。";
+  const initialLoc = s?.location || (currentLang === 'zh' ? "中環 屋企陽台" : "Central Balcony");
+  const initialNotes = s?.notes || (currentLang === 'zh' ? "這支酒整體表現相當出色，香氣與尾韻平衡。" : "Great overall balance and finish.");
   const initialRating = s?.rating || b.personalRating || 5;
+
+  const locTags = currentLang === 'zh'
+    ? ["中環", "尖沙咀", "銅鑼灣", "旺角", "台中", "高雄", "台北", "東京", "大阪", "澳門", "屋企陽台", "酒吧", "居酒屋", "露營星空下", "海邊"]
+    : ["Central", "TST", "Causeway Bay", "Mong Kok", "Taichung", "Kaohsiung", "Taipei", "Tokyo", "Osaka", "Macau", "Balcony", "Bar", "Izakaya", "Camping", "Beach"];
 
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="closeModal()">
-      <div class="modal-card" style="text-align:left; max-width:400px;" onclick="event.stopPropagation()">
-        <h3 style="font-family:var(--serif); font-size:18px; color:var(--gold); margin-bottom:10px;">
-          🌍 發布到酒友公開探索池
+      <div class="modal-card" style="text-align:left; max-width:410px;" onclick="event.stopPropagation()">
+        <h3 style="font-family:var(--serif); font-size:18px; color:var(--gold); margin-bottom:8px;">
+          🌍 ${currentLang === 'zh' ? '發布到酒友公開探索池' : 'Publish to Community Feed'}
         </h3>
         <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px; line-height:1.5;">
-          分享你的品飲足跡！酒友能在世界地圖上看見你<strong>在何處品飲這款佳釀</strong>：
+          ${currentLang === 'zh'
+            ? '分享你的品飲足跡！酒友能在世界地圖上看見你<strong>在何處品飲這款佳釀</strong>：'
+            : 'Share your tasting footprint! Connoisseurs can spot where you enjoyed this bottle on the world map:'}
         </p>
 
-        <!-- 邊度飲呢支酒 (品飲地點) -->
-        <div style="font-size:12px; font-weight:700; color:var(--gold); margin-bottom:4px;">
-          🥂 你在哪裡品飲這支酒？（酒吧、餐廳、城市或屋企）
+        <!-- 邊度飲呢支酒 (品飲地點，支援多選組合) -->
+        <div style="font-size:12px; font-weight:700; color:var(--gold); margin-bottom:5px; display:flex; justify-content:space-between; align-items:center;">
+          <span>🥂 ${currentLang === 'zh' ? '你在哪裡品飲這支酒？' : 'Where did you taste it?'}</span>
+          <span style="font-size:11px; font-weight:normal; color:var(--text-faint);">${currentLang === 'zh' ? '（支援可複選標籤）' : '(Multi-select)'}</span>
         </div>
-        <input type="text" id="pub-venue-loc" class="text-input" style="margin-top:0; padding:10px; font-size:13.5px;" value="${esc(initialLoc)}" placeholder="例如：尖沙咀某酒吧、中環、日本東京居酒屋、屋企陽台">
+        <input type="text" id="pub-venue-loc" class="text-input" style="margin-top:0; padding:10px; font-size:13.5px;" value="${esc(initialLoc)}" placeholder="${currentLang === 'zh' ? '例如：中環 屋企陽台、台中、高雄、東京居酒屋' : 'e.g. Central Balcony, Taichung, Kaohsiung, Tokyo'}" oninput="updatePubTagHighlight()">
 
-        <!-- 快捷標籤 -->
-        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; margin-bottom:12px;">
-          ${["尖沙咀", "中環", "銅鑼灣", "日本東京", "台北", "屋企陽台", "露營星空下"].map(t => `
-            <span style="font-size:11.5px; padding:3px 9px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); color:var(--text-muted); cursor:pointer;" onclick="setPubLocation('${t}')">${t}</span>
+        <!-- 快捷可複選標籤 -->
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; margin-bottom:14px;">
+          ${locTags.map(t => `
+            <span class="pub-loc-tag" data-tag="${t}" style="font-size:11.5px; padding:4px 10px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); color:var(--text-muted); cursor:pointer; user-select:none; transition:all 0.15s ease;" onclick="togglePubLocationTag('${t}')">${t}</span>
           `).join("")}
         </div>
 
         <!-- 品飲心得手記 -->
         <div style="font-size:12px; font-weight:700; color:var(--gold); margin-bottom:4px;">
-          📝 這次的品飲手記
+          📝 ${currentLang === 'zh' ? '這次的品飲手記' : 'Tasting Impressions'}
         </div>
         <textarea id="pub-venue-notes" class="text-input" style="height:70px; resize:none; padding:8px 10px; font-size:13px;">${esc(initialNotes)}</textarea>
 
         <div style="display:flex; gap:10px; margin-top:16px;">
-          <button class="btn btn-ghost btn-block" style="padding:10px; font-size:13px;" onclick="closeModal()">取消</button>
-          <button class="btn btn-primary btn-block" style="padding:10px; font-size:13px;" onclick="confirmPublishDrink('${esc(b.id)}', ${initialRating})">確認公開發布</button>
+          <button class="btn btn-ghost btn-block" style="padding:10px; font-size:13px;" onclick="closeModal()">${currentLang === 'zh' ? '取消' : 'Cancel'}</button>
+          <button class="btn btn-primary btn-block" style="padding:10px; font-size:13px;" onclick="confirmPublishDrink('${esc(b.id)}', ${initialRating})">${currentLang === 'zh' ? '確認公開發布' : 'Publish to Feed'}</button>
         </div>
       </div>
     </div>
   `;
+
+  updatePubTagHighlight();
 }
 
-function setPubLocation(locName) {
-  const el = document.getElementById("pub-venue-loc");
-  if (el) el.value = locName + ", 香港";
+function togglePubLocationTag(tag) {
+  const input = document.getElementById("pub-venue-loc");
+  if (!input) return;
+  let val = (input.value || "").trim();
+  if (!val) {
+    input.value = tag;
+  } else if (val.includes(tag)) {
+    const escTag = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(^|\\s|·|,)${escTag}(\\s|·|,|$)`, 'g');
+    let newVal = val.replace(regex, ' ').replace(/\\s+/g, ' ').trim();
+    input.value = newVal;
+  } else {
+    input.value = `${val} ${tag}`.trim();
+  }
+  updatePubTagHighlight();
+}
+
+function updatePubTagHighlight() {
+  const input = document.getElementById("pub-venue-loc");
+  if (!input) return;
+  const val = input.value || "";
+  document.querySelectorAll(".pub-loc-tag").forEach(tagEl => {
+    const tagText = tagEl.getAttribute("data-tag");
+    if (tagText && val.includes(tagText)) {
+      tagEl.style.background = "rgba(212, 175, 55, 0.22)";
+      tagEl.style.borderColor = "var(--gold)";
+      tagEl.style.color = "var(--gold)";
+      tagEl.style.fontWeight = "600";
+    } else {
+      tagEl.style.background = "var(--surface-2)";
+      tagEl.style.borderColor = "var(--line)";
+      tagEl.style.color = "var(--text-muted)";
+      tagEl.style.fontWeight = "400";
+    }
+  });
 }
 
 async function confirmPublishDrink(bottleId, rating) {
@@ -1343,18 +1432,64 @@ function handleGoldMapError(img) {
 function resolveDrinkingPinPos(drinkingLocation, country, region) {
   const loc = (drinkingLocation || "").toLowerCase();
   
-  if (loc.includes("香港") || loc.includes("尖沙咀") || loc.includes("中環") || loc.includes("銅鑼灣") || loc.includes("旺角") || loc.includes("灣仔") || loc.includes("西貢") || loc.includes("hong kong") || loc.includes("hk")) {
+  // 1. 香港各區 (支援中環、尖沙咀、銅鑼灣、旺角等複選場景)
+  if (loc.includes("中環") || loc.includes("central")) {
+    return { top: 47.5, left: 76.1 };
+  }
+  if (loc.includes("尖沙咀") || loc.includes("tst")) {
+    return { top: 47.3, left: 76.2 };
+  }
+  if (loc.includes("銅鑼灣") || loc.includes("causeway bay") || loc.includes("cwb")) {
+    return { top: 47.6, left: 76.3 };
+  }
+  if (loc.includes("旺角") || loc.includes("mong kok") || loc.includes("mk")) {
+    return { top: 47.2, left: 76.1 };
+  }
+  if (loc.includes("香港") || loc.includes("灣仔") || loc.includes("西貢") || loc.includes("hong kong") || loc.includes("hk")) {
     return { top: 47.5, left: 76.1 };
   }
   if (loc.includes("澳門") || loc.includes("macau") || loc.includes("macao")) {
     return { top: 47.6, left: 75.9 };
   }
-  if (loc.includes("台灣") || loc.includes("台北") || loc.includes("台中") || loc.includes("高雄") || loc.includes("taiwan")) {
+  
+  // 2. 台灣各大城市 (精準定位：高雄、台中、台北)
+  if (loc.includes("高雄") || loc.includes("kaohsiung")) {
+    return { top: 48.2, left: 77.5 };
+  }
+  if (loc.includes("台中") || loc.includes("taichung")) {
+    return { top: 47.4, left: 77.6 };
+  }
+  if (loc.includes("台北") || loc.includes("taipei")) {
+    return { top: 46.7, left: 77.9 };
+  }
+  if (loc.includes("台南") || loc.includes("tainan")) {
+    return { top: 48.0, left: 77.5 };
+  }
+  if (loc.includes("台灣") || loc.includes("taiwan")) {
     return { top: 47.4, left: 77.8 };
   }
-  if (loc.includes("日本") || loc.includes("東京") || loc.includes("大阪") || loc.includes("京都") || loc.includes("沖繩") || loc.includes("japan") || loc.includes("tokyo")) {
-    return { top: 35.0, left: 82.9 };
+
+  // 3. 日本各大城市 (精準定位：東京、大阪、京都、沖繩)
+  if (loc.includes("東京") || loc.includes("tokyo")) {
+    return { top: 35.0, left: 83.1 };
   }
+  if (loc.includes("大阪") || loc.includes("osaka")) {
+    return { top: 35.8, left: 81.6 };
+  }
+  if (loc.includes("京都") || loc.includes("kyoto")) {
+    return { top: 35.5, left: 81.9 };
+  }
+  if (loc.includes("沖繩") || loc.includes("okinawa")) {
+    return { top: 43.0, left: 80.1 };
+  }
+  if (loc.includes("北海道") || loc.includes("余市") || loc.includes("hokkaido")) {
+    return { top: 30.2, left: 82.9 };
+  }
+  if (loc.includes("日本") || loc.includes("japan")) {
+    return { top: 35.2, left: 82.5 };
+  }
+
+  // 4. 其他國際都市
   if (loc.includes("英國") || loc.includes("倫敦") || loc.includes("蘇格蘭") || loc.includes("london") || loc.includes("uk")) {
     return { top: 26.5, left: 47.5 };
   }
@@ -1370,7 +1505,8 @@ function resolveDrinkingPinPos(drinkingLocation, country, region) {
   if (loc.includes("澳洲") || loc.includes("雪梨") || loc.includes("墨爾本") || loc.includes("australia") || loc.includes("sydney")) {
     return { top: 79.0, left: 79.7 };
   }
-  // 未明確提及飲酒城市時，依據酒款原產地定位
+  
+  // 5. 若僅填寫場景（如「屋企陽台」、「露營星空下」）未註明城市，優先嘗試以原產地或熱門點定位
   return resolveRealImagePinPos(country, region);
 }
 
