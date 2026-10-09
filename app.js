@@ -1591,19 +1591,22 @@ async function renderRealWorldPinsAndFeed() {
     }
 
     // 3. 點擊分享品飲時，先由世界地圖飛往該地，再跳去該地全地圖
+        // 酒友公開品飲卡片：右下角為「詳細 >」，點擊查看分享內容，移除飛機按鈕
     feedEl.innerHTML = publicFeed.map(b => {
       const c = bottleCountry(b);
       const r = bottleRegion(b);
       return `
-        <div class="bottle-card feed-clickable" id="feed-card-${esc(b.id)}" onclick="flyToBottleRegion('${esc(b.id)}')" style="margin-bottom:10px; transition: border-color 0.3s ease, transform 0.2s ease;">
+        <div class="bottle-card" id="feed-card-${esc(b.id)}" onclick="openSharedTastingModal('${esc(b.id)}')" style="margin-bottom:10px; cursor:pointer;">
           <div class="bottle-photo-box">${b.image ? `<img src="${esc(b.image)}">` : '🍷'}</div>
           <div class="bottle-info">
             <div class="bottle-name">${esc(bottleName(b))}</div>
             <div style="font-size:12.5px; color:var(--gold); margin-top:2px;">★ ${b.personalRating||5}/5 ・ ${esc(b.author||'品飲同好')}</div>
             <div style="font-size:13px; color:var(--text-muted); margin-top:4px;">"${esc(b.diary?.notes || '無額外筆記')}"</div>
-            <div style="font-size:11.5px; color:var(--gold-dim); margin-top:4px; display:flex; align-items:center; justify-content:space-between;">
+            <div style="font-size:11.5px; color:var(--text-faint); margin-top:6px; display:flex; align-items:center; justify-content:space-between;">
               <span>📍 ${esc(c)} ${esc(r || b.location || '')}</span>
-              <span style="font-size:11px; color:var(--cyan-glow); display:flex; align-items:center; gap:2px;">✈️ 跳去全地圖</span>
+              <span class="feed-detail-link" onclick="event.stopPropagation(); openSharedTastingModal('${esc(b.id)}')">
+                ${currentLang==='zh'?'詳細 >':'Details >'}
+              </span>
             </div>
           </div>
         </div>
@@ -1623,6 +1626,65 @@ function highlightFeedItem(id) {
     el.classList.add('feed-highlight');
     setTimeout(() => el.classList.remove('feed-highlight'), 3000);
   }
+
+// 查看品飲分享內容彈窗
+function openSharedTastingModal(bottleId) {
+  const b = currentExploreFeed.find(x => String(x.id) === String(bottleId)) ||
+            (window.cellar || []).find(x => String(x.id) === String(bottleId));
+  if (!b) return;
+
+  const c = bottleCountry(b);
+  const r = bottleRegion(b);
+
+  modalContainer.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
+      <div class="modal-card" style="max-width:380px; padding:22px 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+          <div>
+            <div style="font-size:11px; color:var(--gold); font-family:var(--mono); text-transform:uppercase; letter-spacing:0.5px;">
+              ${esc(bottleCategory(b))} ${bottleVintage(b)!=='無年份'?'・ '+esc(bottleVintage(b)):''}
+            </div>
+            <h3 style="font-family:var(--serif); font-size:18px; margin-top:2px; color:var(--text); line-height:1.35;">
+              ${esc(bottleName(b))}
+            </h3>
+          </div>
+          <button class="icon-btn" onclick="closeModal()" style="margin-top:-4px; margin-right:-4px;">✕</button>
+        </div>
+
+        ${b.image ? `<div style="width:100%; height:180px; border-radius:12px; overflow:hidden; margin-bottom:14px; background:#000;"><img src="${esc(b.image)}" style="width:100%; height:100%; object-fit:contain;"></div>` : ''}
+
+        <div style="background:var(--surface-2); padding:10px 14px; border-radius:12px; border:1px solid var(--line); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-size:13px; color:var(--text);">
+            <span style="color:var(--text-muted);">${currentLang==='zh'?'品飲分享者':'Taster'}:</span> <strong style="color:var(--gold);">${esc(b.author || '品飲同好')}</strong>
+          </div>
+          <div style="font-size:13.5px; color:var(--gold); font-weight:700;">
+            ★ ${b.personalRating || 5}/5
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <div style="font-size:12px; color:var(--text-muted); margin-bottom:6px; font-weight:600;">${currentLang==='zh'?'品飲筆記心得':'Tasting Notes'}</div>
+          <div style="background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px 14px; font-size:13.5px; color:var(--text); line-height:1.6;">
+            "${esc(b.diary?.notes || b.notes || '無額外手記記錄')}"
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-muted); padding:0 2px; margin-bottom:16px;">
+          <span>📍 產區: <strong style="color:var(--text);">${esc(c)} ${esc(r || b.location || '')}</strong></span>
+          ${b.diary?.date ? `<span>📅 ${esc(b.diary.date)}</span>` : ''}
+        </div>
+
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-ghost" style="flex:1;" onclick="closeModal()">${t('btn_close')}</button>
+          <button class="btn btn-primary" style="flex:1;" onclick="closeModal(); flyToBottleRegion('${esc(b.id)}');">
+            🗺️ ${currentLang==='zh'?'地圖定位產區':'View on Map'}
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 }
 
 // 核心功能：點擊品飲分享 ➔ 由世界地圖迅速飛向該座標 ➔ 立刻跳入該地全地圖 (如香港、日本、歐洲等)
