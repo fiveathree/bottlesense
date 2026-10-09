@@ -900,6 +900,36 @@ main {
 .text-input:focus {
   border-color: var(--gold-dim);
 }
+/* Fix iOS Safari: padding made inputs overflow, date/select have intrinsic width */
+.text-input {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+}
+input[type="date"].text-input,
+select.text-input {
+  display: block;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 40px;
+  line-height: 20px;
+  text-align: left;
+}
+input[type="date"].text-input::-webkit-date-and-time-value {
+  text-align: left;
+  min-height: 1.2em;
+}
+input[type="date"].text-input::-webkit-calendar-picker-indicator {
+  margin: 0;
+  opacity: 0.7;
+}
+select.text-input {
+  padding-right: 28px;
+  background-image: linear-gradient(45deg, transparent 50%, #D4AF37 50%), linear-gradient(135deg, #D4AF37 50%, transparent 50%);
+  background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
 
 .bottomnav {
   position: fixed;
