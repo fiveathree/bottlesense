@@ -922,6 +922,15 @@ input[type="datetime-local"].text-input {
   color-scheme: dark;
   -webkit-appearance: none;
   appearance: none;
+  text-align: left !important;
+}
+
+/* 確保 iOS Safari / WebKit 內部日期與時間文字向左對齊，與下方提示文字完全齊平 */
+input[type="datetime-local"].text-input::-webkit-date-and-time-value {
+  text-align: left !important;
+  min-height: 1.4em;
+  padding: 0;
+  margin: 0;
 }
 
 .bottomnav {
@@ -1498,4 +1507,35 @@ input[type="datetime-local"].text-input {
 }
 .explore-card-detail-btn:active {
   transform: scale(0.94);
+}
+
+/* =======================================================
+   一鍵社交登入按鈕群 (Google, Apple, FB)
+======================================================= */
+.social-login-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 8px;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.social-login-btn:hover {
+  border-color: var(--gold-dim);
+  background: var(--surface-hover);
+}
+.social-login-btn:active {
+  transform: scale(0.96);
+}
+.social-login-btn svg {
+  flex-shrink: 0;
 }
