@@ -97,12 +97,13 @@ async function deleteBottleFromDB(id) {
 }
 
 async function syncToCloudKV() {
-  if (!mySyncKey || !window.cellar) return;
+  const currentKey = localStorage.getItem("bottlesense_sync_key") || mySyncKey;
+  if (!currentKey || !window.cellar) return;
   try {
     await fetch(`${WORKER_API_URL}/api/sync`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ syncKey: mySyncKey, cellar: window.cellar })
+      body: JSON.stringify({ syncKey: currentKey, cellar: window.cellar })
     });
   } catch(e) {}
 }
