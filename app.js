@@ -1127,6 +1127,7 @@ async function publishToCommunityPool(bottleId, sessionId) {
     personalRating: s ? s.rating : (b.personalRating || 5),
     diary: { notes: s ? s.notes : (b.tastings?.[0]?.notes || '品鑑佳釀') },
     location: s?.location || b.identification?.region || b.tags?.region || '世界名釀',
+    tastingLocation: (s?.location || '').trim(),
     publishedAt: Date.now()
   };
 
@@ -1429,6 +1430,15 @@ function matchRegionalPin(text, useFallback) {
 }
 
 // 酒款對應的地區地圖與 Pin：先看「品飲地點」，再看酒款產區；找不到 → null (只留在世界地圖)
+// 開飲地點：新分享有 tastingLocation；舊分享的 location 若與產區不同也視為開飲地點
+function tastingPlaceOf(b) {
+  if (!b) return '';
+  if (typeof b.tastingLocation === 'string') return b.tastingLocation.trim();
+  const loc = String(b.location || b.diary?.location || '').trim();
+  const reg = String(bottleRegion(b) || '').trim();
+  return (loc && loc !== reg && loc !== '世界名釀') ? loc : '';
+}
+
 function resolveRegionalTarget(b) {
   if (!b) return null;
   const loc = String(b.location || b.diary?.location || '').toLowerCase();
@@ -1814,7 +1824,7 @@ async function renderRealWorldPinsAndFeed() {
             <div style="font-size:13px; color:var(--text-muted); margin-top:4px;">"${esc(b.diary?.notes || '無額外筆記')}"</div>
             
             <div style="font-size:11.5px; color:var(--text-faint); margin-top:8px; display:flex; align-items:center; justify-content:space-between; gap:6px;">
-              <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;">📍 ${esc(c)} ${esc(r || b.location || '')}</span>
+              <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;">${tastingPlaceOf(b) ? '📍 ' + esc(tastingPlaceOf(b)) + ' · 🍷 ' + esc((c + ' ' + (r || '')).trim()) : '🍷 ' + esc((c + ' ' + (r || '')).trim())}</span>
               
               <div style="display:flex; gap:6px; align-items:center;" onclick="event.stopPropagation();">
                 ${isMine ? `
@@ -2100,9 +2110,11 @@ function openSharedTastingModal(bottleId) {
           </div>
         </div>
 
-        <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-muted); padding:0 2px; margin-bottom:16px;">
-          <span>📍 產區: <strong style="color:var(--text);">${esc(c)} ${esc(r || b.location || '')}</strong></span>
-          ${b.diary?.date ? `<span>📅 ${esc(b.diary.date)}</span>` : ''}
+        <div style="font-size:12.5px; color:var(--text-muted); padding:0 2px; margin-bottom:16px; display:flex; flex-direction:column; gap:6px;">
+          <div>🍷 ${currentLang==='zh'?'產區':'Origin'}: <strong style="color:var(--text);">${esc((c + ' ' + (r || '')).trim() || '—')}</strong></div>
+          ${tastingPlaceOf(b) ? `<div>📍 ${currentLang==='zh'?'開飲地點':'Tasted at'}: <strong style="color:var(--gold);">${esc(tastingPlaceOf(b))}</strong>
+            <span style="color:var(--text-faint); font-size:11px;"> · ${currentLang==='zh'?'地圖 Pin 位置以此為準':'map pin uses this'}</span></div>` : ''}
+          ${b.diary?.date ? `<div>📅 ${currentLang==='zh'?'品飲日期':'Date'}: ${esc(b.diary.date)}</div>` : ''}
         </div>
 
         <div class="modal-btn-row">
