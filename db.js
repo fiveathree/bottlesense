@@ -135,3 +135,21 @@ async function restoreCellarToLocal(newCellar, newSyncKey, newOwnerName) {
     return false;
   }
 }
+
+async function clearLocalCellar() {
+  try {
+    const db = await openDB(DB_NAME);
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    await new Promise((res) => {
+      const clearReq = store.clear();
+      clearReq.onsuccess = () => res();
+      clearReq.onerror = () => res();
+    });
+    window.cellar = [];
+    return true;
+  } catch(e) {
+    console.error("clearLocalCellar error", e);
+    return false;
+  }
+}
