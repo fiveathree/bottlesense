@@ -635,7 +635,7 @@ main {
   fill: currentColor;
 }
 
-/* 轉移藏酒空間 (單行極致收窄膠囊列) */
+/* Quick Shelf Transfer Pill Bar */
 .destination-strip {
   display: flex;
   gap: 8px;
@@ -1160,11 +1160,9 @@ main {
 }
 
 /* =======================================================
-   真實金線世界地圖容器 (黑底金色線條 + 拖曳平移縮放)
+    ( + )
 ======================================================= */
-/* =======================================================
-   真實金線世界地圖容器 (黑底金色線條 + 拖曳平移縮放 + 產區地圖切換)
-======================================================= */
+/* World Radar Map Container */
 .world-radar-container {
   width: 100%;
   aspect-ratio: 2 / 1;
@@ -1174,7 +1172,7 @@ main {
   border-radius: 16px;
   position: relative;
   overflow: hidden;
-  margin-bottom: 6px; /* 緊湊向上縮，減少空隙 */
+  margin-bottom: 6px; /* Compact margin to pull feed upwards */
   box-shadow: inset 0 0 35px rgba(0,0,0,0.95), 0 4px 16px rgba(0,0,0,0.4);
   touch-action: none;
   cursor: grab;
@@ -1187,7 +1185,7 @@ main {
   cursor: grabbing;
 }
 
-/* 核心：將地圖圖片與釘選光點鎖定在固定的 2:1 比例畫布內部，杜絕飄移與垂直拉長 */
+/* Fixed 2:1 ratio canvas wrapper to prevent vertical stretching */
 .world-map-canvas-wrap {
   position: relative;
   width: 100%;
@@ -1260,9 +1258,7 @@ main {
   cursor: pointer;
 }
 
-/* =======================================================
-   區域產區地圖層 (點擊酒款直飛切換)
-======================================================= */
+/* Regional Map Layer */
 .regional-map-wrap {
   position: absolute;
   inset: 0;
@@ -1408,7 +1404,7 @@ main {
   100% { opacity: 0; transform: translate(-50%, -10px); }
 }
 
-/* 產區圖檔與純 CSS 光環樣式 (零 SVG) */
+/* Regional Map Image and CSS Pulse */
 .regional-map-img {
   width: 100%;
   height: 100%;
@@ -1449,9 +1445,7 @@ main {
   100% { transform: scale(1.7); opacity: 0; }
 }
 
-/* =======================================================
-   地圖 PC 響應式 Responsive 設計與產區畫布樣式
-======================================================= */
+/* PC Responsive Design and Regional Canvas Styles */
 .regional-canvas-wrap {
   position: relative;
   width: 100%;
@@ -1488,7 +1482,7 @@ main {
   to { opacity: 1; transform: translate(-50%, 0); }
 }
 
-/* PC / 桌面端自適應 Responsive 設計 */
+/* Desktop / PC Responsive Styles */
 @media (min-width: 768px) {
   .world-radar-container {
     max-height: 380px !important;
