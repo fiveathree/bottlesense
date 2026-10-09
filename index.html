@@ -79,33 +79,33 @@
         <defs>
           <mask id="hudBottleMask">
             <rect width="100%" height="100%" fill="white"/>
-            <!-- 瓶身透空路徑：頂部瓶口 -> 細長瓶頸 -> 優雅弧線瓶肩 -> 圓柱瓶身 -> 瓶底微弧 -->
-            <path d="M 115,22 C 115,12 125,10 140,10 C 155,10 165,12 165,22 L 165,100 C 165,135 250,150 250,195 L 250,465 C 250,482 238,488 220,488 L 60,488 C 42,488 30,482 30,465 L 30,195 C 30,150 115,135 115,100 Z" fill="black"/>
+            <!-- 緊湊精緻酒瓶透空路徑 (縮小約25%，手持拍照不再擁擠) -->
+            <path d="M 122,65 C 122,55 130,52 140,52 C 150,52 158,55 158,65 L 158,135 C 158,165 225,175 225,210 L 225,438 C 225,452 215,456 200,456 L 80,456 C 65,456 55,452 55,438 L 55,210 C 55,175 122,165 122,135 Z" fill="black"/>
           </mask>
         </defs>
 
         <!-- 周圍暗色半透明遮罩，只有酒瓶內部通透 -->
         <rect width="100%" height="100%" fill="rgba(0,0,0,0.72)" mask="url(#hudBottleMask)"/>
 
-        <!-- 金色發光完整酒瓶邊框線 -->
-        <path id="bottleCutoutPath" d="M 115,22 C 115,12 125,10 140,10 C 155,10 165,12 165,22 L 165,100 C 165,135 250,150 250,195 L 250,465 C 250,482 238,488 220,488 L 60,488 C 42,488 30,482 30,465 L 30,195 C 30,150 115,135 115,100 Z"
-              fill="none" stroke="#D4AF37" stroke-width="2.5" stroke-linejoin="round"
+        <!-- 金色發光精巧酒瓶邊框線 -->
+        <path id="bottleCutoutPath" d="M 122,65 C 122,55 130,52 140,52 C 150,52 158,55 158,65 L 158,135 C 158,165 225,175 225,210 L 225,438 C 225,452 215,456 200,456 L 80,456 C 65,456 55,452 55,438 L 55,210 C 55,175 122,165 122,135 Z"
+              fill="none" stroke="#D4AF37" stroke-width="2.2" stroke-linejoin="round"
               style="filter: drop-shadow(0 0 10px rgba(212,175,55,0.7));"/>
 
         <!-- 瓶身中央酒標對齊輔助虛線框 -->
-        <rect id="bottleLabelGuide" x="48" y="215" width="184" height="235" rx="10"
-              fill="none" stroke="rgba(212,175,55,0.55)" stroke-width="1.5" stroke-dasharray="6,4"/>
+        <rect id="bottleLabelGuide" x="68" y="228" width="144" height="190" rx="8"
+              fill="none" stroke="rgba(212,175,55,0.55)" stroke-width="1.4" stroke-dasharray="5,4"/>
 
         <!-- 四個金色對準角標 (HUD Corner Marks) -->
-        <path d="M 48,232 L 48,215 L 65,215" fill="none" stroke="#D4AF37" stroke-width="2.8"/>
-        <path d="M 232,232 L 232,215 L 215,215" fill="none" stroke="#D4AF37" stroke-width="2.8"/>
-        <path d="M 48,433 L 48,450 L 65,450" fill="none" stroke="#D4AF37" stroke-width="2.8"/>
-        <path d="M 232,433 L 232,450 L 215,450" fill="none" stroke="#D4AF37" stroke-width="2.8"/>
+        <path d="M 68,242 L 68,228 L 82,228" fill="none" stroke="#D4AF37" stroke-width="2.5"/>
+        <path d="M 212,242 L 212,228 L 198,228" fill="none" stroke="#D4AF37" stroke-width="2.5"/>
+        <path d="M 68,404 L 68,418 L 82,418" fill="none" stroke="#D4AF37" stroke-width="2.5"/>
+        <path d="M 212,404 L 212,418 L 198,418" fill="none" stroke="#D4AF37" stroke-width="2.5"/>
 
         <!-- 中央對準提示標籤 -->
-        <g transform="translate(140, 332)">
-          <rect x="-65" y="-12" width="130" height="24" rx="12" fill="rgba(0,0,0,0.8)" stroke="rgba(212,175,55,0.6)" stroke-width="1"/>
-          <text text-anchor="middle" y="4.5" fill="#D4AF37" font-size="11" font-family="monospace">請將酒標置於框內</text>
+        <g transform="translate(140, 323)">
+          <rect x="-60" y="-11" width="120" height="22" rx="11" fill="rgba(0,0,0,0.85)" stroke="rgba(212,175,55,0.6)" stroke-width="1"/>
+          <text text-anchor="middle" y="4" fill="#D4AF37" font-size="10.5" font-family="monospace">請將酒標置於框內</text>
         </g>
       </svg>
 
