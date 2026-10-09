@@ -1342,7 +1342,9 @@ async function confirmPublishDrink(bottleId, rating) {
 
   const payload = {
     id: b.id,
-    author: localStorage.getItem("bottlesense_owner_name") || "品飲同好",
+    author: localStorage.getItem("bottlesense_profile_name") || localStorage.getItem("bottlesense_owner_name") || "品飲同好",
+    authorEmail: (localStorage.getItem("bottlesense_account_bound") || "").toLowerCase(),
+    syncKey: localStorage.getItem("bottlesense_sync_key") || "",
     identification: b.identification,
     image: b.image,
     personalRating: rating,
@@ -2512,13 +2514,14 @@ function renderSettings() {
   const boundAccount = localStorage.getItem('bottlesense_account_bound');
   const profileName = localStorage.getItem('bottlesense_profile_name') || (boundAccount ? boundAccount.split('@')[0] : '');
   const birthday = localStorage.getItem('bottlesense_profile_birthday') || '';
+  const gender = localStorage.getItem('bottlesense_profile_gender') || 'unspecified';
   const cellarCount = (window.cellar || []).length;
 
   let contentHTML = '';
 
   if (boundAccount) {
-    // 1. 已登入狀態：完全不顯示登入註冊框，顯示已綁定資料與登出機制 (Logout = 清空資料)
-    let bdayDisplay = birthday ? `🎂 生日：${esc(birthday)}` : '';
+    // 1. 已登入狀態：可查看與即時編輯個人 Profile (姓名、生日、性別)，變更後即時聯動頂部問候語與雲端
+    let bdayDisplay = birthday ? `🎂 ${currentLang === 'zh' ? '生日' : 'Birthday'}：${esc(birthday)}` : '';
     contentHTML = `
       <div style="background:linear-gradient(180deg, var(--surface-2) 0%, #161810 100%); border:1px solid var(--gold-dim); border-radius:14px; padding:16px; margin-bottom:14px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -2533,19 +2536,74 @@ function renderSettings() {
         <div style="font-family:var(--serif); font-size:20px; font-weight:700; color:var(--text); margin-bottom:4px; word-break:break-all;">
           Hello, <span style="color:var(--gold);">${esc(profileName)}</span>
         </div>
-        <div style="font-size:12.5px; color:var(--text-muted); margin-bottom:6px; word-break:break-all;">
+        <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px; word-break:break-all;">
           ✉️ ${esc(boundAccount)}
         </div>
-        ${bdayDisplay ? `<div style="font-size:12px; color:var(--text-faint); margin-bottom:8px;">${bdayDisplay}</div>` : ''}
 
-        <div style="font-size:12.5px; color:var(--gold-dim); margin-bottom:14px;">
+        <!-- 編輯個人資料卡片 (姓名、性別、生日) -->
+        <div style="background:rgba(0,0,0,0.35); border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-size:12px; font-weight:700; color:var(--gold);">
+              ✏️ ${currentLang === 'zh' ? '會員個人資料 (即時聯動)' : 'Edit Profile'}
+            </span>
+          </div>
+
+          <div style="font-size:11px; color:var(--text-faint); margin-bottom:3px;">
+            ${currentLang === 'zh' ? '姓名 / 暱稱' : 'Name'} <span style="color:var(--wine-bright);">*</span>
+          </div>
+          <input type="text" id="edit-profile-name" class="text-input" style="margin-top:0; padding:7px 10px; font-size:13px; margin-bottom:8px;" value="${esc(profileName)}" placeholder="${currentLang === 'zh' ? '姓名 / 暱稱' : 'Name'}">
+
+          <div style="display:grid; grid-template-columns: 1fr 1.2fr; gap:8px;">
+            <div>
+              <div style="font-size:11px; color:var(--text-faint); margin-bottom:3px;">
+                ${currentLang === 'zh' ? '性別' : 'Gender'}
+              </div>
+              <select id="edit-profile-gender" class="text-input" style="margin-top:0; padding:7px 8px; font-size:12.5px;">
+                <option value="unspecified" ${gender==='unspecified'?'selected':''}>${currentLang==='zh'?'保密':'Private'}</option>
+                <option value="male" ${gender==='male'?'selected':''}>${currentLang==='zh'?'男':'Male'}</option>
+                <option value="female" ${gender==='female'?'selected':''}>${currentLang==='zh'?'女':'Female'}</option>
+              </select>
+            </div>
+            <div>
+              <div style="font-size:11px; color:var(--text-faint); margin-bottom:3px;">
+                ${currentLang === 'zh' ? '出生日期' : 'Birthday'}
+              </div>
+              <input type="date" id="edit-profile-birthday" class="text-input" style="margin-top:0; padding:7px 8px; font-size:12px;" value="${esc(birthday)}">
+            </div>
+          </div>
+
+          <button id="btn-save-profile" class="btn btn-primary btn-block" style="padding:8px; margin-top:10px; font-size:12.5px; font-weight:700;" onclick="executeSaveProfile()">
+            ${currentLang === 'zh' ? '儲存個人資料變更' : 'Save Profile Changes'}
+          </button>
+        </div>
+
+        <div style="font-size:12px; color:var(--gold-dim); margin-bottom:14px;">
           ${currentLang === 'zh' ? `雲端目前已安全備份 ${cellarCount} 支藏酒與手記` : `${cellarCount} bottles & tasting notes safely backed up`}
         </div>
 
-        <!-- 登出按鈕：清空本機暫存 -->
-        <button class="btn btn-wine btn-block" style="padding:10px; font-size:13.5px;" onclick="executeAccountLogout()">
-          ${currentLang === 'zh' ? '登出帳號 (清空本機資料)' : 'Log Out & Clear Device'}
+        <!-- 登出按鈕：依指定精簡為「登出帳號 Logout」 -->
+        <button class="btn btn-wine btn-block" style="padding:10px; font-size:13.5px; margin-bottom:14px;" onclick="executeAccountLogout()">
+          ${currentLang === 'zh' ? '登出帳號 Logout' : 'Logout'}
         </button>
+
+        <!-- 永久註銷帳號區域 (可 tick 刪除清空所有資料) -->
+        <div style="border-top:1px solid rgba(255,255,255,0.08); padding-top:12px; margin-top:4px;">
+          <div style="font-size:12px; font-weight:700; color:#EF4444; margin-bottom:4px;">
+            ⚠️ ${currentLang === 'zh' ? '永久註銷與資料刪除 (危險操作)' : 'Delete Account & Clear All Data'}
+          </div>
+          <div style="font-size:11px; color:var(--text-faint); line-height:1.4; margin-bottom:8px;">
+            ${currentLang === 'zh' ? '若你想永久離開，請勾選下方確認。一旦刪除將清空 Email、個人檔案、所有藏酒手記與探索池記錄，無法回復。' : 'Tick below to permanently delete your email, profile, all bottles, notes and explore records. This cannot be undone.'}
+          </div>
+
+          <label style="display:flex; align-items:flex-start; gap:8px; font-size:11.5px; color:#FCA5A5; cursor:pointer; line-height:1.4; margin-bottom:10px;">
+            <input type="checkbox" id="delete-account-confirm-check" style="margin-top:2px; accent-color:#EF4444;" onchange="toggleDeleteAccountButton(this.checked)">
+            <span>${currentLang === 'zh' ? '我確認要永久刪除帳號及清空所有雲端與本機資料 (無法回復)' : 'I confirm I want to permanently delete my account and clear all data'}</span>
+          </label>
+
+          <button id="btn-delete-account" class="btn btn-block" style="padding:8px; font-size:12.5px; background:rgba(239,68,68,0.15); color:#EF4444; border:1px solid rgba(239,68,68,0.3); display:none;" onclick="executeDeleteAccountPermanently()">
+            🗑️ ${currentLang === 'zh' ? '確認永久刪除帳號與所有資料' : 'Permanently Delete Account'}
+          </button>
+        </div>
       </div>
     `;
   } else {
@@ -2607,12 +2665,12 @@ function renderSettings() {
         </div>
       `;
     } else if (authFlowState.step === 'register_form') {
-      // 步驟 2A：註冊表單（必填姓名、選填性別、選填生日、服務私隱協議）
+      // 步驟 2A：註冊表單（必填項打 *，其他不加多餘備註）
       contentHTML = `
         <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:14px; padding:15px; margin-bottom:12px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
             <div style="font-size:14px; font-weight:700; color:var(--gold);">
-              📝 ${currentLang === 'zh' ? '填寫註冊會員資料' : 'Register Profile'}
+              📝 ${currentLang === 'zh' ? '填寫註冊資料' : 'Register Profile'}
             </div>
             <span style="font-size:11px; color:var(--gold-dim); font-family:var(--mono);">
               STEP 2/2
@@ -2623,38 +2681,40 @@ function renderSettings() {
             ✉️ ${esc(authFlowState.email)}
           </div>
 
-          <!-- 必填姓名 (之後登入上方顯示: Hello, XXX) -->
-          <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:4px;">
-            ${currentLang === 'zh' ? '姓名 / 暱稱' : 'Name / Nickname'} <span style="color:var(--wine-bright);">*</span>
+          <!-- 必填姓名：標註 *，未填時高亮並捲動 -->
+          <div id="field-wrap-name">
+            <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:4px;">
+              ${currentLang === 'zh' ? '姓名' : 'Name'} <span style="color:#EF4444; font-weight:700;">*</span>
+            </div>
+            <input type="text" id="reg-name" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13.5px; transition:border 0.3s;" value="${esc(authFlowState.name)}" placeholder="${currentLang === 'zh' ? '請輸入姓名' : 'Enter name'}" oninput="clearNameFieldError()">
+            <div id="reg-name-error" style="display:none; font-size:11.5px; color:#EF4444; margin-top:4px; font-weight:600;">
+              ⚠️ ${currentLang === 'zh' ? '請填寫姓名以完成註冊' : 'Please enter your name'}
+            </div>
           </div>
-          <input type="text" id="reg-name" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13.5px;" value="${esc(authFlowState.name)}" placeholder="${currentLang === 'zh' ? '例如：Alex / 侍酒愛好者 (必填)' : 'e.g. Alex (Required)'}">
 
-          <!-- 選填性別 -->
-          <div style="font-size:12px; font-weight:600; color:var(--text); margin-top:10px; margin-bottom:4px;">
-            ${currentLang === 'zh' ? '性別 (選填)' : 'Gender (Optional)'}
+          <!-- 選填性別：乾淨無冗餘備註 -->
+          <div style="font-size:12px; font-weight:600; color:var(--text); margin-top:12px; margin-bottom:4px;">
+            ${currentLang === 'zh' ? '性別' : 'Gender'}
           </div>
           <select id="reg-gender" class="text-input" style="margin-top:0; padding:8px 10px; font-size:13px;">
-            <option value="unspecified" ${authFlowState.gender==='unspecified'?'selected':''}>${currentLang==='zh'?'保密 / 不透露':'Prefer not to say'}</option>
-            <option value="male" ${authFlowState.gender==='male'?'selected':''}>${currentLang==='zh'?'男 (Male)':'Male'}</option>
-            <option value="female" ${authFlowState.gender==='female'?'selected':''}>${currentLang==='zh'?'女 (Female)':'Female'}</option>
+            <option value="unspecified" ${authFlowState.gender==='unspecified'?'selected':''}>${currentLang==='zh'?'保密':'Prefer not to say'}</option>
+            <option value="male" ${authFlowState.gender==='male'?'selected':''}>${currentLang==='zh'?'男':'Male'}</option>
+            <option value="female" ${authFlowState.gender==='female'?'selected':''}>${currentLang==='zh'?'女':'Female'}</option>
           </select>
 
-          <!-- 選填生日 (生日果日寫 Happy birthday, XXX) -->
-          <div style="font-size:12px; font-weight:600; color:var(--text); margin-top:10px; margin-bottom:4px;">
-            ${currentLang === 'zh' ? '出生日期 (選填)' : 'Birthday (Optional)'}
+          <!-- 選填生日：乾淨無冗餘備註 -->
+          <div style="font-size:12px; font-weight:600; color:var(--text); margin-top:12px; margin-bottom:4px;">
+            ${currentLang === 'zh' ? '生日' : 'Birthday'}
           </div>
           <input type="date" id="reg-birthday" class="text-input" style="margin-top:0; padding:8px 10px; font-size:13px;" value="${esc(authFlowState.birthday)}">
-          <div style="font-size:11px; color:var(--text-faint); margin-top:3px;">
-            🎂 ${currentLang === 'zh' ? '生日當天將為你送上專屬開瓶祝福！' : 'We will celebrate with you on your special day!'}
-          </div>
 
-          <!-- 使用及私隱條款 Checkbox (必填) -->
+          <!-- 使用及私隱條款 Checkbox (必填打 *) -->
           <label style="display:flex; align-items:flex-start; gap:8px; font-size:12px; color:var(--text-muted); margin-top:14px; cursor:pointer; line-height:1.4;">
             <input type="checkbox" id="reg-terms-check" style="margin-top:2px; accent-color:var(--gold);">
             <span>
               ${currentLang === 'zh'
-                ? '我已閱讀並同意 <a href="javascript:void(0)" onclick="openTermsModal()" style="color:var(--gold); text-decoration:underline;">使用條款</a> 及 <a href="javascript:void(0)" onclick="openPrivacyModal()" style="color:var(--gold); text-decoration:underline;">私隱政策</a>'
-                : 'I agree to the <a href="javascript:void(0)" onclick="openTermsModal()" style="color:var(--gold);">Terms of Service</a> and <a href="javascript:void(0)" onclick="openPrivacyModal()" style="color:var(--gold);">Privacy Policy</a>'}
+                ? '我已閱讀並同意 <a href="javascript:void(0)" onclick="openTermsModal()" style="color:var(--gold); text-decoration:underline;">使用條款</a> 及 <a href="javascript:void(0)" onclick="openPrivacyModal()" style="color:var(--gold); text-decoration:underline;">私隱政策</a> <span style="color:#EF4444;">*</span>'
+                : 'I agree to the <a href="javascript:void(0)" onclick="openTermsModal()" style="color:var(--gold);">Terms of Service</a> and <a href="javascript:void(0)" onclick="openPrivacyModal()" style="color:var(--gold);">Privacy Policy</a> <span style="color:#EF4444;">*</span>'}
             </span>
           </label>
 
@@ -2691,7 +2751,7 @@ function renderSettings() {
         </div>
       `;
     } else if (authFlowState.step === 'login_otp') {
-      // 步驟 2C：登入酒窖 OTP 輸入介面 (不會再彈窗即時顯示，純等候真實 Email)
+      // 步驟 2C：登入酒窖 OTP 輸入介面
       contentHTML = `
         <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:14px; padding:18px 16px; margin-bottom:12px; text-align:center;">
           <div style="font-size:32px; margin-bottom:6px;">🔐</div>
@@ -2740,8 +2800,6 @@ function renderSettings() {
     </div>
   `;
 }
-
-
 // 自動偵測 6 位數 OTP 輸入與貼上 (Paste 即直接登入，毋需撳確認)
 function handleOtpInput(inputEl) {
   if (!inputEl) return;
@@ -2880,8 +2938,16 @@ async function resendLoginOtp() {
   }
 }
 
+function clearNameFieldError() {
+  const errEl = document.getElementById('reg-name-error');
+  const inputEl = document.getElementById('reg-name');
+  if (errEl) errEl.style.display = 'none';
+  if (inputEl) inputEl.style.borderColor = '';
+}
+
 async function executeSendVerificationLink() {
   const nameInput = document.getElementById('reg-name');
+  const nameError = document.getElementById('reg-name-error');
   const genderInput = document.getElementById('reg-gender');
   const bdayInput = document.getElementById('reg-birthday');
   const termsCheck = document.getElementById('reg-terms-check');
@@ -2891,13 +2957,19 @@ async function executeSendVerificationLink() {
   const birthday = bdayInput?.value || '';
 
   if (!name) {
-    showToast(currentLang === 'zh' ? '⚠️ 請填寫姓名或暱稱 (必填)' : '⚠️ Please enter your name');
-    nameInput?.focus();
+    if (nameError) nameError.style.display = 'block';
+    if (nameInput) {
+      nameInput.style.borderColor = '#EF4444';
+      nameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      nameInput.focus();
+    }
+    showToast(currentLang === 'zh' ? '⚠️ 請填寫姓名或暱稱 (*必填)' : '⚠️ Please enter your name (*required)');
     return;
   }
 
   if (!termsCheck?.checked) {
-    showToast(currentLang === 'zh' ? '⚠️ 請閱讀並勾選同意使用條款及私隱政策' : '⚠️ Please agree to Terms and Privacy Policy');
+    showToast(currentLang === 'zh' ? '⚠️ 請閱讀並勾選同意使用條款及私隱政策 (*必填)' : '⚠️ Please agree to Terms and Privacy Policy (*required)');
+    termsCheck?.focus();
     return;
   }
 
@@ -2940,7 +3012,6 @@ async function executeSendVerificationLink() {
     showToast('發送失敗: ' + err.message);
   }
 }
-
 async function handleEmailVerificationFromUrl(token, email) {
   showToast(currentLang === 'zh' ? '正在認證電郵並完成註冊…' : 'Verifying email registration...');
   try {
@@ -2994,6 +3065,70 @@ async function handleEmailVerificationFromUrl(token, email) {
   }
 }
 
+// 儲存修改個人資料 (姓名、生日、性別)，即時聯動問候語與同步雲端
+async function executeSaveProfile() {
+  const email = localStorage.getItem('bottlesense_account_bound');
+  const nameInput = document.getElementById('edit-profile-name');
+  const genderInput = document.getElementById('edit-profile-gender');
+  const bdayInput = document.getElementById('edit-profile-birthday');
+  const btn = document.getElementById('btn-save-profile');
+
+  const newName = (nameInput?.value || '').trim();
+  const newGender = genderInput?.value || 'unspecified';
+  const newBirthday = bdayInput?.value || '';
+
+  if (!newName) {
+    showToast(currentLang === 'zh' ? '⚠️ 姓名不能為空' : '⚠️ Name cannot be empty');
+    nameInput?.focus();
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = currentLang === 'zh' ? '正在儲存…' : 'Saving...';
+  }
+
+  try {
+    if (email) {
+      const res = await fetch(`${WORKER_API_URL}/api/auth/update-profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email,
+          name: newName,
+          gender: newGender,
+          birthday: newBirthday
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '儲存失敗');
+    }
+
+    // 更新本機儲存
+    localStorage.setItem('bottlesense_profile_name', newName);
+    localStorage.setItem('bottlesense_owner_name', newName);
+    localStorage.setItem('bottlesense_profile_gender', newGender);
+    if (newBirthday) {
+      localStorage.setItem('bottlesense_profile_birthday', newBirthday);
+    } else {
+      localStorage.removeItem('bottlesense_profile_birthday');
+    }
+
+    // 即時聯動頂部問候語
+    updateHeaderGreeting();
+
+    showToast(currentLang === 'zh' ? '✓ 個人資料已更新，問候語已即時同步！' : '✓ Profile updated & greeting synced!');
+    renderSettings();
+  } catch (err) {
+    showToast('更新失敗: ' + err.message);
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = currentLang === 'zh' ? '儲存個人資料變更' : 'Save Profile Changes';
+    }
+  }
+}
+
+// 登出帳號（就咁寫 登出帳號 Logout）
 async function executeAccountLogout() {
   const confirmMsg = currentLang === 'zh'
     ? '確定要登出帳號？登出後將會清空本機暫存藏酒。雲端酒窖資料已安全備份，重新輸入電郵驗證即可再次載入查看。'
@@ -3031,6 +3166,70 @@ async function executeAccountLogout() {
   else goHome();
 
   renderSettings();
+}
+
+// 切換永久註銷按鈕顯示
+function toggleDeleteAccountButton(checked) {
+  const btn = document.getElementById('btn-delete-account');
+  if (btn) {
+    btn.style.display = checked ? 'block' : 'none';
+  }
+}
+
+// 永久刪除帳號及清空所有資料 (Double Confirm)
+async function executeDeleteAccountPermanently() {
+  const email = localStorage.getItem('bottlesense_account_bound');
+  const syncKey = localStorage.getItem('bottlesense_sync_key') || '';
+
+  const confirmMsg1 = currentLang === 'zh'
+    ? `⚠️【第一重警告】您即將永久刪除帳號（${email}）！\n\n此操作將永久銷毀：\n1. 您的電郵帳號與 Profile\n2. 雲端及本機全部藏酒與品飲筆記\n3. 社群探索池中發布的所有手記記錄\n\n刪除後 100% 無法回復！您確定要繼續嗎？`
+    : `⚠️ [WARNING 1] You are about to permanently delete your account (${email})! This will erase your email, profile, all cellar bottles, notes and explore records. This CANNOT be undone! Continue?`;
+
+  if (!confirm(confirmMsg1)) return;
+
+  const confirmMsg2 = currentLang === 'zh'
+    ? `🔴【第二重最終確認】最後確認：刪除後所有資料將立即化為烏有且無法復原！\n\n請再次確認是否永久註銷並刪除所有資料？`
+    : `🔴 [FINAL CONFIRMATION] Are you ABSOLUTELY sure? All your data will be permanently wiped immediately!`;
+
+  if (!confirm(confirmMsg2)) return;
+
+  showToast(currentLang === 'zh' ? '正在永久刪除帳號與清空資料…' : 'Permanently deleting account & data...');
+
+  try {
+    if (email) {
+      await fetch(`${WORKER_API_URL}/api/auth/delete-account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, syncKey })
+      });
+    }
+
+    // 清空本地 IndexedDB
+    if (typeof clearLocalCellar === 'function') {
+      await clearLocalCellar();
+    } else {
+      window.cellar = [];
+    }
+
+    // 清空 localStorage 所有相關記錄
+    localStorage.clear();
+
+    window.cellar = [];
+    const newGuestKey = 'BTL-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+    localStorage.setItem('bottlesense_sync_key', newGuestKey);
+    mySyncKey = newGuestKey;
+
+    authFlowState = { step: 'email', email: '', name: '', gender: 'unspecified', birthday: '' };
+
+    updateHeaderGreeting();
+
+    closeModal();
+    showToast(currentLang === 'zh' ? '✓ 帳號與所有資料已徹底永久刪除！' : '✓ Account and all data permanently deleted!');
+
+    goHome();
+  } catch (err) {
+    showToast('刪除失敗: ' + err.message);
+  }
 }
 
 function openTermsModal() {
