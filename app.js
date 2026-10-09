@@ -1668,11 +1668,13 @@ function flyToBottleRegion(bottleId) {
 }
 
 // 顯示個別區域全地圖 (預設縮放 0.88 收細呈現全貌，精確標記品飲分享 Pin 點)
+// 顯示個別區域全地圖 (預設縮放 0.88 收細呈現全貌)
+// 1. 若該地區無公開分享，完全唔出現酒杯 icon
+// 2. 所有酒杯 icon 100% 對應下面公開品飲，地區提示移除唔洗出
 function showRegionalMap(country, region, b) {
   isRegionalMapActive = true;
   const regView = document.getElementById('regionalMapView');
   const wrap = document.getElementById('worldMapCanvasWrap');
-  const hud = document.getElementById('worldMapHud');
   const regCanvas = document.getElementById('regionalCanvasWrap');
   const regImg = document.getElementById('regionalMapImg');
   const pinLayer = document.getElementById('regionalPinContainer');
@@ -1684,9 +1686,8 @@ function showRegionalMap(country, region, b) {
   const mapKey = resolveGitHubMapKey(country, region);
   currentRegionalMapKey = mapKey;
   const regionLabel = getRegionalHeaderLabel(mapKey, country, region);
-  const pinPos = resolveRegionalPinPos(mapKey, country, region);
 
-  // 3. 張地圖預設收細 (0.88)，清楚睇清地圖全貌
+  // 張地圖預設收細 (0.88)，清楚睇清地圖全貌
   regionalZoom = 0.88;
   regionalPanX = 0;
   regionalPanY = 0;
@@ -1703,23 +1704,45 @@ function showRegionalMap(country, region, b) {
     regImg.src = `${mapKey}.png`;
   };
 
-  // 3. 精準釘選 Pin 於該地實際地理座標，杜絕居中隨便顯示
+  if (badgeEl) badgeEl.textContent = regionLabel;
+
+  // 1. 篩選該地區在下面公開品飲動態中的所有酒款
+  const regionBottles = currentExploreFeed.filter(x => {
+    return resolveGitHubMapKey(bottleCountry(x), bottleRegion(x)) === mapKey;
+  });
+
+  // 1 & 2. 嚴格對應公開品飲：無分享則完全不顯示酒杯 icon，移除地區提示標籤泡
   if (pinLayer) {
-    const pinName = b ? bottleName(b) : pinPos.name;
-    pinLayer.innerHTML = `
-      <div class="geo-pin-node" style="top:${pinPos.top}%; left:${pinPos.left}%; pointer-events:auto;" title="${esc(pinName)}">
-        🍷
-        <div class="pin-callout-bubble">${esc(pinPos.name)}</div>
-      </div>
-    `;
+    if (regionBottles.length === 0) {
+      pinLayer.innerHTML = ''; // 該地區無分享品飲，酒杯 icon 完全不出現
+    } else {
+      pinLayer.innerHTML = regionBottles.map(item => {
+        const itemPos = resolveRegionalPinPos(mapKey, bottleCountry(item), bottleRegion(item));
+        const isCurrent = b && String(b.id) === String(item.id);
+        return `
+          <div class="geo-pin-node ${isCurrent ? 'feed-highlight' : ''}"
+               style="top:${itemPos.top}%; left:${itemPos.left}%; pointer-events:auto;"
+               onclick="focusRegionalBottle('${esc(item.id)}')"
+               title="${esc(bottleName(item))}">
+            🍷
+          </div>
+        `;
+      }).join('');
+    }
   }
 
-  if (badgeEl) badgeEl.textContent = regionLabel;
+  // 底部資訊列更新
   if (pillEl) {
     if (b) {
-      pillEl.innerHTML = `🍷 ${esc(bottleName(b))} ${bottleVintage(b)!=='無年份'?'('+esc(bottleVintage(b))+')':''} ・ ${esc(pinPos.name || region || country)}`;
+      pillEl.style.display = 'block';
+      pillEl.innerHTML = `🍷 ${esc(bottleName(b))} ${bottleVintage(b)!=='無年份'?'('+esc(bottleVintage(b))+')':''} ・ ${esc(bottleRegion(b)||bottleCountry(b))}`;
+    } else if (regionBottles.length > 0) {
+      pillEl.style.display = 'block';
+      const firstB = regionBottles[0];
+      pillEl.innerHTML = `🍷 ${esc(bottleName(firstB))} ${bottleVintage(firstB)!=='無年份'?'('+esc(bottleVintage(firstB))+')':''} ・ ${esc(bottleRegion(firstB)||bottleCountry(firstB))}`;
     } else {
-      pillEl.innerHTML = `💡 ${regionLabel} (雙指縮細即可退回世界地圖)`;
+      pillEl.style.display = 'block';
+      pillEl.innerHTML = `<span style="color:var(--text-muted); font-size:11.5px;">此產區目前尚無公開品飲分享</span>`;
     }
   }
 
@@ -1731,7 +1754,17 @@ function showRegionalMap(country, region, b) {
   regView.style.opacity = '1';
 }
 
-// 2. 係個別區域 2 指縮細，出返去世界地圖
+function focusRegionalBottle(bottleId) {
+  const b = currentExploreFeed.find(x => String(x.id) === String(bottleId));
+  if (!b) return;
+  highlightFeedItem(b.id);
+  const pillEl = document.getElementById('regionalBottlePill');
+  if (pillEl) {
+    pillEl.style.display = 'block';
+    pillEl.innerHTML = `🍷 ${esc(bottleName(b))} ${bottleVintage(b)!=='無年份'?'('+esc(bottleVintage(b))+')':''} ・ ${esc(bottleRegion(b)||bottleCountry(b))}`;
+  }
+}
+
 function exitRegionalMap() {
   if (!isRegionalMapActive) return;
   isRegionalMapActive = false;
