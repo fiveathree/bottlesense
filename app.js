@@ -2761,55 +2761,27 @@ function renderSettings() {
     // 2. 未登入狀態：依據流程步驟顯示
     if (authFlowState.step === 'email') {
       contentHTML = `
-        <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:14px; padding:15px; margin-bottom:12px;">
-          <div style="font-size:13.5px; font-weight:700; color:var(--gold); margin-bottom:6px;">
+        <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:14px; padding:18px 16px; margin-bottom:12px;">
+          <div style="font-size:14px; font-weight:700; color:var(--gold); margin-bottom:6px;">
             👤 ${currentLang === 'zh' ? '酒窖登入 / 註冊' : 'Cellar Login / Register'}
           </div>
-          <div style="font-size:11.5px; color:var(--text-faint); margin-bottom:10px; line-height:1.4;">
-            ${currentLang === 'zh' ? '輸入你的電郵地址即可快速開始：' : 'Enter your email address to get started:'}
+          <div style="font-size:12px; color:var(--text-faint); margin-bottom:14px; line-height:1.5;">
+            ${currentLang === 'zh' ? '輸入你的電郵地址即可快速登入或註冊酒窖：' : 'Enter your email address to sign in or register:'}
           </div>
 
           <div style="font-size:11.5px; font-family:var(--mono); color:var(--text-faint); margin-bottom:4px;">
             ${currentLang === 'zh' ? '電郵地址 (Email)' : 'Email Address'}
           </div>
-          <input type="email" id="auth-email" class="text-input" style="margin-top:0; padding:10px 12px; font-size:14px;" value="${esc(authFlowState.email)}" placeholder="${currentLang === 'zh' ? '輸入你的電郵 (例如 user@gmail.com)' : 'Enter email (e.g. user@gmail.com)'}">
+          <input type="email" id="auth-email" class="text-input" style="margin-top:0; padding:11px 12px; font-size:14.5px;" value="${esc(authFlowState.email)}" placeholder="${currentLang === 'zh' ? '輸入你的電郵 (例如 user@gmail.com)' : 'Enter email (e.g. user@gmail.com)'}">
 
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:14px;">
-            <button class="btn btn-ghost btn-block" style="padding:10px; font-size:13px;" onclick="handleStartRegister()">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:16px;">
+            <button class="btn btn-ghost btn-block" style="padding:11px; font-size:13.5px;" onclick="handleStartRegister()">
               ${currentLang === 'zh' ? '註冊帳號' : 'Register'}
             </button>
-            <button class="btn btn-primary btn-block" style="padding:10px; font-size:13px;" onclick="handleStartLogin()">
+            <button class="btn btn-primary btn-block" style="padding:11px; font-size:13.5px;" onclick="handleStartLogin()">
               ${currentLang === 'zh' ? '登入酒窖' : 'Login'}
             </button>
           </div>
-        </div>
-
-        <!-- 社交帳號登入 -->
-        <div style="margin-bottom:12px;">
-          <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); text-align:center; margin-bottom:6px; text-transform:uppercase;">
-            ${currentLang === 'zh' ? '或使用社交帳號登入' : 'Or via Social Account'}
-          </div>
-          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px;">
-            <button class="social-login-btn google-btn" onclick="executeSocialLogin('Google')">
-              <svg viewBox="0 0 24 24" width="15" height="15"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/><path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15.1c0 2.8.7 5.4 1.9 7.8l3.7-2.9z"/><path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2-6.4-4.8L1.9 16.9C3.7 20.6 7.5 23.5 12 23.5z"/></svg>
-              <span>Google</span>
-            </button>
-            <button class="social-login-btn apple-btn" onclick="executeSocialLogin('Apple')">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.64-.78 1.08-1.86.96-2.95-1 .04-2.14.66-2.79 1.43-.57.66-.99 1.76-.85 2.81 1.11.09 2.04-.51 2.68-1.29z"/></svg>
-              <span>Apple</span>
-            </button>
-            <button class="social-login-btn fb-btn" onclick="executeSocialLogin('Facebook')">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-              <span>FB</span>
-            </button>
-          </div>
-        </div>
-
-        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-          <span style="font-size:12px; color:var(--text-faint);">${currentLang === 'zh' ? '目前身分狀態：' : 'Status:'}</span>
-          <span style="font-size:12.5px; font-weight:600; color:var(--text-muted);">
-            👤 ${currentLang === 'zh' ? '遊客模式 (未登入)' : 'Guest Mode'}
-          </span>
         </div>
       `;
     } else if (authFlowState.step === 'register_form') {
