@@ -1275,3 +1275,40 @@ main {
   85% { opacity: 1; transform: translate(-50%, 0); }
   100% { opacity: 0; transform: translate(-50%, -10px); }
 }
+
+/* =======================================================
+   品飲時間軸優雅空白狀態卡片 (排版最佳化，杜絕孤字折行)
+======================================================= */
+.timeline-empty-card {
+  border: 1px dashed rgba(212, 175, 55, 0.28);
+  border-radius: 14px;
+  padding: 22px 18px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: 4px;
+}
+.timeline-empty-card .empty-icon {
+  font-size: 26px;
+  margin-bottom: 8px;
+  opacity: 0.9;
+}
+.timeline-empty-card .empty-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gold);
+  margin-bottom: 6px;
+  letter-spacing: 0.3px;
+}
+.timeline-empty-card .empty-desc {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  max-width: 320px;
+  margin: 0 auto;
+  word-break: keep-all;
+  line-break: strict;
+}
