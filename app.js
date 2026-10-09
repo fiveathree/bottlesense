@@ -41,10 +41,75 @@ let currentLang = localStorage.getItem('bottlesense_lang') || 'zh';
 function getOrCreateSyncKey() {
   let key = localStorage.getItem('bottlesense_sync_key');
   if (!key || key.trim() === '' || key === 'undefined' || key === 'null') {
-    key = 'BTL-' + Math.random().toString(36).substring(2,6).toUpperCase() + '-' + Math.random().toString(36).substring(2,6).toUpperCase();
+    key = genStrongKey();
     localStorage.setItem('bottlesense_sync_key', key);
   }
   return key;
+}
+
+
+/* ---------------- API 錯誤訊息 / 登入過期 ---------------- */
+function apiErrorMessage(code, data) {
+  const zh = currentLang === 'zh';
+  const map = {
+    RATE_LIMITED: zh ? '操作太頻繁，請稍後再試' : 'Too many requests, please try later',
+    RATE_LIMITED_IP: zh ? '你的網絡操作太頻繁，請稍後再試' : 'Too many requests from your network',
+    RATE_LIMITED_EMAIL: zh ? '此電郵一小時內發送次數已達上限' : 'Too many codes sent to this email',
+    COOLDOWN: zh ? '請等約 1 分鐘後再重新發送驗證碼' : 'Please wait a minute before resending',
+    INVALID_EMAIL: zh ? '電郵格式不正確' : 'Invalid email',
+    QUOTA_EXCEEDED: zh
+      ? (data && data.tier === 'guest' ? `本月免費 AI 辨識次數已用完 (${data.limit} 次)。登入帳號可獲更多次數。` : `本月 AI 辨識次數已用完 (${data && data.limit} 次)。`)
+      : 'Monthly AI scan limit reached',
+    SERVICE_BUSY: zh ? '服務今日使用量已滿，請明天再試' : 'Service is busy today, try tomorrow',
+    AUTH_REQUIRED: zh ? '請先重新登入' : 'Please sign in again',
+    ID_TAKEN: zh ? '此分享編號已被使用' : 'Share id already used',
+    PAYLOAD_TOO_LARGE: zh ? '資料太大，無法上傳' : 'Payload too large',
+    BAD_IMAGE_SIZE: zh ? '相片太大或太小，請重新拍攝' : 'Bad image size',
+    AI_UPSTREAM_ERROR: zh ? 'AI 服務暫時不可用，請稍後再試' : 'AI service unavailable',
+    AI_NOT_CONFIGURED: zh ? 'AI 服務尚未設定' : 'AI not configured',
+    CELLAR_TOO_LARGE: zh ? '酒窖資料太大，請聯絡開發者' : 'Cellar too large'
+  };
+  if (code && map[code]) return map[code];
+  if (code && /^EMAIL_SEND_FAILED/.test(code)) return (zh ? '驗證郵件發送失敗：' : 'Email failed: ') + code.replace('EMAIL_SEND_FAILED: ', '');
+  return code || '';
+}
+
+let _authExpiredShown = false;
+// 登入已過期 / 舊版帳號需重新登入：保留本機資料，登出登入狀態，重新驗證後會與雲端合併
+function handleAuthExpired() {
+  if (_authExpiredShown) return;
+  const email = localStorage.getItem('bottlesense_account_bound');
+  if (!email) return;
+  _authExpiredShown = true;
+  setSyncStatus('auth');
+  setSessionToken('');
+  localStorage.removeItem('bottlesense_account_bound');
+  authFlowState = { step: 'email', email, name: '', gender: 'unspecified', birthday: '' };
+  showToast(currentLang === 'zh' ? '🔒 為保障安全，請重新以電郵登入一次（本機酒款會自動合併）' : '🔒 Please sign in again (local bottles will be merged)');
+  updateHeaderGreeting();
+  setTimeout(() => { try { renderSettings(); } catch (e) {} }, 600);
+}
+
+async function reportExploreItem(itemId) {
+  if (!confirm(currentLang === 'zh' ? '檢舉此分享內容不當 / 垃圾訊息？' : 'Report this share as inappropriate or spam?')) return;
+  try {
+    await apiFetch('/api/explore/report', { method: 'POST', body: JSON.stringify({ id: String(itemId) }) });
+    showToast(currentLang === 'zh' ? '✓ 已收到檢舉，多謝你' : '✓ Report received');
+  } catch (e) { showToast(currentLang === 'zh' ? '檢舉失敗，請稍後再試' : 'Report failed'); }
+}
+
+async function logoutAllDevices() {
+  if (!confirm(currentLang === 'zh' ? '登出所有裝置並更換同步碼？\n其他裝置需重新登入；你之前分享出去的酒櫃連結會失效，需重新分享。' : 'Sign out all devices and rotate your sync key?\nOther devices must sign in again; previous share links will stop working.')) return;
+  try {
+    const res = await apiFetch('/api/auth/logout-all', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(apiErrorMessage(data.error));
+    localStorage.setItem('bottlesense_sync_key', data.syncKey);
+    setSessionToken(data.token);
+    _myShareIdCache = null;
+    showToast(currentLang === 'zh' ? '✓ 已登出所有其他裝置並更換同步碼' : '✓ Signed out everywhere');
+    syncToCloudKV();
+  } catch (e) { showToast((currentLang === 'zh' ? '操作失敗：' : 'Failed: ') + e.message); }
 }
 
 // 嚴格修正八維評分：大眾量產啤酒/即飲平價酒杜絕虛高收藏分
@@ -736,11 +801,14 @@ function renderBottleDetail(id) {
         </div>
       ` : ''}
 
+      ${isVisitorMode ? '' : `<div id="offers-slot"></div>`}
+
       ${isVisitorMode ? `<div style="margin-top:24px; text-align:center;"><button class="btn btn-primary btn-block" onclick="exitVisitorMode()">${currentLang==='zh'?'返回我的酒窖':'Back to my cellar'}</button></div>` : `<div style="margin-top:24px;">
         <button class="btn btn-wine btn-block" onclick="deleteBottle('${esc(b.id)}')">${t('btn_remove')}</button>
       </div>`}
     </div>
   `;
+  loadOffersInto(b.id);
 }
 
 function renderRadar(vm) {
@@ -839,8 +907,10 @@ async function moveStatus(id, newStatus) {
   if (blockIfVisitor()) return;
   const b = (window.cellar || []).find(x => String(x.id) === String(id));
   if (!b) return;
+  const wasWish = b.status === 'wishlist';
   b.status = newStatus;
   await saveBottleToDB(b);
+  if (newStatus === 'wishlist' && !wasWish) sendDemandSignal('wishlist', b);
   renderBottleDetail(id);
 }
 
@@ -851,7 +921,7 @@ function openEditBottleModal(id) {
 
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="closeModal()">
-      <div class="modal-card" style="max-width:380px; text-align:left;" onclick="event.stopPropagation()">
+      <div class="modal-card" role="dialog" aria-modal="true" style="max-width:380px; text-align:left;" onclick="event.stopPropagation()">
         <div style="font-family:var(--serif); font-size:19px; font-weight:700; margin-bottom:14px; color:var(--gold);">
           ✏️ ${t('edit_info')}
         </div>
@@ -929,7 +999,7 @@ function openAddSessionModal(bottleId) {
 
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="closeModal()">
-      <div class="modal-card" style="max-width:390px; text-align:left; max-height:calc(var(--vvh, 100dvh) - 40px); overflow-y:auto; -webkit-overflow-scrolling:touch;" onclick="event.stopPropagation()">
+      <div class="modal-card" role="dialog" aria-modal="true" style="max-width:390px; text-align:left; max-height:calc(var(--vvh, 100dvh) - 40px); overflow-y:auto; -webkit-overflow-scrolling:touch;" onclick="event.stopPropagation()">
         <div style="font-family:var(--serif); font-size:19px; font-weight:700; margin-bottom:12px; color:var(--gold);">
           ${t('btn_add_log')}
         </div>
@@ -1036,6 +1106,7 @@ async function saveNewSession(bottleId) {
   if (blockIfVisitor()) return;
   const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
   if (!b) return;
+  if (typeof uploadPhotoIfNeeded === 'function' && await uploadPhotoIfNeeded(b)) await saveBottleToDB(b);
 
   const rawDate = document.getElementById('sess-date').value;
   const newSession = {
@@ -1061,7 +1132,7 @@ function openShareActionSheet(bottleId, sessionId = null) {
 
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="closeModal()">
-      <div class="modal-card" style="text-align:left;" onclick="event.stopPropagation()">
+      <div class="modal-card" role="dialog" aria-modal="true" style="text-align:left;" onclick="event.stopPropagation()">
         <h3 style="font-family:var(--serif); font-size:18px; color:var(--gold); margin-bottom:12px;">
           ${currentLang==='zh'?'選擇分享方式':'Share Options'}
         </h3>
@@ -1104,9 +1175,8 @@ async function getMyShareId() {
 async function unpublishFromCommunityPool(bottleId, sessionId) {
   const ids = [exploreItemId(bottleId, sessionId), String(bottleId)];
   try {
-    await fetch(`${WORKER_API_URL}/api/explore/delete`, {
+    await apiFetch('/api/explore/delete', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids, syncKey: getOrCreateSyncKey() })
     });
   } catch(e) {}
@@ -1116,6 +1186,7 @@ async function publishToCommunityPool(bottleId, sessionId) {
   if (blockIfVisitor()) return;
   const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
   if (!b) return;
+  if (await uploadPhotoIfNeeded(b)) await saveBottleToDB(b);
   const s = sessionId ? (b.tastings || []).find(t => String(t.id) === String(sessionId)) : null;
 
   const payload = {
@@ -1132,11 +1203,11 @@ async function publishToCommunityPool(bottleId, sessionId) {
   };
 
   try {
-    await fetch(`${WORKER_API_URL}/api/explore/publish`, {
+    const pr = await apiFetch('/api/explore/publish', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
+    if (!pr.ok) { let c = ''; try { c = (await pr.json()).error; } catch (e) {} showToast(apiErrorMessage(c)); return; }
     showToast(t('published_toast'));
   } catch(e) {
     showToast(t('published_toast'));
@@ -1152,9 +1223,8 @@ async function publishCellarForShare() {
   const key = getOrCreateSyncKey();
   const ownerName = localStorage.getItem('bottlesense_profile_name') || '品飲家';
   try {
-    const res = await fetch(`${WORKER_API_URL}/api/cellar/publish`, {
+    const res = await apiFetch('/api/cellar/publish', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ syncKey: key, cellar: window.cellar, ownerName })
     });
     const data = await res.json();
@@ -2021,9 +2091,8 @@ function exitRegionalMap() {
 // 8. 社群分享管理按鈕操作
 async function deleteMyExploreShare(itemId) {
   if (!confirm(currentLang==='zh'?'確定要從酒友探索池收回並刪除此筆分享嗎？':'Remove this tasting share from explore feed?')) return;
-  await fetch(`${WORKER_API_URL}/api/explore/delete`, {
+  await apiFetch('/api/explore/delete', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ids: [String(itemId)], syncKey: getOrCreateSyncKey() })
   }).catch(() => {});
   // 同步取消本機該筆品飲記錄的「已發布」狀態
@@ -2066,6 +2135,7 @@ async function addExploreItemToWishlist(bottleId) {
 
   window.cellar.unshift(newBottle);
   await saveBottleToDB(newBottle);
+  sendDemandSignal('share_wishlist', newBottle);
   showToast(currentLang==='zh'?'✓ 已成功加入你的「🏷️ 想買」空間！':'✓ Added to Wishlist!');
 }
 
@@ -2079,7 +2149,7 @@ function openSharedTastingModal(bottleId) {
 
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
-      <div class="modal-card" style="max-width:380px; padding:22px 20px;">
+      <div class="modal-card" role="dialog" aria-modal="true" style="max-width:380px; padding:22px 20px;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
           <div style="flex:1; padding-right:10px;">
             <div style="font-size:11px; color:var(--gold); font-family:var(--mono); text-transform:uppercase; letter-spacing:0.5px;">
@@ -2089,7 +2159,7 @@ function openSharedTastingModal(bottleId) {
               ${esc(bottleName(b))}
             </h3>
           </div>
-          <button class="icon-btn" onclick="closeModal()" style="margin-top:-4px; margin-right:-4px;">✕</button>
+          <button class="icon-btn" aria-label="Close" onclick="closeModal()" style="margin-top:-4px; margin-right:-4px;">✕</button>
         </div>
 
         ${b.image ? `<div style="width:100%; height:180px; border-radius:12px; overflow:hidden; margin-bottom:14px; background:#000;"><img src="${esc(b.image)}" style="width:100%; height:100%; object-fit:contain;"></div>` : ''}
@@ -2117,6 +2187,7 @@ function openSharedTastingModal(bottleId) {
           ${b.diary?.date ? `<div>📅 ${currentLang==='zh'?'品飲日期':'Date'}: ${esc(b.diary.date)}</div>` : ''}
         </div>
 
+        ${(typeof isMyExploreItem === 'function' && b.ownerShareId && !isMyExploreItem(b, _myShareIdCache, localStorage.getItem('bottlesense_profile_name'), localStorage.getItem('bottlesense_account_bound'))) ? `<div style="text-align:right; margin:-6px 0 10px;"><button class="btn btn-ghost btn-sm" style="font-size:11px; padding:3px 8px; color:var(--text-faint);" onclick="reportExploreItem('${esc(b.id)}')">⚑ ${currentLang==='zh'?'檢舉':'Report'}</button></div>` : ''}
         <div class="modal-btn-row">
           <button class="btn btn-ghost modal-btn-close" onclick="closeModal()">${t('btn_close')}</button>
           <button class="btn btn-primary modal-btn-focus" onclick="closeModal(); flyToBottleRegion('${esc(b.id)}');">
@@ -2346,6 +2417,7 @@ async function confirmCropAndScan(isFullImage = false) {
 
     window.cellar.unshift(bottle);
     await saveBottleToDB(bottle);
+    sendDemandSignal('scan', bottle);
     // 關閉擾人的首次掃描註冊彈窗，直接進入酒款詳情
     renderBottleDetail(bottle.id);
 
@@ -2355,14 +2427,17 @@ async function confirmCropAndScan(isFullImage = false) {
 }
 
 async function identifyBottle(image, mediaType) {
-  const res = await fetch(`${WORKER_API_URL}/api/scan`, {
+  const res = await apiFetch('/api/scan', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ image, mediaType })
   });
   let data = {};
   try { data = await res.json(); } catch {}
-  if (!res.ok) throw new Error(data.error || `AI API Error (${res.status})`);
+  if (!res.ok) throw new Error(apiErrorMessage(data.error, data) || `AI API Error (${res.status})`);
+  if (data._quota) {
+    const left = data._quota.limit - data._quota.used;
+    if (left <= 2) showToast(currentLang === 'zh' ? `本月餘下 ${left} 次 AI 辨識${data._quota.tier === 'guest' ? '（登入後可獲更多）' : ''}` : `${left} AI scans left this month`);
+  }
   return data || {};
 }
 
@@ -2566,6 +2641,9 @@ function renderSettings() {
           <button class="btn btn-wine btn-block" style="padding:10px; font-size:13px;" onclick="executeAccountLogout()">
             ${currentLang === 'zh' ? '登出帳號 Logout' : 'Logout'}
           </button>
+          <button class="btn btn-ghost btn-block" style="padding:9px; font-size:12px; margin-top:8px;" onclick="logoutAllDevices()">
+            🔐 ${currentLang === 'zh' ? '登出所有裝置並更換同步碼' : 'Sign out everywhere & rotate key'}
+          </button>
         </div>
 
         <div style="background:rgba(239,68,68,0.04); border:1px solid rgba(239,68,68,0.2); border-radius:12px; padding:14px;">
@@ -2698,11 +2776,21 @@ function renderSettings() {
 
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
-      <div class="modal-card" style="max-width:390px; text-align:left;" onclick="event.stopPropagation()">
+      <div class="modal-card" role="dialog" aria-modal="true" style="max-width:390px; text-align:left;" onclick="event.stopPropagation()">
         <h2 style="font-family:var(--serif); margin-bottom:14px; font-size:20px; color:var(--gold); text-align:center;">
           ${t('settings_title')}
         </h2>
         ${contentHTML}
+        <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-top:12px;">
+          <label style="display:flex; align-items:flex-start; gap:8px; font-size:12.5px; color:var(--text); line-height:1.45; cursor:pointer;">
+            <input type="checkbox" ${offersEnabled() ? 'checked' : ''} onchange="toggleOffers(this.checked)" style="margin-top:2px; accent-color:#D4AF37;">
+            <span>🛒 ${currentLang === 'zh' ? '顯示購買建議（贊助）並提供匿名需求統計' : 'Show purchase suggestions (sponsored) & anonymous demand stats'}<br><span style="color:var(--text-faint); font-size:11px;">${currentLang === 'zh' ? '只用酒款資料配對，不含你的身份。' : 'Matched on bottle info only; no identity is sent.'}</span></span>
+          </label>
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <button class="btn btn-ghost btn-sm" style="flex:1; font-size:12px;" onclick="exportCellarCSV()">⬇️ ${currentLang === 'zh' ? '匯出 CSV' : 'Export CSV'}</button>
+            <a class="btn btn-ghost btn-sm" style="flex:1; font-size:12px; text-align:center; text-decoration:none;" href="privacy.html" target="_blank" rel="noopener">🔒 ${currentLang === 'zh' ? '私隱政策' : 'Privacy'}</a>
+          </div>
+        </div>
         <div style="text-align:center; margin-top:14px; margin-bottom:6px;">
           <a href="javascript:void(0)" onclick="showPwaInstallModal()" style="display:inline-block; font-size:12.5px; color:var(--gold); text-decoration:none; font-weight:600; padding:6px 14px; border:1px solid var(--gold-dim); border-radius:8px; background:rgba(212,175,55,0.06);">
             📲 ${currentLang === 'zh' ? '安裝教學' : 'Install Guide'}
@@ -2752,13 +2840,14 @@ async function executeLoginWithOtp() {
     // 訪客期間在本機加入的酒款/品飲記錄一併帶入帳號 (與雲端資料合併，不覆蓋)
     const localCellar = (typeof readAllLocal === 'function') ? await readAllLocal() : [];
     const localDeleted = (typeof getDeletedMap === 'function') ? getDeletedMap() : {};
-    const res = await fetch(`${WORKER_API_URL}/api/auth/verify-otp`, {
+    const res = await apiFetch('/api/auth/verify-otp', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, otp, syncKey: clientSyncKey, localCellar, localDeleted })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '驗證失敗');
+    if (!res.ok) throw new Error(apiErrorMessage(data.error, data) || '驗證失敗');
+    setSessionToken(data.token);
+    localStorage.setItem('bottlesense_plan', data.plan || 'free');
 
     if (data.cellar) {
       await restoreCellarToLocal(data.cellar, data.syncKey, data.name || data.email, data.deleted);
@@ -2802,13 +2891,12 @@ async function handleStartLogin(overrideEmail) {
   authFlowState.email = email;
   showToast(currentLang === 'zh' ? '正在發送登入驗證碼…' : 'Sending login code...');
   try {
-    const res = await fetch(`${WORKER_API_URL}/api/auth/send-otp`, {
+    const res = await apiFetch('/api/auth/send-otp', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || (currentLang === 'zh' ? '發送失敗' : 'Failed to send'));
+    if (!res.ok) throw new Error(apiErrorMessage(data.error, data) || (currentLang === 'zh' ? '發送失敗' : 'Failed to send'));
     authFlowState.step = 'login_otp';
     renderSettings();
     if (data.devOtp) {
@@ -2838,7 +2926,7 @@ async function handleStartRegister() {
     return;
   }
   try {
-    const checkRes = await fetch(`${WORKER_API_URL}/api/auth/check-email`, {
+    const checkRes = await apiFetch('/api/auth/check-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email })
@@ -2880,13 +2968,12 @@ async function executeSendVerificationLink() {
 
   showToast(currentLang === 'zh' ? '正在發送註冊驗證碼…' : 'Sending verification code...');
   try {
-    const res = await fetch(`${WORKER_API_URL}/api/auth/send-otp`, {
+    const res = await apiFetch('/api/auth/send-otp', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: authFlowState.email, name, gender, birthday, type: 'register' })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || (currentLang === 'zh' ? '發送失敗' : 'Failed to send'));
+    if (!res.ok) throw new Error(apiErrorMessage(data.error, data) || (currentLang === 'zh' ? '發送失敗' : 'Failed to send'));
 
     authFlowState.step = 'login_otp';
     renderSettings();
@@ -2967,9 +3054,8 @@ async function executeSaveProfile() {
 
   try {
     const clientSyncKey = localStorage.getItem('bottlesense_sync_key');
-    await fetch(`${WORKER_API_URL}/api/profile/update`, {
+    await apiFetch('/api/profile/update', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, name, gender, birthday, syncKey: clientSyncKey })
     });
   } catch (e) {}
@@ -2986,6 +3072,9 @@ async function executeAccountLogout() {
   if (!confirm(confirmMsg)) return;
 
   try { if (typeof syncToCloudKV === 'function') await syncToCloudKV(); } catch(e) {}
+  try { await apiFetch('/api/auth/logout', { method: 'POST' }); } catch(e) {}
+  setSessionToken('');
+  localStorage.removeItem('bottlesense_plan');
   if (typeof clearLocalCellar === 'function') await clearLocalCellar();
   window.cellar = [];
   localStorage.removeItem('bottlesense_sync_key');
@@ -3018,9 +3107,8 @@ async function executeDeleteAccountPermanently() {
   showToast(currentLang === 'zh' ? '正在註銷帳號…' : 'Deleting account...');
   try {
     const clientSyncKey = localStorage.getItem('bottlesense_sync_key');
-    await fetch(`${WORKER_API_URL}/api/account/delete`, {
+    await apiFetch('/api/account/delete', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, syncKey: clientSyncKey })
     });
   } catch(e) {}
@@ -3061,7 +3149,7 @@ async function clearLocalCellar() {
 function showPwaInstallModal() {
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
-      <div class="modal-card" style="max-width:360px; padding:24px 20px; text-align:left;">
+      <div class="modal-card" role="dialog" aria-modal="true" style="max-width:360px; padding:24px 20px; text-align:left;">
         <h2 style="font-family:var(--serif); margin-bottom:14px; font-size:20px; text-align:center; color:var(--gold);">
           ${currentLang==='zh'?'安裝 BottleSense 到手機主畫面':'Add to Home Screen'}
         </h2>
@@ -3092,7 +3180,7 @@ function showPwaInstallModal() {
 function showPwaFirstLoginInvite() {
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
-      <div class="modal-card" style="max-width:350px; text-align:center; padding:22px 18px;">
+      <div class="modal-card" role="dialog" aria-modal="true" style="max-width:350px; text-align:center; padding:22px 18px;">
         <div style="font-size:36px; margin-bottom:8px;">🍾</div>
         <h3 style="font-family:var(--serif); font-size:18px; color:var(--gold); margin-bottom:8px;">
           ${currentLang==='zh'?'加入手機主畫面，體驗秒速開啟':'Add to Home Screen'}
@@ -3114,7 +3202,7 @@ function showPwaFirstLoginInvite() {
 function openTermsModal() {
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
-      <div class="modal-card" style="max-width:380px; text-align:left; max-height:80vh; overflow-y:auto; padding:20px;">
+      <div class="modal-card" role="dialog" aria-modal="true" style="max-width:380px; text-align:left; max-height:80vh; overflow-y:auto; padding:20px;">
         <h3 style="font-family:var(--serif); font-size:18px; color:var(--gold); margin-bottom:12px;">使用條款 (Terms of Service)</h3>
         <div style="font-size:12.5px; color:var(--text-muted); line-height:1.6; display:flex; flex-direction:column; gap:8px;">
           <p>歡迎使用 BottleSense。本服務專為酒類愛好者提供個人酒窖管理、品飲筆記及公開探索分享。</p>
@@ -3131,7 +3219,7 @@ function openTermsModal() {
 function openPrivacyModal() {
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
-      <div class="modal-card" style="max-width:380px; text-align:left; max-height:80vh; overflow-y:auto; padding:20px;">
+      <div class="modal-card" role="dialog" aria-modal="true" style="max-width:380px; text-align:left; max-height:80vh; overflow-y:auto; padding:20px;">
         <h3 style="font-family:var(--serif); font-size:18px; color:var(--gold); margin-bottom:12px;">私隱政策 (Privacy Policy)</h3>
         <div style="font-size:12.5px; color:var(--text-muted); line-height:1.6; display:flex; flex-direction:column; gap:8px;">
           <p>BottleSense 尊重並保護用戶個人隱私。</p>
@@ -3165,7 +3253,13 @@ async function initApp() {
       return;
     }
     renderHome();
-    if (localStorage.getItem('bottlesense_account_bound')) syncToCloudKV();
+    schedulePhotoMigration();
+    setTimeout(maybeShowOnboarding, 900);
+    if (localStorage.getItem('bottlesense_account_bound')) {
+      if (!getSessionToken()) handleAuthExpired(); else syncToCloudKV();
+    } else setSyncStatus('ok');
+    window.addEventListener('online', () => scheduleSync());
+    window.addEventListener('offline', () => setSyncStatus('offline'));
   } catch(e) {
     window.cellar = [];
     renderHome();
@@ -3233,3 +3327,101 @@ async function togglePublishSession(bottleId, sessionId) {
     setTimeout(() => { try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch(e) {} }, 320);
   });
 })();
+
+
+/* ---------------- PWA service worker ---------------- */
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
+
+/* ---------------- 贊助購買建議 (只以酒款屬性配對，不帶任何用戶身份) ---------------- */
+function offersEnabled() { try { return localStorage.getItem('bottlesense_offers') !== '0'; } catch (e) { return true; } }
+function toggleOffers(on) {
+  try { localStorage.setItem('bottlesense_offers', on ? '1' : '0'); } catch (e) {}
+  showToast(currentLang === 'zh' ? (on ? '✓ 已開啟購買建議' : '✓ 已關閉購買建議與匿名需求統計') : (on ? 'Suggestions on' : 'Suggestions off'));
+}
+function bottleQueryAttrs(b) {
+  return {
+    name: String(bottleName(b) || '').slice(0, 120),
+    producer: String((b.identification && b.identification.producer) || '').slice(0, 80),
+    category: String(bottleCategory(b) || '').slice(0, 30),
+    country: String(bottleCountry(b) || '').slice(0, 40),
+    region: String(bottleRegion(b) || '').slice(0, 60)
+  };
+}
+// 匿名需求訊號：只送「酒款屬性」，不含帳號 / 同步碼 / 位置
+function sendDemandSignal(type, b) {
+  if (!offersEnabled() || isVisitorMode || !b) return;
+  const q = bottleQueryAttrs(b);
+  if (!q.name) return;
+  try {
+    fetch(`${WORKER_API_URL}/api/signal`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type, ...q }), keepalive: true }).catch(() => {});
+  } catch (e) {}
+}
+async function loadOffersInto(bottleId) {
+  if (!offersEnabled() || isVisitorMode) return;
+  const slot = document.getElementById('offers-slot');
+  const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
+  if (!slot || !b) return;
+  try {
+    const res = await fetch(`${WORKER_API_URL}/api/offers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bottleQueryAttrs(b)) });
+    if (!res.ok) return;
+    const o = await res.json();
+    const zh = currentLang === 'zh';
+    const showBuy = b.status === 'wishlist' || b.status === 'unopened';
+    const buy = showBuy ? (o.buy || []) : [];
+    const sim = o.similar || [];
+    if (!buy.length && !sim.length) return;
+    const row = (x) => `<a class="offer-row" href="${esc(x.go)}" target="_blank" rel="noopener sponsored nofollow">
+        <span class="offer-main"><span class="offer-title">${esc(x.title)}</span><span class="offer-shop">${esc(x.merchant)}</span></span>
+        <span class="offer-price">${esc(x.price || (zh ? '查看' : 'View'))} &rsaquo;</span></a>`;
+    if (!document.getElementById('offers-slot')) return;
+    document.getElementById('offers-slot').innerHTML = `
+      <div class="offers-card">
+        ${buy.length ? `<div class="offers-head"><span>🛒 ${zh ? '哪裡有得買' : 'Where to buy'}</span><span class="ad-tag">${zh ? '贊助' : 'Sponsored'}</span></div>${buy.map(row).join('')}` : ''}
+        ${sim.length ? `<div class="offers-head" style="${buy.length ? 'margin-top:12px;' : ''}"><span>✨ ${zh ? '你可能也喜歡' : 'You may also like'}</span><span class="ad-tag">${zh ? '贊助' : 'Sponsored'}</span></div>${sim.map(row).join('')}` : ''}
+        <div class="offers-foot">${zh ? '根據酒款資料配對，不涉及你的個人資料。' : 'Matched on bottle info only, not on personal data.'}
+          <a href="javascript:void(0)" onclick="toggleOffers(false); document.getElementById('offers-slot').innerHTML='';">${zh ? '關閉建議' : 'Turn off'}</a></div>
+      </div>`;
+  } catch (e) {}
+}
+
+/* ---------------- 匯出 CSV ---------------- */
+function exportCellarCSV() {
+  const rows = [['名稱', '酒莊/品牌', '類別', '國家', '產區', '年份', '狀態', '收藏', '加入日期', '品飲次數', '最近評分', '最近品飲備註']];
+  const stName = { unopened: '未飲', opened: '已飲', finished: '飲完', gifted: '送出', sold: '售出', wishlist: '想買' };
+  (window.cellar || []).forEach(b => {
+    const last = (b.tastings || [])[0] || {};
+    rows.push([bottleName(b), (b.identification && b.identification.producer) || '', bottleCategory(b), bottleCountry(b), bottleRegion(b), bottleVintage(b),
+      stName[b.status] || b.status, b.isFavorite ? '是' : '', b.addedAt ? new Date(b.addedAt).toISOString().slice(0, 10) : '', (b.tastings || []).length, last.rating || '', last.notes || '']);
+  });
+  const esc2 = v => '"' + String(v ?? '').replace(/"/g, '""').replace(/^([=+\-@])/, "'$1") + '"';
+  const csv = '\ufeff' + rows.map(r => r.map(esc2).join(',')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'bottlesense-cellar-' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/* ---------------- 首次使用導覽 ---------------- */
+function maybeShowOnboarding() {
+  try { if (localStorage.getItem('bottlesense_onboarded') || isVisitorMode) return; } catch (e) { return; }
+  if (document.querySelector('.modal-overlay')) return;
+  const zh = currentLang === 'zh';
+  modalContainer.innerHTML = `
+    <div class="modal-overlay">
+      <div class="modal-card" role="dialog" aria-modal="true" style="max-width:360px; text-align:left;">
+        <h2 style="font-family:var(--serif); color:var(--gold); font-size:20px; text-align:center; margin-bottom:14px;">${zh ? '歡迎使用 BottleSense' : 'Welcome to BottleSense'}</h2>
+        <div class="onb-step"><span>📷</span><div><strong>${zh ? '影酒標，AI 即時辨識' : 'Snap a label'}</strong><br>${zh ? '自動填好酒款、產區同八維價值。' : 'AI fills in the bottle details and value profile.'}</div></div>
+        <div class="onb-step"><span>🗂️</span><div><strong>${zh ? '四個空間管理你的酒' : 'Four spaces'}</strong><br>${zh ? '⚡未飲、🪵已飲、🥃飲完、🏷️想買。喺酒款詳情隨時移動。' : 'Unopened, Opened, Finished, Wishlist.'}</div></div>
+        <div class="onb-step"><span>🌍</span><div><strong>${zh ? '探索酒友分享' : 'Explore'}</strong><br>${zh ? '喺世界地圖睇其他人喺邊度飲咩酒。' : 'See what others are drinking around the world.'}</div></div>
+        <div class="onb-step"><span>☁️</span><div><strong>${zh ? '登入即可跨裝置同步' : 'Sign in to sync'}</strong><br>${zh ? '用電郵驗證碼登入，手機同電腦酒窖一致。' : 'Email code login keeps your devices in sync.'}</div></div>
+        <button class="btn btn-primary btn-block" style="margin-top:14px;" onclick="try{localStorage.setItem('bottlesense_onboarded','1')}catch(e){}; closeModal();">${zh ? '開始使用' : 'Get started'}</button>
+      </div>
+    </div>`;
+}

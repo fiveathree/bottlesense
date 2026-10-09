@@ -1718,3 +1718,33 @@ select.text-input {
   font-size: 16px;
   line-height: 1;
 }
+
+/* sync status dot */
+.sync-dot { width: 9px; height: 9px; border-radius: 50%; background: #4ade80; display: inline-block; margin-right: 8px; align-self: center; flex: none; opacity: 0.85; }
+.sync-dot[data-state="syncing"] { background: #D4AF37; animation: syncPulse 1s ease-in-out infinite; }
+.sync-dot[data-state="offline"] { background: #8a8a80; }
+.sync-dot[data-state="error"], .sync-dot[data-state="auth"] { background: #ef4444; }
+@keyframes syncPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+/* allow page zoom (accessibility) but stop iOS auto-zoom on focus */
+@media (pointer: coarse) {
+  input, select, textarea { font-size: 16px !important; }
+}
+.icon-btn:focus-visible, .btn:focus-visible, .navbtn:focus-visible, .lang-switch-btn:focus-visible, .text-input:focus-visible {
+  outline: 2px solid #D4AF37; outline-offset: 2px;
+}
+
+/* sponsored offers */
+.offers-card { margin-top: 18px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+.offers-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 700; color: var(--gold); margin-bottom: 8px; }
+.ad-tag { font-size: 10px; font-family: var(--mono); font-weight: 600; color: var(--text-faint); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; letter-spacing: 0.4px; }
+.offer-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; margin-bottom: 6px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); color: var(--text); text-decoration: none; }
+.offer-main { display: flex; flex-direction: column; min-width: 0; }
+.offer-title { font-size: 13px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.offer-shop { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
+.offer-price { font-size: 12.5px; color: var(--gold); white-space: nowrap; font-family: var(--mono); }
+.offers-foot { font-size: 10.5px; color: var(--text-faint); margin-top: 8px; line-height: 1.5; }
+.offers-foot a { color: var(--gold-dim); margin-left: 6px; }
+.onb-step { display: flex; gap: 12px; align-items: flex-start; font-size: 13px; line-height: 1.5; color: var(--text-muted); margin-bottom: 12px; }
+.onb-step > span { font-size: 22px; flex: none; }
+.onb-step strong { color: var(--text); }
