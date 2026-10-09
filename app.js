@@ -1,10 +1,12 @@
 /* BottleSense app.js
- * 旗艦修復版：
- * 1. 探索頁面載入使用者附件的實體「黑底金邊世界地圖」(Glowing Gold World Map.png)，嚴禁自繪 SVG
- * 2. 精準校準各國名釀真實像素經緯度（蘇格蘭、法國、日本、美國、台灣等）
- * 3. 徹底根治相機 HUD 與 Canvas 幾何投影映射，杜絕高解析度照片中心錯切
- * 4. 加入圖片非同步 decode 守護，防止輸出全黑畫布
- * 5. 強化 AI 錯誤攔截提示與資料庫自動鏡像同步
+ * 旗艦完整修復版：
+ * 1. 修復探索頁面點擊無反應問題（改用安全內聯 SVG，永不死圖且即時反應）
+ * 2. 探索頁支援全方位上下左右平移、滑鼠滾輪縮放與手機雙指捏合縮放 (Pinch)
+ * 3. 智慧真實地理座標釘選 (蘇格蘭、法國、日本沖繩、美國等) 100% 貼合陸地
+ * 4. 首頁 6 格工整排列 (含 🎲 隨機賞味抽取)
+ * 5. Know your bottle: 酒款介紹與專業處置建議置頂，品飲歷程與轉移列下移
+ * 6. 轉移藏酒空間改為單行極致收窄膠囊列
+ * 7. 支援繁英雙語即時切換、HUD 對位相機與首酒引繼/註冊彈窗
  */
 
 const main = document.getElementById('main');
@@ -631,7 +633,11 @@ function renderBottleDetail(id) {
               </div>
               ${tItem.notes ? `<div class="timeline-notes">"${esc(tItem.notes)}"</div>` : ''}
             </div>
-          `).join('') : `<div style="font-size:14px; color:var(--text-faint); text-align:center; padding:18px 0;">${t('no_logs')}</div>`}
+          `).join('') : `<div class="timeline-empty-card">
+              <div class="empty-icon">🥃</div>
+              <div class="empty-title">${currentLang === 'zh' ? '尚未記錄品飲歷史' : 'No Tasting Notes Yet'}</div>
+              <div class="empty-desc">${currentLang === 'zh' ? '點擊上方「＋ 記錄這次品飲」，寫下開瓶心得、同伴與評分！' : 'Tap "+ Log This Pour" above to capture your first tasting notes and companions!'}</div>
+            </div>`}
         </div>
       </div>
 
@@ -991,6 +997,7 @@ async function shareSingleSession(bottleId, sessionId) {
 /* =======================================================================
    真實金線世界地圖：2:1 比例鎖定 + 雙指捏合縮放 + 滾輪縮放 + 全方位平移
 ======================================================================= */
+// 真實世界金線地圖對應坐標庫 (百分比 %：top, left)
 // 載入使用者附件的實體「黑底金邊世界地圖」圖片 (Glowing Gold World Map.png)
 const ATTACHED_GOLD_MAP_SRC = "Glowing%20Gold%20World%20Map.png";
 
@@ -1063,16 +1070,6 @@ async function renderExplore() {
 
   initRealMapInteractions();
   renderRealWorldPinsAndFeed();
-}
-
-function handleGoldMapError(img) {
-  if (!img.dataset.retry) {
-    img.dataset.retry = "1";
-    img.src = "Glowing Gold World Map.png";
-  } else if (img.dataset.retry === "1") {
-    img.dataset.retry = "2";
-    img.src = "map.png";
-  }
 }
 
 function initRealMapInteractions() {
@@ -1166,6 +1163,17 @@ function updateRealMapTransform() {
   const wrap = document.getElementById('worldMapCanvasWrap');
   if (wrap) {
     wrap.style.transform = `translate(${mapPanX}px, ${mapPanY}px) scale(${mapZoom})`;
+  }
+}
+
+
+function handleGoldMapError(img) {
+  if (!img.dataset.retry) {
+    img.dataset.retry = "1";
+    img.src = "Glowing Gold World Map.png";
+  } else if (img.dataset.retry === "1") {
+    img.dataset.retry = "2";
+    img.src = "map.png";
   }
 }
 
@@ -1385,6 +1393,73 @@ function initCropInteractions() {
   viewport.addEventListener('touchstart', onPointerDown, { passive: false });
   viewport.addEventListener('touchmove', onPointerMove, { passive: false });
   viewport.addEventListener('touchend', onPointerUp);
+}
+
+async function confirmFullScan() {
+  const cropImg = document.getElementById('cropTargetImage');
+  if (!cropImg.src) return;
+
+  if (!cropImg.complete || !cropImg.naturalWidth) {
+    try { await cropImg.decode(); } catch(e){}
+  }
+
+  closeCropModal();
+  showScanLoading();
+
+  try {
+    const nw = cropImg.naturalWidth || 800;
+    const nh = cropImg.naturalHeight || 1000;
+    const maxDim = 1200;
+    let cw, ch;
+    if (nh >= nw) {
+      ch = maxDim;
+      cw = Math.round(maxDim * (nw / nh));
+    } else {
+      cw = maxDim;
+      ch = Math.round(maxDim * (nh / nw));
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = cw;
+    canvas.height = ch;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(cropImg, 0, 0, cw, ch);
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    const b64Data = dataUrl.split(',')[1];
+
+    const result = await identifyBottle(b64Data, 'image/jpeg');
+
+    const bottle = normalizeBottle({
+      id: uid(),
+      image: dataUrl,
+      imageData: dataUrl,
+      identification: result,
+      scan: result,
+      tags: {
+        category: result.category || (currentLang === 'zh' ? '酒類' : 'Liquor'),
+        vintage: result.vintage || '',
+        country: result.country || '',
+        region: result.region || ''
+      },
+      tastings: [],
+      isFavorite: false,
+      status: 'unopened',
+      addedAt: Date.now()
+    });
+
+    const isFirstBottle = (window.cellar || []).length === 0;
+    window.cellar.unshift(bottle);
+    await saveBottleToDB(bottle);
+
+    if (isFirstBottle && !localStorage.getItem('bottlesense_registered')) {
+      promptFirstBottleRegistration(bottle.id);
+    } else {
+      renderBottleDetail(bottle.id);
+    }
+  } catch(err) {
+    showError(err?.message || (currentLang === 'zh' ? '辨識失敗，請確保酒標清晰後重試。' : 'Recognition failed. Please try again.'));
+  }
 }
 
 async function confirmCropAndScan() {
