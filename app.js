@@ -695,7 +695,8 @@ function renderBottleDetail(id) {
         </div>
       </div>
 
-      <!-- 5. 品飲歷史時間軸 (順延置於下方) -->
+      <!-- 5. 品飲歷史時間軸 (僅在已開封/已喝完狀態顯示，未飲 unopened 與想買 wishlist 隱藏) -->
+      ${(!['unopened', 'wishlist'].includes(b.status)) ? `
       <div class="info-block">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <h3>${t('timeline_title')} (${(b.tastings || []).length})</h3>
@@ -719,9 +720,15 @@ function renderBottleDetail(id) {
                       <span class="timeline-time">#${idx+1} · ${esc(tItem.dateStr || tItem.date || '')}</span>
                       <div style="color:var(--gold); font-size:14px; margin-top:2px;">${'★'.repeat(tItem.rating || 5)}</div>
                     </div>
-                    <button class="timeline-share-btn" onclick="openShareActionSheet('${esc(b.id)}', '${esc(tItem.id)}')" title="Share this pour">
-                      ${TELEGRAM_PLANE_SVG}
-                    </button>
+                    ${tItem.sharedToExplore ? `
+                      <button class="timeline-retract-btn" onclick="retractSessionFromExplore('${esc(b.id)}', '${esc(tItem.id)}')" title="${currentLang==='zh'?'已發布至探索池，點擊收回':'Published to explore, tap to retract'}">
+                        ↩️ ${currentLang==='zh'?'收回':'Retract'}
+                      </button>
+                    ` : `
+                      <button class="timeline-share-btn" onclick="openShareActionSheet('${esc(b.id)}', '${esc(tItem.id)}')" title="Share this pour">
+                        ${TELEGRAM_PLANE_SVG}
+                      </button>
+                    `}
                   </div>
                   <div class="timeline-meta">
                     ${tItem.location ? `<span>📍 ${esc(tItem.location)}</span>` : ''}
@@ -749,8 +756,8 @@ function renderBottleDetail(id) {
           </div>
         `}
       </div>
-
-      <div style="margin-top:24px;">
+      ` : ''}
+<div style="margin-top:24px;">
         <button class="btn btn-wine btn-block" onclick="deleteBottle('${esc(b.id)}')">${t('btn_remove')}</button>
       </div>
     </div>
@@ -859,22 +866,13 @@ function renderRadar(vm) {
     `;
   }).join('');
 
-  // 5. 下方八維圖例卡片網格
-  const legendCards = dimKeys.map(k => {
+  // 5. 下方八維數值列表：優雅黑金專業排版，分兩排各4個，純金字無Icon
+  const legendRows = dimKeys.map(k => {
     const val = Math.max(0, Math.min(100, Number(vm[k] || 75)));
     return `
-      <div class="radar-dim-card">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span style="font-size:12px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-            ${dimIcons[k]} ${labels[k]}
-          </span>
-          <span style="font-family:var(--mono); font-size:13px; font-weight:700; color:var(--gold); margin-left:6px;">
-            ${val}<span style="font-size:9.5px; color:var(--text-faint); font-weight:normal;">/100</span>
-          </span>
-        </div>
-        <div class="dim-bar-track">
-          <div class="dim-bar-fill" style="width:${val}%;"></div>
-        </div>
+      <div class="legend-row">
+        <span class="dim">${labels[k]}</span>
+        <span class="val">${val}</span>
       </div>
     `;
   }).join('');
@@ -915,8 +913,8 @@ function renderRadar(vm) {
         ${axisLabels}
       </svg>
 
-      <!-- 下方八維進度條卡片 -->
-      <div class="radar-legend-grid">${legendCards}</div>
+      <!-- 下方專業尊榮金字兩欄列表 (無Icon) -->
+      <div class="radar-legend">${legendRows}</div>
     </div>
   `;
 }
@@ -1242,6 +1240,9 @@ function openShareActionSheet(bottleId, sessionId = null) {
   const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
   if (!b) return;
 
+  const tItem = sessionId ? (b.tastings || []).find(t => String(t.id) === String(sessionId)) : null;
+  const isAlreadyShared = tItem ? !!tItem.sharedToExplore : !!b.sharedToExplore;
+
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="closeModal()">
       <div class="modal-card" style="text-align:left;" onclick="event.stopPropagation()">
@@ -1250,9 +1251,15 @@ function openShareActionSheet(bottleId, sessionId = null) {
         </h3>
         
         <div style="display:flex; flex-direction:column; gap:10px;">
-          <button class="btn btn-primary btn-block" onclick="openPublishToCommunityDialog('${esc(b.id)}', '${esc(sessionId||'')}');">
-            🌍 ${currentLang==='zh'?'發布到酒友公開探索池':'Publish to Community Feed'}
-          </button>
+          ${isAlreadyShared ? `
+            <button class="btn btn-wine btn-block" onclick="retractSessionFromExplore('${esc(b.id)}', '${esc(sessionId||'')}'); closeModal();">
+              ↩️ ${currentLang==='zh'?'從探索池收回此分享':'Retract from Community Feed'}
+            </button>
+          ` : `
+            <button class="btn btn-primary btn-block" onclick="openPublishToCommunityDialog('${esc(b.id)}', '${esc(sessionId||'')}');">
+              🌍 ${currentLang==='zh'?'發布到酒友公開探索池':'Publish to Community Feed'}
+            </button>
+          `}
           
           <button class="btn btn-ghost btn-block" onclick="executePrivateShare('${esc(b.id)}', '${esc(sessionId||'')}'); closeModal();">
             📲 ${currentLang==='zh'?'發送給朋友 (私密專屬連結)':'Share with Friends (Private Link)'}
@@ -1296,35 +1303,37 @@ function openPublishToCommunityDialog(bottleId, sessionId) {
 
         <!-- 1. 城市 / 地區（單選切換） -->
         <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); margin-top:8px; margin-bottom:4px;">
-          📍 ${currentLang === 'zh' ? '城市地區（單選切換）' : 'City / Region'}
+          📍 ${currentLang === 'zh' ? '城市 / 地區（單選切換）' : 'City / Region (Single Select)'}
         </div>
-        <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px;">
-          ${LOCATION_CITIES.map(c => {
-            const t = currentLang === 'zh' ? c.zh : c.en;
-            return `<span class="pub-city-tag" data-city="${t}" style="font-size:11px; padding:3px 9px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); color:var(--text-muted); cursor:pointer; user-select:none; transition:all 0.15s ease;" onclick="handleSelectCityTag('pub-venue-loc', '${t}')">${t}</span>`;
-          }).join("")}
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;">
+          ${["中環","尖沙咀","銅鑼灣","旺角","台中","高雄","台北","東京","大阪","澳門"].map(city => `
+            <button type="button" class="btn btn-ghost btn-sm pub-city-pill" style="font-size:11.5px; padding:3px 9px;" onclick="selectPubCity('${city}')">
+              ${city}
+            </button>
+          `).join('')}
         </div>
 
         <!-- 2. 場合 / 環境（單選切換） -->
-        <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); margin-bottom:4px;">
-          🥂 ${currentLang === 'zh' ? '場合環境（單選切換）' : 'Setting / Occasion'}
+        <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); margin-top:8px; margin-bottom:4px;">
+          🥂 ${currentLang === 'zh' ? '場合 / 環境（單選切換）' : 'Setting / Scene (Single Select)'}
         </div>
-        <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:12px;">
-          ${LOCATION_ENVIRONMENTS.map(e => {
-            const t = currentLang === 'zh' ? e.zh : e.en;
-            return `<span class="pub-env-tag" data-env="${t}" style="font-size:11px; padding:3px 9px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); color:var(--text-muted); cursor:pointer; user-select:none; transition:all 0.15s ease;" onclick="handleSelectEnvTag('pub-venue-loc', '${t}')">${t}</span>`;
-          }).join("")}
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">
+          ${["屋企陽台","酒吧","居酒屋","露營星空下","海邊","朋友聚會","餐廳"].map(env => `
+            <button type="button" class="btn btn-ghost btn-sm pub-scene-pill" style="font-size:11.5px; padding:3px 9px;" onclick="selectPubScene('${env}')">
+              ${env}
+            </button>
+          `).join('')}
         </div>
 
-        <!-- 品飲心得手記 -->
-        <div style="font-size:12px; font-weight:700; color:var(--gold); margin-bottom:4px;">
-          📝 ${currentLang === 'zh' ? '這次的品飲手記' : 'Tasting Impressions'}
+        <!-- 品飲心得 -->
+        <div style="font-size:12px; font-weight:700; color:var(--gold); margin-bottom:5px;">
+          ✍️ ${currentLang === 'zh' ? '品飲手記與風味筆記' : 'Tasting Notes'}
         </div>
-        <textarea id="pub-venue-notes" class="text-input" style="height:70px; resize:none; padding:8px 10px; font-size:13px;">${esc(initialNotes)}</textarea>
+        <textarea id="pub-venue-notes" class="text-input" rows="3" style="margin-top:0; padding:10px; font-size:13.5px;" placeholder="${currentLang === 'zh' ? '寫下當下的開瓶香氣、口感與推薦原因…' : 'Share tasting notes, aromas, or pairing experience...'}">${esc(initialNotes)}</textarea>
 
         <div style="display:flex; gap:10px; margin-top:16px;">
           <button class="btn btn-ghost btn-block" style="padding:10px; font-size:13px;" onclick="closeModal()">${currentLang === 'zh' ? '取消' : 'Cancel'}</button>
-          <button class="btn btn-primary btn-block" style="padding:10px; font-size:13px;" onclick="confirmPublishDrink('${esc(b.id)}', ${initialRating})">${currentLang === 'zh' ? '確認公開發布' : 'Publish to Feed'}</button>
+          <button class="btn btn-primary btn-block" style="padding:10px; font-size:13px;" onclick="confirmPublishDrink('${esc(b.id)}', ${initialRating}, '${esc(sessionId||'')}')">${currentLang === 'zh' ? '確認公開發布' : 'Publish to Feed'}</button>
         </div>
       </div>
     </div>
@@ -1333,7 +1342,7 @@ function openPublishToCommunityDialog(bottleId, sessionId) {
   updatePubTagHighlight();
 }
 
-async function confirmPublishDrink(bottleId, rating) {
+async function confirmPublishDrink(bottleId, rating, sessionId = '') {
   const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
   if (!b) return;
 
@@ -1342,6 +1351,7 @@ async function confirmPublishDrink(bottleId, rating) {
 
   const payload = {
     id: b.id,
+    sessionId: sessionId || '',
     author: localStorage.getItem("bottlesense_profile_name") || localStorage.getItem("bottlesense_owner_name") || "品飲同好",
     authorEmail: (localStorage.getItem("bottlesense_account_bound") || "").toLowerCase(),
     syncKey: localStorage.getItem("bottlesense_sync_key") || "",
@@ -1353,8 +1363,18 @@ async function confirmPublishDrink(bottleId, rating) {
     publishedAt: Date.now()
   };
 
+  // 在本機資料標記已分享 (支援單筆品飲與酒款)
+  if (sessionId && Array.isArray(b.tastings)) {
+    const targetSession = b.tastings.find(t => String(t.id) === String(sessionId));
+    if (targetSession) targetSession.sharedToExplore = true;
+  }
+  b.sharedToExplore = true;
+  if (typeof saveBottleToDB === 'function') {
+    await saveBottleToDB(b);
+  }
+
   closeModal();
-  showToast("正在發布品飲手記…");
+  showToast(currentLang === 'zh' ? '正在發布品飲手記…' : 'Publishing...');
 
   try {
     await fetch(`${WORKER_API_URL}/api/explore/publish`, {
@@ -1363,11 +1383,55 @@ async function confirmPublishDrink(bottleId, rating) {
       body: JSON.stringify(payload)
     });
     showToast(t("published_toast"));
+    if (currentView === 'detail') renderBottleDetail(bottleId);
   } catch(e) {
     showToast(t("published_toast"));
   }
 }
 
+// 從酒櫃中收回探索池分享
+async function retractSessionFromExplore(bottleId, sessionId = '') {
+  const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
+  if (!b) return;
+
+  const confirmMsg = currentLang === 'zh'
+    ? '確定要從公開探索池收回此品飲分享？收回後其他酒友將不再看見。'
+    : 'Are you sure you want to retract this share from Community Feed?';
+
+  if (!confirm(confirmMsg)) return;
+
+  showToast(currentLang === 'zh' ? '正在收回分享…' : 'Retracting share...');
+
+  // 1. 本地更新狀態
+  if (sessionId && Array.isArray(b.tastings)) {
+    const targetSession = b.tastings.find(t => String(t.id) === String(sessionId));
+    if (targetSession) targetSession.sharedToExplore = false;
+  }
+  b.sharedToExplore = false;
+  if (typeof saveBottleToDB === 'function') {
+    await saveBottleToDB(b);
+  }
+
+  // 2. 雲端同步刪除探索池中的紀錄
+  try {
+    await fetch(`${WORKER_API_URL}/api/explore/delete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: b.id,
+        sessionId: sessionId || '',
+        syncKey: localStorage.getItem("bottlesense_sync_key") || "",
+        email: (localStorage.getItem("bottlesense_account_bound") || "").toLowerCase()
+      })
+    });
+    showToast(currentLang === 'zh' ? '✓ 已成功從探索池收回！' : '✓ Share retracted from Feed!');
+  } catch(e) {
+    console.warn("Retract cloud error", e);
+  }
+
+  if (currentView === 'detail') renderBottleDetail(bottleId);
+  else if (currentView === 'explore') renderExplore();
+}
 function executePrivateShare(bottleId, sessionId) {
   if (sessionId) shareSingleSession(bottleId, sessionId);
   else shareSingleBottle(bottleId);
@@ -1908,11 +1972,18 @@ function openPublicBottleModal(b) {
         <!-- 侍酒師建議 (若有) -->
         ${rec ? renderRecommendation(rec) : ""}
 
-        <!-- 操作按鈕：一鍵收藏至我的「想買」清單 -->
+        <!-- 操作按鈕：若是自己的分享提供刪除/收回，若是別人的提供收藏至想買 -->
         <div style="display:flex; gap:10px; margin-top:16px;">
-          <button class="btn btn-primary btn-block" style="padding:10px; font-size:13.5px;" onclick="addPublicBottleToWishlist('${esc(b.id)}')">
-            🏷️ ${currentLang === "zh" ? "加入我的想買清單" : "Add to Wishlist"}
-          </button>
+          ${((localStorage.getItem("bottlesense_account_bound") && b.authorEmail && b.authorEmail.toLowerCase() === localStorage.getItem("bottlesense_account_bound").toLowerCase()) ||
+             (localStorage.getItem("bottlesense_sync_key") && b.syncKey && b.syncKey === localStorage.getItem("bottlesense_sync_key"))) ? `
+            <button class="btn btn-wine btn-block" style="padding:10px; font-size:13.5px;" onclick="closeModal(); deleteMyShareFromExploreFeed('${esc(b.id)}', '${esc(b.sessionId||'')}');">
+              🗑️ ${currentLang === "zh" ? "收回/刪除我的這筆分享" : "Delete My Share"}
+            </button>
+          ` : `
+            <button class="btn btn-primary btn-block" style="padding:10px; font-size:13.5px;" onclick="addPublicBottleToWishlist('${esc(b.id)}')">
+              🏷️ ${currentLang === "zh" ? "加入我的想買清單" : "Add to Wishlist"}
+            </button>
+          `}
           <button class="btn btn-ghost btn-block" style="padding:10px; font-size:13.5px;" onclick="closeModal()">
             ${t("btn_close")}
           </button>
@@ -1977,6 +2048,9 @@ async function renderRealWorldPinsAndFeed() {
       }).join("");
     }
 
+    const myEmail = (localStorage.getItem("bottlesense_account_bound") || "").toLowerCase();
+    const mySyncKey = localStorage.getItem("bottlesense_sync_key") || "";
+
     feedEl.innerHTML = publicFeed.map(b => {
       const name = b.identification?.name || "精選酒款";
       const author = b.author || (currentLang === "zh" ? "品飲同好" : "Wine Lover");
@@ -1984,13 +2058,18 @@ async function renderRealWorldPinsAndFeed() {
       const drinkingSpot = b.location || (currentLang === "zh" ? "香港某酒吧" : "Pour Spot");
       const origin = [formatFilterLabel(b.identification?.country), formatFilterLabel(b.identification?.region)].filter(Boolean).join(" · ") || (currentLang === "zh" ? "名釀產地" : "Terroir");
 
+      // 檢查是否為當前用戶發布的分享 (明顯標記 + 刪除收回功能)
+      const isMyShare = (myEmail && b.authorEmail && b.authorEmail.toLowerCase() === myEmail) ||
+                        (mySyncKey && b.syncKey && b.syncKey === mySyncKey);
+
       return `
-        <div class="explore-feed-card" id="feed-card-${esc(b.id)}" onclick="onFeedCardClick('${esc(b.id)}')">
+        <div class="explore-feed-card ${isMyShare ? 'my-share-card' : ''}" id="feed-card-${esc(b.id)}" onclick="onFeedCardClick('${esc(b.id)}')">
           <div class="bottle-photo-box">${b.image ? `<img src="${esc(b.image)}">` : "🍷"}</div>
           
           <div class="bottle-info" style="flex:1; min-width:0;">
             <div class="bottle-name" style="font-size:16px; font-weight:700; color:var(--text); line-height:1.3; margin-bottom:3px; padding-right:75px;">
               ${esc(name)}
+              ${isMyShare ? `<span class="my-share-badge">★ ${currentLang==='zh'?'我的分享':'My Share'}</span>` : ''}
             </div>
             <div style="font-size:13px; color:var(--gold); margin-bottom:4px;">
               ★ ${b.personalRating || 5}/5 · <span style="color:var(--text-muted);">${esc(author)}</span>
@@ -2004,10 +2083,17 @@ async function renderRealWorldPinsAndFeed() {
             </div>
           </div>
 
-          <!-- 右下角專屬詳情按鈕：絕對一行過，點擊開啟品飲手記視窗 -->
-          <button class="explore-card-detail-btn" onclick="event.stopPropagation(); openPublicBottleModalById('${esc(b.id)}')">
-            ${currentLang === "zh" ? "詳情 →" : "Details →"}
-          </button>
+          <!-- 右下角操作按鈕群 -->
+          <div style="position:absolute; bottom:11px; right:12px; display:flex; gap:6px; align-items:center;">
+            ${isMyShare ? `
+              <button class="btn btn-sm" style="background:rgba(239,68,68,0.15); color:#EF4444; border:1px solid rgba(239,68,68,0.4); font-size:11.5px; padding:4px 9px; border-radius:999px; font-weight:600;" onclick="event.stopPropagation(); deleteMyShareFromExploreFeed('${esc(b.id)}', '${esc(b.sessionId||'')}')">
+                🗑️ ${currentLang==='zh'?'刪除分享':'Delete'}
+              </button>
+            ` : ''}
+            <button class="explore-card-detail-btn" style="position:static;" onclick="event.stopPropagation(); openPublicBottleModalById('${esc(b.id)}')">
+              ${currentLang === "zh" ? "詳情 →" : "Details →"}
+            </button>
+          </div>
         </div>
       `;
     }).join("");
@@ -2017,6 +2103,45 @@ async function renderRealWorldPinsAndFeed() {
   }
 }
 
+// 從探索列表中刪除自己的分享
+async function deleteMyShareFromExploreFeed(bottleId, sessionId = '') {
+  const confirmMsg = currentLang === 'zh'
+    ? '確定要從探索池刪除這筆分享？刪除後其他酒友將無法再看到這則手記。'
+    : 'Are you sure you want to delete this share from Community Feed?';
+
+  if (!confirm(confirmMsg)) return;
+
+  showToast(currentLang === 'zh' ? '正在刪除探索分享…' : 'Deleting share...');
+
+  try {
+    const res = await fetch(`${WORKER_API_URL}/api/explore/delete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: bottleId,
+        sessionId: sessionId,
+        syncKey: localStorage.getItem("bottlesense_sync_key") || "",
+        email: (localStorage.getItem("bottlesense_account_bound") || "").toLowerCase()
+      })
+    });
+
+    // 本地同步更新
+    const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
+    if (b) {
+      if (sessionId && Array.isArray(b.tastings)) {
+        const targetSession = b.tastings.find(t => String(t.id) === String(sessionId));
+        if (targetSession) targetSession.sharedToExplore = false;
+      }
+      b.sharedToExplore = false;
+      if (typeof saveBottleToDB === 'function') await saveBottleToDB(b);
+    }
+
+    showToast(currentLang === 'zh' ? '✓ 已成功刪除公開分享！' : '✓ Share deleted!');
+    renderRealWorldPinsAndFeed();
+  } catch(e) {
+    showToast(currentLang === 'zh' ? '刪除失敗，請重試' : 'Delete failed');
+  }
+}
 async function loadPublicCellar(key, sharedShelf, sharedBottleId) {
   try {
     const res = await fetch(`${WORKER_API_URL}/api/cellar/get?key=${encodeURIComponent(key)}`);
@@ -2510,6 +2635,13 @@ function updateHeaderGreeting() {
   }
 }
 
+let settingsActiveTab = 'profile'; // 'profile' | 'account'
+
+function switchSettingsTab(tab) {
+  settingsActiveTab = tab;
+  renderSettings();
+}
+
 function renderSettings() {
   const boundAccount = localStorage.getItem('bottlesense_account_bound');
   const profileName = localStorage.getItem('bottlesense_profile_name') || (boundAccount ? boundAccount.split('@')[0] : '');
@@ -2520,96 +2652,114 @@ function renderSettings() {
   let contentHTML = '';
 
   if (boundAccount) {
-    // 1. 已登入狀態：可查看與即時編輯個人 Profile (姓名、生日、性別)，變更後即時聯動頂部問候語與雲端
-    let bdayDisplay = birthday ? `🎂 ${currentLang === 'zh' ? '生日' : 'Birthday'}：${esc(birthday)}` : '';
-    contentHTML = `
-      <div style="background:linear-gradient(180deg, var(--surface-2) 0%, #161810 100%); border:1px solid var(--gold-dim); border-radius:14px; padding:16px; margin-bottom:14px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <div style="font-size:12px; font-family:var(--mono); color:var(--gold); font-weight:700;">
-            ✓ ${currentLang === 'zh' ? '已綁定電郵帳號' : 'Bound Email Account'}
-          </div>
-          <span style="font-size:11px; background:rgba(34,197,94,0.15); color:var(--green-ok); border:1px solid rgba(34,197,94,0.3); padding:2px 8px; border-radius:999px;">
-            ● ${currentLang === 'zh' ? '雲端即時同步' : 'Cloud Synced'}
-          </span>
-        </div>
+    // 已登入狀態：採用頂部 Tab 分頁，清晰拆分「個人資料」與「帳號安全」，避免資訊過載
+    const tabHeaderHTML = `
+      <div style="display:flex; gap:6px; background:rgba(0,0,0,0.4); padding:4px; border-radius:10px; margin-bottom:14px; border:1px solid var(--line);">
+        <button class="btn btn-sm ${settingsActiveTab === 'profile' ? 'btn-primary' : 'btn-ghost'}" style="flex:1; padding:7px 0; font-size:12.5px; font-weight:700; border-color:${settingsActiveTab === 'profile' ? 'var(--gold)' : 'transparent'};" onclick="switchSettingsTab('profile')">
+          👤 ${currentLang === 'zh' ? '個人資料' : 'Profile'}
+        </button>
+        <button class="btn btn-sm ${settingsActiveTab === 'account' ? 'btn-primary' : 'btn-ghost'}" style="flex:1; padding:7px 0; font-size:12.5px; font-weight:700; border-color:${settingsActiveTab === 'account' ? 'var(--gold)' : 'transparent'};" onclick="switchSettingsTab('account')">
+          ⚙️ ${currentLang === 'zh' ? '帳號設定' : 'Account'}
+        </button>
+      </div>
+    `;
 
-        <div style="font-family:var(--serif); font-size:20px; font-weight:700; color:var(--text); margin-bottom:4px; word-break:break-all;">
-          Hello, <span style="color:var(--gold);">${esc(profileName)}</span>
-        </div>
-        <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px; word-break:break-all;">
-          ✉️ ${esc(boundAccount)}
-        </div>
+    if (settingsActiveTab === 'profile') {
+      // TAB 1: 專注於個人名牌與資料編輯（姓名、性別、生日）
+      contentHTML = `
+        ${tabHeaderHTML}
 
-        <!-- 編輯個人資料卡片 (姓名、性別、生日) -->
-        <div style="background:rgba(0,0,0,0.35); border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:14px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <span style="font-size:12px; font-weight:700; color:var(--gold);">
-              ✏️ ${currentLang === 'zh' ? '會員個人資料 (即時聯動)' : 'Edit Profile'}
+        <!-- 頂部身分摘要卡片 -->
+        <div style="background:linear-gradient(180deg, var(--surface-2) 0%, #161810 100%); border:1px solid var(--gold-dim); border-radius:12px; padding:14px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <div style="font-size:11px; font-family:var(--mono); color:var(--gold); font-weight:700;">
+              ✓ ${currentLang === 'zh' ? '已綁定電郵' : 'Bound Email'}
+            </div>
+            <span style="font-size:10.5px; background:rgba(34,197,94,0.15); color:var(--green-ok); border:1px solid rgba(34,197,94,0.3); padding:1px 7px; border-radius:999px;">
+              ● ${currentLang === 'zh' ? '同步中' : 'Synced'}
             </span>
           </div>
 
-          <div style="font-size:11px; color:var(--text-faint); margin-bottom:3px;">
-            ${currentLang === 'zh' ? '姓名 / 暱稱' : 'Name'} <span style="color:var(--wine-bright);">*</span>
+          <div style="font-family:var(--serif); font-size:19px; font-weight:700; color:var(--text); margin-bottom:2px; word-break:break-all;">
+            Hello, <span style="color:var(--gold);">${esc(profileName)}</span>
           </div>
-          <input type="text" id="edit-profile-name" class="text-input" style="margin-top:0; padding:7px 10px; font-size:13px; margin-bottom:8px;" value="${esc(profileName)}" placeholder="${currentLang === 'zh' ? '姓名 / 暱稱' : 'Name'}">
+          <div style="font-size:12px; color:var(--text-muted); word-break:break-all;">
+            ✉️ ${esc(boundAccount)}
+          </div>
+        </div>
 
-          <div style="display:grid; grid-template-columns: 1fr 1.2fr; gap:8px;">
-            <div>
-              <div style="font-size:11px; color:var(--text-faint); margin-bottom:3px;">
-                ${currentLang === 'zh' ? '性別' : 'Gender'}
-              </div>
-              <select id="edit-profile-gender" class="text-input" style="margin-top:0; padding:7px 8px; font-size:12.5px;">
-                <option value="unspecified" ${gender==='unspecified'?'selected':''}>${currentLang==='zh'?'保密':'Private'}</option>
-                <option value="male" ${gender==='male'?'selected':''}>${currentLang==='zh'?'男':'Male'}</option>
-                <option value="female" ${gender==='female'?'selected':''}>${currentLang==='zh'?'女':'Female'}</option>
-              </select>
-            </div>
-            <div>
-              <div style="font-size:11px; color:var(--text-faint); margin-bottom:3px;">
-                ${currentLang === 'zh' ? '出生日期' : 'Birthday'}
-              </div>
-              <input type="date" id="edit-profile-birthday" class="text-input" style="margin-top:0; padding:7px 8px; font-size:12px;" value="${esc(birthday)}">
-            </div>
+        <!-- 編輯表單 -->
+        <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px;">
+          <div style="font-size:12.5px; font-weight:700; color:var(--gold); margin-bottom:10px;">
+            ✏️ ${currentLang === 'zh' ? '修改個人檔案' : 'Edit Profile'}
           </div>
 
-          <button id="btn-save-profile" class="btn btn-primary btn-block" style="padding:8px; margin-top:10px; font-size:12.5px; font-weight:700;" onclick="executeSaveProfile()">
-            ${currentLang === 'zh' ? '儲存個人資料變更' : 'Save Profile Changes'}
+          <div style="font-size:11.5px; font-weight:600; color:var(--text); margin-bottom:4px;">
+            ${currentLang === 'zh' ? '姓名' : 'Name'} <span style="color:#EF4444;">*</span>
+          </div>
+          <input type="text" id="edit-profile-name" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13.5px; margin-bottom:10px;" value="${esc(profileName)}" placeholder="${currentLang === 'zh' ? '輸入姓名' : 'Enter name'}">
+
+          <div style="font-size:11.5px; font-weight:600; color:var(--text); margin-bottom:4px;">
+            ${currentLang === 'zh' ? '性別' : 'Gender'}
+          </div>
+          <select id="edit-profile-gender" class="text-input" style="margin-top:0; padding:8px 10px; font-size:13px; margin-bottom:10px;">
+            <option value="unspecified" ${gender==='unspecified'?'selected':''}>${currentLang==='zh'?'保密':'Prefer not to say'}</option>
+            <option value="male" ${gender==='male'?'selected':''}>${currentLang==='zh'?'男':'Male'}</option>
+            <option value="female" ${gender==='female'?'selected':''}>${currentLang==='zh'?'女':'Female'}</option>
+          </select>
+
+          <div style="font-size:11.5px; font-weight:600; color:var(--text); margin-bottom:4px;">
+            ${currentLang === 'zh' ? '生日' : 'Birthday'}
+          </div>
+          <input type="date" id="edit-profile-birthday" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13px; text-align:left;" value="${esc(birthday)}">
+
+          <button id="btn-save-profile" class="btn btn-primary btn-block" style="padding:10px; margin-top:14px; font-size:13px; font-weight:700;" onclick="executeSaveProfile()">
+            ${currentLang === 'zh' ? '儲存變更' : 'Save Changes'}
+          </button>
+        </div>
+      `;
+    } else {
+      // TAB 2: 專注於帳號管理（雲端狀態、登出、永久註銷）
+      contentHTML = `
+        ${tabHeaderHTML}
+
+        <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px;">
+          <div style="font-size:12.5px; font-weight:700; color:var(--gold); margin-bottom:8px;">
+            ☁️ ${currentLang === 'zh' ? '酒窖備份狀態' : 'Cloud Status'}
+          </div>
+          <div style="font-size:12.5px; color:var(--text); line-height:1.5; margin-bottom:12px;">
+            ${currentLang === 'zh' ? `目前已安全備份 <strong style="color:var(--gold);">${cellarCount}</strong> 支藏酒與手記。` : `Safely backed up <strong style="color:var(--gold);">${cellarCount}</strong> bottles & notes.`}
+          </div>
+
+          <!-- 登出按鈕：依指定精簡為「登出帳號 Logout」 -->
+          <button class="btn btn-wine btn-block" style="padding:10px; font-size:13px;" onclick="executeAccountLogout()">
+            ${currentLang === 'zh' ? '登出帳號 Logout' : 'Logout'}
           </button>
         </div>
 
-        <div style="font-size:12px; color:var(--gold-dim); margin-bottom:14px;">
-          ${currentLang === 'zh' ? `雲端目前已安全備份 ${cellarCount} 支藏酒與手記` : `${cellarCount} bottles & tasting notes safely backed up`}
-        </div>
-
-        <!-- 登出按鈕：依指定精簡為「登出帳號 Logout」 -->
-        <button class="btn btn-wine btn-block" style="padding:10px; font-size:13.5px; margin-bottom:14px;" onclick="executeAccountLogout()">
-          ${currentLang === 'zh' ? '登出帳號 Logout' : 'Logout'}
-        </button>
-
-        <!-- 永久註銷帳號區域 (可 tick 刪除清空所有資料) -->
-        <div style="border-top:1px solid rgba(255,255,255,0.08); padding-top:12px; margin-top:4px;">
-          <div style="font-size:12px; font-weight:700; color:#EF4444; margin-bottom:4px;">
-            ⚠️ ${currentLang === 'zh' ? '永久註銷與資料刪除 (危險操作)' : 'Delete Account & Clear All Data'}
+        <!-- 永久註銷危險區 (以優雅可摺疊卡片呈現) -->
+        <div style="background:rgba(239,68,68,0.04); border:1px solid rgba(239,68,68,0.2); border-radius:12px; padding:14px;">
+          <div style="font-size:12px; font-weight:700; color:#EF4444; margin-bottom:6px;">
+            ⚠️ ${currentLang === 'zh' ? '永久註銷帳號' : 'Delete Account'}
           </div>
-          <div style="font-size:11px; color:var(--text-faint); line-height:1.4; margin-bottom:8px;">
-            ${currentLang === 'zh' ? '若你想永久離開，請勾選下方確認。一旦刪除將清空 Email、個人檔案、所有藏酒手記與探索池記錄，無法回復。' : 'Tick below to permanently delete your email, profile, all bottles, notes and explore records. This cannot be undone.'}
+          <div style="font-size:11.5px; color:var(--text-faint); line-height:1.4; margin-bottom:10px;">
+            ${currentLang === 'zh' ? '若需永久離開，勾選後可刪除 Email、個人檔案、所有藏酒手記與探索池記錄（無法回復）。' : 'Tick below to permanently erase your email, profile, all cellar bottles and explore records (irreversible).'}
           </div>
 
           <label style="display:flex; align-items:flex-start; gap:8px; font-size:11.5px; color:#FCA5A5; cursor:pointer; line-height:1.4; margin-bottom:10px;">
             <input type="checkbox" id="delete-account-confirm-check" style="margin-top:2px; accent-color:#EF4444;" onchange="toggleDeleteAccountButton(this.checked)">
-            <span>${currentLang === 'zh' ? '我確認要永久刪除帳號及清空所有雲端與本機資料 (無法回復)' : 'I confirm I want to permanently delete my account and clear all data'}</span>
+            <span>${currentLang === 'zh' ? '確認永久註銷並清空所有資料' : 'Confirm permanent account deletion'}</span>
           </label>
 
-          <button id="btn-delete-account" class="btn btn-block" style="padding:8px; font-size:12.5px; background:rgba(239,68,68,0.15); color:#EF4444; border:1px solid rgba(239,68,68,0.3); display:none;" onclick="executeDeleteAccountPermanently()">
+          <button id="btn-delete-account" class="btn btn-block" style="padding:9px; font-size:12.5px; background:rgba(239,68,68,0.2); color:#EF4444; border:1px solid rgba(239,68,68,0.4); display:none; font-weight:700;" onclick="executeDeleteAccountPermanently()">
             🗑️ ${currentLang === 'zh' ? '確認永久刪除帳號與所有資料' : 'Permanently Delete Account'}
           </button>
         </div>
-      </div>
-    `;
+      `;
+    }
   } else {
     // 2. 未登入狀態：依據流程步驟顯示
     if (authFlowState.step === 'email') {
-      // 步驟 1：只輸入 Email，下方換位按鈕 [註冊帳號] (左) 與 [登入酒窖] (右)，絕無「獲取6位驗證碼」
       contentHTML = `
         <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:14px; padding:15px; margin-bottom:12px;">
           <div style="font-size:13.5px; font-weight:700; color:var(--gold); margin-bottom:6px;">
@@ -2624,7 +2774,6 @@ function renderSettings() {
           </div>
           <input type="email" id="auth-email" class="text-input" style="margin-top:0; padding:10px 12px; font-size:14px;" value="${esc(authFlowState.email)}" placeholder="${currentLang === 'zh' ? '輸入你的電郵 (例如 user@gmail.com)' : 'Enter email (e.g. user@gmail.com)'}">
 
-          <!-- 依指定：登入、註冊兩個 Button 換位（註冊在左、登入在右） -->
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:14px;">
             <button class="btn btn-ghost btn-block" style="padding:10px; font-size:13px;" onclick="handleStartRegister()">
               ${currentLang === 'zh' ? '註冊帳號' : 'Register'}
@@ -2656,7 +2805,6 @@ function renderSettings() {
           </div>
         </div>
 
-        <!-- 最底遊客身分狀態 -->
         <div style="background:rgba(255,255,255,0.02); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
           <span style="font-size:12px; color:var(--text-faint);">${currentLang === 'zh' ? '目前身分狀態：' : 'Status:'}</span>
           <span style="font-size:12.5px; font-weight:600; color:var(--text-muted);">
@@ -2665,7 +2813,6 @@ function renderSettings() {
         </div>
       `;
     } else if (authFlowState.step === 'register_form') {
-      // 步驟 2A：註冊表單（必填項打 *，其他不加多餘備註）
       contentHTML = `
         <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:14px; padding:15px; margin-bottom:12px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -2681,7 +2828,6 @@ function renderSettings() {
             ✉️ ${esc(authFlowState.email)}
           </div>
 
-          <!-- 必填姓名：標註 *，未填時高亮並捲動 -->
           <div id="field-wrap-name">
             <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:4px;">
               ${currentLang === 'zh' ? '姓名' : 'Name'} <span style="color:#EF4444; font-weight:700;">*</span>
@@ -2692,7 +2838,6 @@ function renderSettings() {
             </div>
           </div>
 
-          <!-- 選填性別：乾淨無冗餘備註 -->
           <div style="font-size:12px; font-weight:600; color:var(--text); margin-top:12px; margin-bottom:4px;">
             ${currentLang === 'zh' ? '性別' : 'Gender'}
           </div>
@@ -2702,13 +2847,11 @@ function renderSettings() {
             <option value="female" ${authFlowState.gender==='female'?'selected':''}>${currentLang==='zh'?'女':'Female'}</option>
           </select>
 
-          <!-- 選填生日：乾淨無冗餘備註 -->
           <div style="font-size:12px; font-weight:600; color:var(--text); margin-top:12px; margin-bottom:4px;">
             ${currentLang === 'zh' ? '生日' : 'Birthday'}
           </div>
-          <input type="date" id="reg-birthday" class="text-input" style="margin-top:0; padding:8px 10px; font-size:13px;" value="${esc(authFlowState.birthday)}">
+          <input type="date" id="reg-birthday" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13px; text-align:left;" value="${esc(authFlowState.birthday)}">
 
-          <!-- 使用及私隱條款 Checkbox (必填打 *) -->
           <label style="display:flex; align-items:flex-start; gap:8px; font-size:12px; color:var(--text-muted); margin-top:14px; cursor:pointer; line-height:1.4;">
             <input type="checkbox" id="reg-terms-check" style="margin-top:2px; accent-color:var(--gold);">
             <span>
@@ -2728,7 +2871,6 @@ function renderSettings() {
         </div>
       `;
     } else if (authFlowState.step === 'register_sent') {
-      // 步驟 2B：認證郵件已發送（引導用戶去信箱撳 Verify Link 完成註冊）
       contentHTML = `
         <div style="background:var(--surface-2); border:1px solid var(--gold-dim); border-radius:14px; padding:20px 16px; margin-bottom:12px; text-align:center;">
           <div style="font-size:36px; margin-bottom:8px;">📨</div>
@@ -2751,7 +2893,6 @@ function renderSettings() {
         </div>
       `;
     } else if (authFlowState.step === 'login_otp') {
-      // 步驟 2C：登入酒窖 OTP 輸入介面
       contentHTML = `
         <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:14px; padding:18px 16px; margin-bottom:12px; text-align:center;">
           <div style="font-size:32px; margin-bottom:6px;">🔐</div>
