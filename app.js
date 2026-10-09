@@ -2788,7 +2788,7 @@ function renderSettings() {
           </label>
           <div style="display:flex; gap:8px; margin-top:10px;">
             <button class="btn btn-ghost btn-sm" style="flex:1; font-size:12px;" onclick="exportCellarCSV()">⬇️ ${currentLang === 'zh' ? '匯出 CSV' : 'Export CSV'}</button>
-            <a class="btn btn-ghost btn-sm" style="flex:1; font-size:12px; text-align:center; text-decoration:none;" href="privacy.html" target="_blank" rel="noopener">🔒 ${currentLang === 'zh' ? '私隱政策' : 'Privacy'}</a>
+            <button class="btn btn-ghost btn-sm" style="flex:1; font-size:12px;" onclick="showPrivacyModal()">🔒 ${currentLang === 'zh' ? '私隱政策' : 'Privacy'}</button>
           </div>
         </div>
         <div style="text-align:center; margin-top:14px; margin-bottom:6px;">
@@ -3424,4 +3424,32 @@ function maybeShowOnboarding() {
         <button class="btn btn-primary btn-block" style="margin-top:14px;" onclick="try{localStorage.setItem('bottlesense_onboarded','1')}catch(e){}; closeModal();">${zh ? '開始使用' : 'Get started'}</button>
       </div>
     </div>`;
+}
+
+
+// 私隱政策在 App 內以彈窗顯示 (PWA 全螢幕模式冇返回掣，開新頁會被困住)
+async function showPrivacyModal() {
+  const zh = currentLang === 'zh';
+  modalContainer.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
+      <div class="modal-card" role="dialog" aria-modal="true" style="max-width:420px; text-align:left; display:flex; flex-direction:column;" onclick="event.stopPropagation()">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <h2 style="font-family:var(--serif); color:var(--gold); font-size:18px; margin:0;">${zh ? '私隱政策與使用條款' : 'Privacy & Terms'}</h2>
+          <button class="icon-btn" aria-label="Close" onclick="renderSettings()">✕</button>
+        </div>
+        <div id="privacy-body" class="privacy-body">${zh ? '載入中…' : 'Loading…'}</div>
+        <button class="btn btn-ghost btn-block" style="margin-top:12px;" onclick="renderSettings()">${zh ? '← 返回設定' : '← Back to settings'}</button>
+      </div>
+    </div>`;
+  try {
+    const res = await fetch('privacy.html');
+    const html = await res.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    doc.querySelectorAll('main > p:first-child, script, style').forEach(n => n.remove());
+    const el = document.getElementById('privacy-body');
+    if (el) el.innerHTML = doc.querySelector('main').innerHTML;
+  } catch (e) {
+    const el = document.getElementById('privacy-body');
+    if (el) el.textContent = zh ? '暫時無法載入，請連線後再試。' : 'Unable to load. Please try again online.';
+  }
 }

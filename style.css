@@ -1748,3 +1748,10 @@ select.text-input {
 .onb-step { display: flex; gap: 12px; align-items: flex-start; font-size: 13px; line-height: 1.5; color: var(--text-muted); margin-bottom: 12px; }
 .onb-step > span { font-size: 22px; flex: none; }
 .onb-step strong { color: var(--text); }
+
+.privacy-body { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; max-height: calc(var(--vvh, 100dvh) - 190px); font-size: 13.5px; line-height: 1.65; color: var(--text-muted); }
+.privacy-body h1 { display: none; }
+.privacy-body h2 { color: var(--gold); font-size: 15px; margin: 18px 0 6px; }
+.privacy-body ul { padding-left: 18px; margin: 6px 0; }
+.privacy-body li { margin-bottom: 4px; }
+.privacy-body .muted { color: var(--text-faint); font-size: 12px; }
