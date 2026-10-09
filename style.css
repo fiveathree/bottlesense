@@ -1533,3 +1533,22 @@ main {
     max-height: 440px !important;
   }
 }
+
+.feed-detail-link {
+  color: var(--gold);
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(212, 175, 55, 0.08);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+}
+.feed-detail-link:hover {
+  color: #111;
+  background: var(--gold);
+  border-color: var(--gold);
+}
