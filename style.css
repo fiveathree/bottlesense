@@ -1590,3 +1590,61 @@ input[type="datetime-local"].text-input::-webkit-date-and-time-value {
 .social-login-btn svg {
   flex-shrink: 0;
 }
+
+/* 垂直時間軸真・直線設計 */
+.vertical-timeline-container {
+  position: relative;
+  margin-top: 14px;
+  padding-left: 22px;
+}
+.vertical-timeline-spine {
+  position: absolute;
+  top: 16px;
+  bottom: 24px;
+  left: 7px;
+  width: 2px;
+  background: linear-gradient(180deg, var(--gold) 0%, rgba(212, 175, 55, 0.45) 80%, rgba(212, 175, 55, 0.1) 100%);
+  border-radius: 1px;
+}
+.timeline-item-wrapper {
+  position: relative;
+  margin-bottom: 18px;
+}
+.timeline-item-wrapper:last-child {
+  margin-bottom: 0;
+}
+.timeline-spine-node {
+  position: absolute;
+  left: -22px;
+  top: 14px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #14170F;
+  border: 2px solid var(--gold);
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+.timeline-spine-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+.timeline-expand-btn {
+  border-color: rgba(212, 175, 55, 0.35) !important;
+  color: var(--gold) !important;
+  font-size: 13px !important;
+  padding: 8px 20px !important;
+  border-radius: 999px !important;
+  background: rgba(212, 175, 55, 0.08) !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer;
+}
+.timeline-expand-btn:active {
+  transform: scale(0.96);
+  background: rgba(212, 175, 55, 0.2) !important;
+}
