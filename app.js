@@ -1023,49 +1023,11 @@ async function renderExplore() {
   isRegionalMapActive = false;
 
   // 安全內嵌金線世界地圖 SVG（維持嚴格 2:1 比例，絕不拉長，結合 WebP 支援與金色向量陸地輪廓）
-  const inlineGoldMapSVG = `
-    <svg class="real-gold-map-img" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet">
-      <rect width="1000" height="500" fill="#000000"/>
-      <!-- 背景 WebP 照片 (若存在即顯示真實光暈) -->
-      <image href="world-map.webp" width="1000" height="500" preserveAspectRatio="xMidYMid meet" opacity="0.85" onerror="this.style.display=\'none\'"/>
-      <!-- 細緻金線經緯網格 -->
-      <g stroke="rgba(212,175,55,0.08)" stroke-width="0.8" stroke-dasharray="4,4">
-        <line x1="0" y1="250" x2="1000" y2="250"/>
-        <line x1="0" y1="125" x2="1000" y2="125"/>
-        <line x1="0" y1="375" x2="1000" y2="375"/>
-        <line x1="500" y1="0" x2="500" y2="500"/>
-        <line x1="250" y1="0" x2="250" y2="500"/>
-        <line x1="750" y1="0" x2="750" y2="500"/>
-      </g>
-      <!-- 高解析度金色陸地邊界輪廓 -->
-      <g fill="rgba(212,175,55,0.06)" stroke="#D4AF37" stroke-width="1.4" stroke-linejoin="round">
-        <!-- 北美洲 -->
-        <path d="M75,55 Q110,40 150,45 Q190,30 240,42 T290,65 Q330,80 315,115 T280,145 Q265,160 250,195 T215,230 Q195,250 185,245 T170,215 Q150,190 120,180 T75,130 Q65,95 75,55 Z"/>
-        <!-- 格陵蘭島 -->
-        <path d="M335,30 Q370,25 390,45 T370,85 Q340,95 325,70 Z"/>
-        <!-- 南美洲 -->
-        <path d="M225,260 Q270,265 295,290 T350,335 Q365,370 335,420 T290,480 Q275,485 270,450 T260,370 Q240,320 220,290 Z"/>
-        <!-- 歐洲 -->
-        <path d="M465,65 Q500,45 520,70 T495,115 Q515,125 540,110 T565,140 Q530,165 495,165 T455,185 Q440,175 445,150 T465,120 Q445,95 465,65 Z"/>
-        <!-- 英國與愛爾蘭 -->
-        <path d="M440,110 Q455,105 450,130 T435,140 Q430,120 440,110 Z"/>
-        <!-- 非洲 -->
-        <path d="M455,195 Q520,190 560,225 T585,285 Q560,345 530,410 T495,435 Q465,385 450,320 T420,245 Q430,210 455,195 Z"/>
-        <!-- 亞洲大陸 -->
-        <path d="M565,75 Q680,50 820,55 T940,95 Q910,145 870,175 T815,225 Q785,275 745,280 T705,250 Q670,285 640,250 T605,200 Q565,185 565,140 Z"/>
-        <!-- 日本列島 -->
-        <path d="M860,150 Q875,165 865,185 T850,210 Q845,195 855,170 Z"/>
-        <!-- 台灣島 -->
-        <path d="M805,245 Q812,250 810,260 T802,255 Z"/>
-        <!-- 大洋洲 (澳洲本土與紐西蘭) -->
-        <path d="M780,335 Q860,315 905,340 T925,410 Q870,445 810,430 T760,375 Z"/>
-        <path d="M935,420 Q950,430 940,455 T925,440 Z"/>
-      </g>
-    </svg>
+  // 地圖嚴格禁用 SVG，全面改用點陣圖片 (WebP / PNG)
+  const worldMapImgHTML = `
+    <img src="map_world.webp" onerror="this.onerror=null; this.src='map_world.png'; this.onerror=()=>this.src='world-map.webp'; this.onerror=()=>this.src='Glowing Gold World Map.png';" class="real-gold-map-img" alt="World Map" draggable="false">
   `;
 
-  // 1. 探索：唔要上面所有地區tag (無地區tag，清爽優雅)
-  // 2. 幅地圖唔要拉長，下面框縮返上去啲 (2:1 比例鎖定，間距大幅收斂)
   main.innerHTML = `
     <div class="view" style="padding-bottom: 50px;">
       <div class="section-head" style="margin-top:6px; margin-bottom:10px;">
@@ -1075,7 +1037,7 @@ async function renderExplore() {
       <!-- 真實金線世界地圖容器 (2:1 比例鎖定，杜絕拉長，支援平移縮放與產區轉換) -->
       <div class="world-radar-container" id="worldRadarBox">
         <div class="world-map-canvas-wrap" id="worldMapCanvasWrap">
-          ${inlineGoldMapSVG}
+          ${worldMapImgHTML}
           <!-- 釘選在實體地圖上的酒友/產區光點層 -->
           <div id="geoPinsContainer" style="position:absolute; inset:0; pointer-events:none;"></div>
         </div>
@@ -1384,7 +1346,7 @@ function showRegionalMap(country, region, b) {
   const hud = document.getElementById('worldMapHud');
   if (!regView || !wrap) return;
 
-  const svgContent = getRegionalMapSVG(country, region, b);
+  const mapImageContent = getRegionalMapImageHTML(country, region, b);
   const regionLabel = getRegionalHeaderLabel(country, region);
 
   regView.innerHTML = `
@@ -1393,7 +1355,7 @@ function showRegionalMap(country, region, b) {
       <span>${currentLang==='zh'?'返回世界地圖':'World Map'}</span>
     </button>
     <div class="region-header-badge">${regionLabel}</div>
-    ${svgContent}
+    ${mapImageContent}
     <div class="region-bottle-pill">
       🍷 ${esc(bottleName(b))} ${bottleVintage(b)!=='無年份'?'('+esc(bottleVintage(b))+')':''} ・ ${esc(region||country)}
     </div>
@@ -1448,187 +1410,104 @@ function getRegionalHeaderLabel(country, region) {
   return '🌍 ' + c + (r ? '・' + r : ' 產區');
 }
 
-function getRegionalMapSVG(country, region, bottle) {
+// =======================================================================
+// GitHub 既有地圖圖檔對照庫 (嚴格禁用 SVG，全數對應用戶 GitHub 現成圖檔)
+// 包含: map_world, map_europe, map_america, map_japan, map_taiwan, map_china, map_hk, map_africa, map_russia
+// =======================================================================
+
+function resolveGitHubMapKey(country, region) {
+  const c = (country || '').toLowerCase();
+  const r = (region || '').toLowerCase();
+
+  // 1. 歐洲產區 (法國波爾多/香檳/勃艮第、蘇格蘭/英國、義大利、西班牙、德國、葡萄牙等)
+  if (c.includes('法') || r.includes('波爾多') || r.includes('香檳') || r.includes('勃艮第') || c.includes('france') ||
+      c.includes('英') || c.includes('蘇格蘭') || r.includes('斯貝賽') || r.includes('艾雷') || c.includes('scotland') || c.includes('uk') ||
+      c.includes('義') || c.includes('意') || c.includes('italy') ||
+      c.includes('西') || c.includes('spain') ||
+      c.includes('德') || c.includes('germany') ||
+      c.includes('葡') || c.includes('portugal') ||
+      c.includes('歐') || c.includes('europe')) {
+    return 'map_europe';
+  }
+
+  // 2. 美洲產區 (美國納帕山谷、加州、肯塔基、智利、阿根廷、加拿大等)
+  if (c.includes('美') || r.includes('納帕') || r.includes('加州') || c.includes('usa') || c.includes('america') ||
+      c.includes('智利') || c.includes('chile') ||
+      c.includes('阿根廷') || c.includes('argentina') ||
+      c.includes('加') || c.includes('canada')) {
+    return 'map_america';
+  }
+
+  // 3. 日本產區 (山崎、余市、白州、清酒、燒酎、泡盛等)
+  if (c.includes('日') || r.includes('山崎') || r.includes('余市') || r.includes('白州') || r.includes('沖繩') || c.includes('japan')) {
+    return 'map_japan';
+  }
+
+  // 4. 台灣產區 (宜蘭噶瑪蘭、南投Omar等)
+  if (c.includes('台') || c.includes('臺灣') || r.includes('宜蘭') || r.includes('南投') || c.includes('taiwan')) {
+    return 'map_taiwan';
+  }
+
+  // 5. 中國產區 (茅台、紹興、寧夏賀蘭山等)
+  if (c.includes('中') || r.includes('茅台') || r.includes('寧夏') || r.includes('紹興') || c.includes('china')) {
+    return 'map_china';
+  }
+
+  // 6. 香港 (精釀啤酒、本地蒸餾廠等)
+  if (c.includes('港') || c.includes('hk') || c.includes('hong kong')) {
+    return 'map_hk';
+  }
+
+  // 7. 非洲產區 (南非開普敦 Stellenbosch 等)
+  if (c.includes('非') || c.includes('南非') || c.includes('africa') || c.includes('south africa')) {
+    return 'map_africa';
+  }
+
+  // 8. 俄羅斯 (伏特加等)
+  if (c.includes('俄') || c.includes('russia')) {
+    return 'map_russia';
+  }
+
+  return 'map_world';
+}
+
+function getRegionalHeaderLabel(country, region) {
+  const mapKey = resolveGitHubMapKey(country, region);
   const c = country || '';
   const r = region || '';
 
-  // 1. 法國・波爾多 / 香檳 / 勃艮第
-  if (c.includes('法') || r.includes('波爾多') || r.includes('香檳') || r.includes('勃艮第') || c.toLowerCase().includes('france')) {
-    return `
-      <svg viewBox="0 0 600 300" class="regional-map-svg" preserveAspectRatio="xMidYMid meet">
-        <rect width="600" height="300" fill="#060704"/>
-        <g stroke="rgba(212,175,55,0.06)" stroke-dasharray="3,3">
-          <line x1="0" y1="150" x2="600" y2="150"/>
-          <line x1="300" y1="0" x2="300" y2="300"/>
-        </g>
-        <!-- 法國整體邊界輪廓（低調金色） -->
-        <path d="M110,40 Q180,20 250,30 T320,60 Q380,80 390,140 T360,220 Q320,260 260,280 T160,260 Q110,210 100,150 T110,40 Z" fill="rgba(212,175,55,0.03)" stroke="rgba(212,175,55,0.3)" stroke-width="1.2" stroke-dasharray="4,2"/>
-        <!-- 吉倫特河口與加龍河、多爾多涅河 -->
-        <path d="M140,110 Q170,125 200,140 Q225,148 250,155 Q280,165 310,185" fill="none" stroke="rgba(56,189,248,0.45)" stroke-width="2.5" stroke-linecap="round"/>
-        <path d="M225,148 Q250,140 280,135 Q310,132 340,138" fill="none" stroke="rgba(56,189,248,0.35)" stroke-width="2" stroke-linecap="round"/>
-        <!-- 波爾多左岸 (Médoc) -->
-        <path d="M165,115 Q190,130 185,150 Q160,145 155,125 Z" fill="rgba(212,175,55,0.2)" stroke="#D4AF37" stroke-width="1.2"/>
-        <text x="140" y="142" fill="#D4AF37" font-size="10.5" font-family="monospace" font-weight="bold">左岸 Médoc</text>
-        <!-- 波爾多右岸 (Saint-Émilion) -->
-        <path d="M255,130 Q285,125 290,145 Q265,155 245,145 Z" fill="rgba(212,175,55,0.2)" stroke="#D4AF37" stroke-width="1.2"/>
-        <text x="260" y="125" fill="#D4AF37" font-size="10.5" font-family="monospace" font-weight="bold">右岸 St-Émilion</text>
-        <!-- 格拉夫與索甸 -->
-        <path d="M205,160 Q235,170 230,195 Q195,185 200,165 Z" fill="rgba(212,175,55,0.15)" stroke="#D4AF37" stroke-width="1"/>
-        <text x="210" y="190" fill="#D4AF37" font-size="9.5" font-family="monospace">格拉夫 Graves</text>
-        <!-- 香檳區 -->
-        <circle cx="280" cy="70" r="14" fill="rgba(212,175,55,0.12)" stroke="var(--gold-dim)" stroke-width="1"/>
-        <text x="260" y="52" fill="#A3A290" font-size="9.5" font-family="monospace">香檳 Champagne</text>
-        <!-- 勃艮第 -->
-        <ellipse cx="320" cy="115" rx="12" ry="20" fill="rgba(212,175,55,0.12)" stroke="var(--gold-dim)" stroke-width="1"/>
-        <text x="336" y="118" fill="#A3A290" font-size="9.5" font-family="monospace">勃艮第 Bourgogne</text>
-        <!-- 目標產區動態光暈 Pin -->
-        <g transform="translate(195, 142)">
-          <circle cx="0" cy="0" r="18" fill="none" stroke="#D4AF37" stroke-width="1.5" class="radar-ring"/>
-          <circle cx="0" cy="0" r="7" fill="#D4AF37"/>
-          <text x="0" y="4" text-anchor="middle" font-size="11">🍷</text>
-        </g>
-      </svg>
-    `;
-  }
+  const labelMap = {
+    'map_europe': '🇪🇺 歐洲・' + (r || c || '名釀產區'),
+    'map_america': '🇺🇸 美洲・' + (r || c || '名釀產區'),
+    'map_japan': '🇯🇵 日本・' + (r || c || '名釀產區'),
+    'map_taiwan': '🇹🇼 台灣・' + (r || c || '名釀產區'),
+    'map_china': '🇨🇳 中國・' + (r || c || '名釀產區'),
+    'map_hk': '🇭🇰 香港・' + (r || c || '本地精釀'),
+    'map_africa': '🇿🇦 非洲・' + (r || c || '名釀產區'),
+    'map_russia': '🇷🇺 俄羅斯・' + (r || c || '名釀產區'),
+    'map_world': '🌍 世界名釀產區'
+  };
 
-  // 2. 蘇格蘭・斯貝賽與高地
-  if (c.includes('英') || c.includes('蘇格蘭') || r.includes('斯貝賽') || r.includes('艾雷') || c.toLowerCase().includes('scotland')) {
-    return `
-      <svg viewBox="0 0 600 300" class="regional-map-svg" preserveAspectRatio="xMidYMid meet">
-        <rect width="600" height="300" fill="#060704"/>
-        <g stroke="rgba(212,175,55,0.06)" stroke-dasharray="3,3">
-          <line x1="0" y1="150" x2="600" y2="150"/>
-          <line x1="300" y1="0" x2="300" y2="300"/>
-        </g>
-        <!-- 蘇格蘭本土地圖邊界 -->
-        <path d="M220,30 Q270,20 310,40 T380,80 Q410,120 390,160 T350,220 Q310,270 260,280 T210,240 Q170,200 180,150 T200,90 Z" fill="rgba(212,175,55,0.04)" stroke="rgba(212,175,55,0.35)" stroke-width="1.4"/>
-        <!-- 斯貝河與斯貝賽 -->
-        <path d="M310,75 Q340,95 330,120" fill="none" stroke="rgba(56,189,248,0.5)" stroke-width="2"/>
-        <path d="M305,70 Q345,75 350,105 T315,115 Z" fill="rgba(212,175,55,0.22)" stroke="#D4AF37" stroke-width="1.2"/>
-        <text x="345" y="85" fill="#D4AF37" font-size="11" font-weight="bold" font-family="monospace">斯貝賽 Speyside</text>
-        <text x="235" y="110" fill="#A3A290" font-size="10" font-family="monospace">高地區 Highlands</text>
-        <!-- 艾雷島 -->
-        <ellipse cx="170" cy="195" rx="14" ry="10" fill="rgba(212,175,55,0.2)" stroke="#D4AF37" stroke-width="1.2"/>
-        <text x="120" y="200" fill="#D4AF37" font-size="10" font-family="monospace">艾雷島 Islay</text>
-        <text x="260" y="240" fill="#A3A290" font-size="10" font-family="monospace">低地區 Lowlands</text>
-        <!-- 目標釘選點 (斯貝賽 / 麥卡倫) -->
-        <g transform="translate(325, 90)">
-          <circle cx="0" cy="0" r="18" fill="none" stroke="#D4AF37" stroke-width="1.5" class="radar-ring"/>
-          <circle cx="0" cy="0" r="7" fill="#D4AF37"/>
-          <text x="0" y="4" text-anchor="middle" font-size="11">🥃</text>
-        </g>
-      </svg>
-    `;
-  }
+  return labelMap[mapKey] || '🌍 ' + c + (r ? '・' + r : '');
+}
 
-  // 3. 日本・山崎 / 余市 / 關西與北海道
-  if (c.includes('日') || r.includes('山崎') || r.includes('余市') || c.toLowerCase().includes('japan')) {
-    return `
-      <svg viewBox="0 0 600 300" class="regional-map-svg" preserveAspectRatio="xMidYMid meet">
-        <rect width="600" height="300" fill="#060704"/>
-        <g stroke="rgba(212,175,55,0.06)" stroke-dasharray="3,3">
-          <line x1="0" y1="150" x2="600" y2="150"/>
-          <line x1="300" y1="0" x2="300" y2="300"/>
-        </g>
-        <!-- 北海道島嶼 -->
-        <path d="M380,40 Q430,30 460,50 T440,90 Q400,105 370,80 Z" fill="rgba(212,175,55,0.06)" stroke="rgba(212,175,55,0.35)" stroke-width="1.2"/>
-        <circle cx="395" cy="65" r="4" fill="#D4AF37"/>
-        <text x="410" y="70" fill="#D4AF37" font-size="10" font-family="monospace">余市 Yoichi</text>
-        <!-- 本州島與關西山崎 -->
-        <path d="M360,100 Q330,130 300,160 T230,195 Q180,210 160,200 T210,180 Q270,140 330,105 Z" fill="rgba(212,175,55,0.08)" stroke="rgba(212,175,55,0.4)" stroke-width="1.4"/>
-        <circle cx="260" cy="180" r="5" fill="#D4AF37"/>
-        <text x="270" y="175" fill="#D4AF37" font-size="11" font-weight="bold" font-family="monospace">山崎 Yamazaki</text>
-        <circle cx="310" cy="150" r="4" fill="#D4AF37"/>
-        <text x="320" y="150" fill="#A3A290" font-size="10" font-family="monospace">白州 Hakushu</text>
-        <!-- 九州與沖繩 -->
-        <path d="M150,215 Q130,230 140,250 T165,240 Z" fill="rgba(212,175,55,0.05)" stroke="rgba(212,175,55,0.3)" stroke-width="1"/>
-        <text x="95" y="240" fill="#A3A290" font-size="9.5" font-family="monospace">九州・沖繩</text>
-        <!-- 目標釘選點 -->
-        <g transform="translate(260, 180)">
-          <circle cx="0" cy="0" r="18" fill="none" stroke="#D4AF37" stroke-width="1.5" class="radar-ring"/>
-          <circle cx="0" cy="0" r="7" fill="#D4AF37"/>
-          <text x="0" y="4" text-anchor="middle" font-size="11">🍶</text>
-        </g>
-      </svg>
-    `;
-  }
+function getRegionalMapImageHTML(country, region, bottle) {
+  const mapKey = resolveGitHubMapKey(country, region);
+  const regionLabel = getRegionalHeaderLabel(country, region);
 
-  // 4. 美國・加州納帕山谷
-  if (c.includes('美') || r.includes('納帕') || r.includes('加州') || c.toLowerCase().includes('usa')) {
-    return `
-      <svg viewBox="0 0 600 300" class="regional-map-svg" preserveAspectRatio="xMidYMid meet">
-        <rect width="600" height="300" fill="#060704"/>
-        <g stroke="rgba(212,175,55,0.06)" stroke-dasharray="3,3">
-          <line x1="0" y1="150" x2="600" y2="150"/>
-          <line x1="300" y1="0" x2="300" y2="300"/>
-        </g>
-        <path d="M140,40 Q180,100 220,180 T260,280" fill="none" stroke="rgba(212,175,55,0.25)" stroke-width="1.2" stroke-dasharray="4,2"/>
-        <!-- 納帕河與山谷 AVA 輪廓 -->
-        <path d="M280,50 Q305,100 330,160 T360,240" fill="none" stroke="rgba(56,189,248,0.5)" stroke-width="2.2"/>
-        <path d="M260,60 Q300,50 320,80 T350,170 Q370,230 340,250 T280,210 Q250,140 260,60 Z" fill="rgba(212,175,55,0.08)" stroke="#D4AF37" stroke-width="1.2"/>
-        <text x="245" y="80" fill="#A3A290" font-size="9.5" font-family="monospace">卡利斯托加 Calistoga</text>
-        <text x="265" y="115" fill="#A3A290" font-size="9.5" font-family="monospace">聖海倫娜 St. Helena</text>
-        <text x="290" y="150" fill="#D4AF37" font-size="11" font-weight="bold" font-family="monospace">奧克維爾 Oakville</text>
-        <text x="310" y="185" fill="#A3A290" font-size="9.5" font-family="monospace">鹿躍區 Stags Leap</text>
-        <text x="330" y="225" fill="#A3A290" font-size="9.5" font-family="monospace">卡內羅斯 Carneros</text>
-        <g transform="translate(290, 150)">
-          <circle cx="0" cy="0" r="18" fill="none" stroke="#D4AF37" stroke-width="1.5" class="radar-ring"/>
-          <circle cx="0" cy="0" r="7" fill="#D4AF37"/>
-          <text x="0" y="4" text-anchor="middle" font-size="11">🍷</text>
-        </g>
-      </svg>
-    `;
-  }
-
-  // 5. 台灣・宜蘭與南投
-  if (c.includes('台') || c.includes('臺灣') || r.includes('宜蘭') || r.includes('南投')) {
-    return `
-      <svg viewBox="0 0 600 300" class="regional-map-svg" preserveAspectRatio="xMidYMid meet">
-        <rect width="600" height="300" fill="#060704"/>
-        <g stroke="rgba(212,175,55,0.06)" stroke-dasharray="3,3">
-          <line x1="0" y1="150" x2="600" y2="150"/>
-          <line x1="300" y1="0" x2="300" y2="300"/>
-        </g>
-        <path d="M280,45 Q310,55 330,85 T320,160 Q300,220 280,265 T255,255 Q235,180 240,110 T280,45 Z" fill="rgba(212,175,55,0.08)" stroke="#D4AF37" stroke-width="1.4"/>
-        <path d="M285,75 Q295,120 290,170 T275,230" fill="none" stroke="rgba(212,175,55,0.3)" stroke-width="1" stroke-dasharray="2,2"/>
-        <circle cx="315" cy="85" r="4.5" fill="#D4AF37"/>
-        <text x="325" y="85" fill="#D4AF37" font-size="10.5" font-weight="bold" font-family="monospace">宜蘭・噶瑪蘭 (Kavalan)</text>
-        <circle cx="275" cy="145" r="4" fill="#D4AF37"/>
-        <text x="200" y="145" fill="#D4AF37" font-size="10" font-family="monospace">南投・Omar</text>
-        <g transform="translate(315, 85)">
-          <circle cx="0" cy="0" r="18" fill="none" stroke="#D4AF37" stroke-width="1.5" class="radar-ring"/>
-          <circle cx="0" cy="0" r="7" fill="#D4AF37"/>
-          <text x="0" y="4" text-anchor="middle" font-size="11">🥃</text>
-        </g>
-      </svg>
-    `;
-  }
-
-  // 6. 通用產區地圖 (義大利/西班牙/澳洲/其他名釀產區)
+  // 優先載入根目錄與 maps/ 下之 webp / png 圖檔，全自動 Fallback
   return `
-    <svg viewBox="0 0 600 300" class="regional-map-svg" preserveAspectRatio="xMidYMid meet">
-      <rect width="600" height="300" fill="#060704"/>
-      <g stroke="rgba(212,175,55,0.08)" stroke-width="1">
-        <circle cx="300" cy="150" r="100" fill="none" stroke-dasharray="4,4"/>
-        <circle cx="300" cy="150" r="60" fill="none"/>
-        <circle cx="300" cy="150" r="25" fill="none"/>
-        <line x1="160" y1="150" x2="440" y2="150"/>
-        <line x1="300" y1="20" x2="300" y2="280"/>
-      </g>
-      <!-- 風土等高線 -->
-      <path d="M220,130 Q260,110 300,120 T380,140" fill="none" stroke="rgba(212,175,55,0.25)" stroke-width="1.2"/>
-      <path d="M200,160 Q250,180 300,170 T390,155" fill="none" stroke="rgba(212,175,55,0.25)" stroke-width="1.2"/>
-      <!-- 風土標記 -->
-      <text x="300" y="90" text-anchor="middle" fill="#D4AF37" font-size="13" font-family="monospace" font-weight="bold">${esc(c)} ・ ${esc(r||'名釀微氣候')}</text>
-      <text x="300" y="225" text-anchor="middle" fill="#A3A290" font-size="10.5" font-family="monospace">TERROIR APPELLATION GRID</text>
-      <g transform="translate(300, 150)">
-        <circle cx="0" cy="0" r="22" fill="none" stroke="#D4AF37" stroke-width="1.8" class="radar-ring"/>
-        <circle cx="0" cy="0" r="8" fill="#D4AF37"/>
-        <text x="0" y="4" text-anchor="middle" font-size="12">🍷</text>
-      </g>
-    </svg>
+    <img src="${mapKey}.webp"
+         onerror="this.onerror=null; this.src='${mapKey}.png'; this.onerror=()=>this.src='maps/${mapKey}.webp'; this.onerror=()=>this.src='maps/${mapKey}.png'; this.onerror=()=>this.src='map_world.webp';"
+         class="regional-map-img" alt="${regionLabel}" draggable="false">
+    <!-- 產區焦點光環 Pin (純 HTML/CSS 動畫，零 SVG) -->
+    <div class="regional-focus-pin">
+      <div class="pin-radar-ring"></div>
+      <div class="pin-core">🍷</div>
+    </div>
   `;
 }
+
 
 async function loadPublicCellar(key, sharedShelf, sharedBottleId) {
   try {
