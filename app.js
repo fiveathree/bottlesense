@@ -1517,7 +1517,7 @@ async function shareSingleSession(bottleId, sessionId) {
 ======================================================================= */
 // 真實世界金線地圖對應坐標庫 (百分比 %：top, left)
 // 載入使用者附件的實體「黑底金邊世界地圖」圖片 (Glowing Gold World Map.png)
-const ATTACHED_GOLD_MAP_SRC = "Glowing%20Gold%20World%20Map.png";
+const ATTACHED_GOLD_MAP_SRC = "Glowing_Gold_World_Map.webp";
 
 // 真實世界金線地圖精準經緯座標對應庫 (依據 Glowing Gold World Map 像素校準，單位 %)
 const REAL_IMAGE_GEO_POINTS = {
@@ -1708,7 +1708,7 @@ function handleGoldMapError(img) {
     img.src = "Glowing Gold World Map.png";
   } else if (img.dataset.retry === "1") {
     img.dataset.retry = "2";
-    img.src = "map.png";
+    img.src = "Glowing_Gold_World_Map.webp";
   }
 }
 
@@ -3409,6 +3409,11 @@ function closeModal() {
 
 async function initApp() {
   try {
+    // 註冊 PWA Service Worker (支援離線快取與獨立 App 安裝)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+    }
+
     // 背景預載並預先解碼世界地圖，徹底消除進入探索頁面的數秒延遲
     const preloadMapImg = new Image();
     preloadMapImg.src = ATTACHED_GOLD_MAP_SRC;
