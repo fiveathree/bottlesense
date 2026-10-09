@@ -1049,160 +1049,188 @@ function findClosestWorldZone(cl, ct) {
 // =======================================================================
 // 精準產區地理 Pin 座標庫（各區域地圖精準校準，杜絕隨便居中顯示）
 // =======================================================================
+// =======================================================================
+// 精準產區地理 Pin 座標庫（針對各張區域地圖量身校準，杜絕偏位與誤判）
+// 每個子產區均配置豐富關鍵字群，優先精確匹配，絕不隨意回退至中部
+// =======================================================================
 const REGIONAL_MAP_PINS = {
+  'map_japan': {
+    // 沖繩群島 (日本西南端 / 琉球泡盛)
+    '沖繩': { top: 88.0, left: 20.0, name: '沖繩・琉球泡盛 (Okinawa)', keywords: ['沖繩', '沖縄', 'okinawa', '泡盛', 'awamori', '琉球', 'ryukyu', '那霸', 'naha', '宮古', '石垣', '殘波', '殘波白', '菊之露', '久米仙'] },
+    // 九州 (鹿兒島 / 熊本 / 本格燒酎)
+    '九州': { top: 72.0, left: 34.0, name: '九州・本格燒酎 (Kyushu)', keywords: ['九州', 'kyushu', '鹿兒島', '熊本', '宮崎', '長崎', '燒酎', '芋燒酎', '麥燒酎', '魔王', '森伊藏', '村尾', '百年の孤獨', '神之河', '天孫降臨'] },
+    // 山口 (獺祭 / 旭酒造)
+    '山口': { top: 63.5, left: 41.0, name: '山口・獺祭旭酒造 (Dassai)', keywords: ['山口', 'yamaguchi', '獺祭', 'dassai', '旭酒造', '二割三分', '三割九分'] },
+    // 兵庫 (灘五鄉 / 神戶 / 山田錦盛產地)
+    '兵庫': { top: 58.0, left: 49.0, name: '兵庫・灘五鄉 (Hyogo)', keywords: ['兵庫', 'hyogo', '神戶', '灘五鄉', '黑松白扇', '大關', '劍菱', '菊正宗', '白鶴'] },
+    // 關西山崎 (大阪與京都交界 / 三得利蒸餾所)
+    '山崎': { top: 57.5, left: 51.5, name: '關西・山崎蒸餾所 (Yamazaki)', keywords: ['山崎', 'yamazaki', '三得利山崎', '京都', '大阪', '響', 'hibiki'] },
+    // 山梨白州 (南阿爾卑斯 / 白州蒸餾所)
+    '白州': { top: 53.5, left: 58.0, name: '山梨・白州蒸餾所 (Hakushu)', keywords: ['白州', 'hakushu', '山梨', '南阿爾卑斯'] },
+    // 關東與東京
+    '東京': { top: 52.0, left: 61.5, name: '東京・關東 (Tokyo)', keywords: ['東京', 'tokyo', '埼玉', '秩父', 'chichibu', '一郎'] },
+    // 新潟 (越後雪國銘酒 / 久保田 / 八海山)
+    '新潟': { top: 47.0, left: 59.0, name: '新潟・越後銘酒 (Niigata)', keywords: ['新潟', 'niigata', '越後', '久保田', '千壽', '萬壽', '八海山', '越乃寒梅', '尾瀨'] },
+    // 東北 (宮城峽 / 仙台 / 清酒名產區)
+    '東北': { top: 41.0, left: 65.0, name: '東北・宮城峽 (Tohoku)', keywords: ['東北', '宮城', '仙台', '宮城峽', 'miyagikyo', '青森', '秋田', '新政', '十四代', '山形', '高木酒造', '男山'] },
+    // 北海道 (余市 / Nikka 威士忌)
+    '余市': { top: 22.0, left: 77.0, name: '北海道・余市蒸餾所 (Yoichi)', keywords: ['余市', 'yoichi', 'nikka', '一號貯藏庫'] },
+    '北海道': { top: 24.0, left: 79.0, name: '北海道名釀區 (Hokkaido)', keywords: ['北海道', 'hokkaido', '札幌', '男山'] },
+    // 日本全境默認中心 (僅在無法辨識任何具體地名時使用)
+    '日本': { top: 56.0, left: 53.0, name: '日本名釀產區 (Japan)', keywords: ['日本', 'japan'] }
+  },
   'map_europe': {
-    '波爾多': { top: 58.0, left: 39.5, name: '法國・波爾多 (Bordeaux)' },
-    '香檳': { top: 48.0, left: 44.5, name: '法國・香檳 (Champagne)' },
-    '勃艮第': { top: 52.5, left: 47.0, name: '法國・勃艮第 (Bourgogne)' },
-    '法國': { top: 54.0, left: 42.5, name: '法國名釀區 (France)' },
-    '斯貝賽': { top: 29.5, left: 37.0, name: '蘇格蘭・斯貝賽 (Speyside)' },
-    '艾雷島': { top: 34.0, left: 33.5, name: '蘇格蘭・艾雷島 (Islay)' },
-    '高地': { top: 31.0, left: 35.5, name: '蘇格蘭・高地 (Highlands)' },
-    '低地': { top: 36.5, left: 37.0, name: '蘇格蘭・低地 (Lowlands)' },
-    '蘇格蘭': { top: 32.0, left: 36.0, name: '蘇格蘭威士忌產區' },
-    '英國': { top: 38.0, left: 38.0, name: '英國 (UK)' },
-    '托斯卡納': { top: 64.0, left: 52.0, name: '義大利・托斯卡納 (Tuscany)' },
-    '皮埃蒙特': { top: 58.5, left: 49.0, name: '義大利・皮埃蒙特 (Piedmont)' },
-    '義大利': { top: 63.0, left: 53.0, name: '義大利 (Italy)' },
-    '意大利': { top: 63.0, left: 53.0, name: '義大利 (Italy)' },
-    '里奧哈': { top: 65.0, left: 35.5, name: '西班牙・里奧哈 (Rioja)' },
-    '西班牙': { top: 68.0, left: 33.0, name: '西班牙 (Spain)' },
-    '葡萄牙': { top: 68.5, left: 27.5, name: '葡萄牙 (Portugal)' },
-    '德國': { top: 47.0, left: 50.0, name: '德國 (Germany)' }
+    '波爾多': { top: 58.0, left: 39.5, name: '法國・波爾多 (Bordeaux)', keywords: ['波爾多', 'bordeaux', '左岸', '右岸', 'medoc', 'médoc', 'margaux', 'pauillac', 'latour', 'lafite', 'saint-émilion', 'st-émilion', 'pomerol', 'graves', 'sauternes'] },
+    '香檳': { top: 48.0, left: 44.5, name: '法國・香檳 (Champagne)', keywords: ['香檳', 'champagne', 'reims', 'epernay', 'épernay', 'dom perignon', 'krug'] },
+    '勃艮第': { top: 52.5, left: 47.0, name: '法國・勃艮第 (Bourgogne)', keywords: ['勃艮第', 'bourgogne', 'burgundy', 'drc', 'côte de nuits', 'beaune', 'chablis'] },
+    '羅納河': { top: 59.0, left: 46.5, name: '法國・羅納河谷 (Rhône)', keywords: ['羅納河', 'rhone', 'rhône', 'châteauneuf-du-pape'] },
+    '法國': { top: 54.0, left: 42.5, name: '法國名釀區 (France)', keywords: ['法國', 'france'] },
+    '斯貝賽': { top: 29.5, left: 37.0, name: '蘇格蘭・斯貝賽 (Speyside)', keywords: ['斯貝賽', 'speyside', 'macallan', '麥卡倫', 'glenfiddich', 'glenlivet', 'balvenie'] },
+    '艾雷島': { top: 34.0, left: 33.5, name: '蘇格蘭・艾雷島 (Islay)', keywords: ['艾雷島', 'islay', 'ardbeg', 'laphroaig', 'lagavulin', 'bowmore'] },
+    '高地': { top: 31.0, left: 35.5, name: '蘇格蘭・高地 (Highlands)', keywords: ['高地', 'highlands', 'glenmorangie', 'oban', 'dalmore'] },
+    '低地': { top: 36.5, left: 37.0, name: '蘇格蘭・低地 (Lowlands)', keywords: ['低地', 'lowlands', 'auchentoshan', '歐肯'] },
+    '蘇格蘭': { top: 32.0, left: 36.0, name: '蘇格蘭威士忌產區', keywords: ['蘇格蘭', 'scotland', 'scotch'] },
+    '英國': { top: 38.0, left: 38.0, name: '英國名釀 (UK)', keywords: ['英國', 'uk'] },
+    '托斯卡納': { top: 64.0, left: 52.0, name: '義大利・托斯卡納 (Tuscany)', keywords: ['托斯卡納', 'tuscany', 'toscana', 'chianti', 'brunello', 'sassicaia'] },
+    '皮埃蒙特': { top: 58.5, left: 49.0, name: '義大利・皮埃蒙特 (Piedmont)', keywords: ['皮埃蒙特', 'piedmont', 'piemonte', 'barolo', 'barbaresco'] },
+    '義大利': { top: 63.0, left: 53.0, name: '義大利名釀 (Italy)', keywords: ['義大利', '意大利', 'italy', 'italia'] },
+    '里奧哈': { top: 65.0, left: 35.5, name: '西班牙・里奧哈 (Rioja)', keywords: ['里奧哈', 'rioja'] },
+    '西班牙': { top: 68.0, left: 33.0, name: '西班牙名釀 (Spain)', keywords: ['西班牙', 'spain', 'españa', 'jerez', '雪莉'] },
+    '葡萄牙': { top: 68.5, left: 27.5, name: '葡萄牙・波特酒 (Portugal)', keywords: ['葡萄牙', 'portugal', 'porto', 'port wine'] },
+    '德國': { top: 47.0, left: 50.0, name: '德國・摩澤爾 (Germany)', keywords: ['德國', 'germany', 'mosel', 'rheingau', 'riesling', '麗絲玲'] }
   },
   'map_america': {
-    '納帕': { top: 37.5, left: 21.0, name: '美國・加州納帕山谷 (Napa Valley)' },
-    '加州': { top: 38.5, left: 21.5, name: '美國・加州 (California)' },
-    '肯塔基': { top: 41.0, left: 36.5, name: '美國・肯塔基波本 (Kentucky)' },
-    '奧勒岡': { top: 34.0, left: 22.0, name: '美國・奧勒岡 (Oregon)' },
-    '美國': { top: 39.0, left: 30.0, name: '美國名釀產區 (USA)' },
-    '智利': { top: 81.0, left: 55.0, name: '智利・中央山谷 (Chile)' },
-    '阿根廷': { top: 81.5, left: 58.5, name: '阿根廷・門多薩 (Argentina)' }
-  },
-  'map_japan': {
-    '余市': { top: 23.0, left: 78.0, name: '北海道・余市蒸餾所 (Yoichi)' },
-    '北海道': { top: 25.0, left: 79.5, name: '北海道產區 (Hokkaido)' },
-    '山崎': { top: 57.5, left: 51.5, name: '關西・山崎蒸餾所 (Yamazaki)' },
-    '白州': { top: 53.5, left: 58.0, name: '山梨・白州蒸餾所 (Hakushu)' },
-    '東京': { top: 52.0, left: 61.5, name: '東京 (Tokyo)' },
-    '新潟': { top: 47.0, left: 59.0, name: '新潟・越後銘酒 (Niigata)' },
-    '山口': { top: 63.5, left: 41.0, name: '山口・獺祭旭酒造 (Dassai)' },
-    '沖繩': { top: 89.0, left: 22.0, name: '沖繩・琉球泡盛 (Okinawa)' },
-    '日本': { top: 56.0, left: 53.0, name: '日本名釀產區 (Japan)' }
+    '納帕': { top: 37.5, left: 21.0, name: '美國・加州納帕山谷 (Napa Valley)', keywords: ['納帕', 'napa', 'oakville', 'rutherford', 'opus one', 'stags leap', 'screaming eagle'] },
+    '加州': { top: 38.5, left: 21.5, name: '美國・加州 (California)', keywords: ['加州', 'california', 'sonoma', '索諾瑪', 'robert mondavi'] },
+    '肯塔基': { top: 41.0, left: 36.5, name: '美國・肯塔基波本 (Kentucky)', keywords: ['肯塔基', 'kentucky', '波本', 'bourbon', 'jim beam', 'makers mark', 'woodford'] },
+    '奧勒岡': { top: 34.0, left: 22.0, name: '美國・奧勒岡 (Oregon)', keywords: ['奧勒岡', 'oregon', 'willamette', '黑皮諾', '威蓋堡'] },
+    '美國': { top: 39.0, left: 30.0, name: '美國名釀產區 (USA)', keywords: ['美國', 'usa', 'america', 'united states'] },
+    '智利': { top: 81.0, left: 55.0, name: '智利・中央山谷 (Chile)', keywords: ['智利', 'chile', 'almahue', 'maipo', 'colchagua', '太陽神', 'puyen'] },
+    '阿根廷': { top: 81.5, left: 58.5, name: '阿根廷・門多薩 (Argentina)', keywords: ['阿根廷', 'argentina', 'mendoza', 'amancaya', '馬爾貝克', 'malbec', 'catena'] }
   },
   'map_taiwan': {
-    '宜蘭': { top: 26.5, left: 72.0, name: '宜蘭・噶瑪蘭酒廠 (Kavalan)' },
-    '南投': { top: 52.0, left: 48.0, name: '南投・Omar威士忌酒廠 (Omar)' },
-    '台北': { top: 18.0, left: 66.0, name: '台北精釀 (Taipei)' },
-    '台中': { top: 44.0, left: 44.0, name: '台中 (Taichung)' },
-    '台南': { top: 71.0, left: 35.0, name: '台南 (Tainan)' },
-    '高雄': { top: 76.0, left: 37.0, name: '高雄 (Kaohsiung)' },
-    '金門': { top: 40.0, left: 15.0, name: '金門高粱 (Kinmen)' },
-    '台灣': { top: 48.0, left: 52.0, name: '台灣名釀風土 (Taiwan)' }
+    '宜蘭': { top: 26.5, left: 72.0, name: '宜蘭・噶瑪蘭酒廠 (Kavalan)', keywords: ['宜蘭', 'yilan', '噶瑪蘭', 'kavalan', '員山', '金車'] },
+    '南投': { top: 52.0, left: 48.0, name: '南投・Omar威士忌酒廠 (Omar)', keywords: ['南投', 'nantou', 'omar', '歐瑪', '埔里', '信義鄉', '梅酒'] },
+    '台北': { top: 18.0, left: 66.0, name: '台北・精釀 (Taipei)', keywords: ['台北', '新北', '基隆', 'taipei', '酉鬼', '掌門'] },
+    '台中': { top: 44.0, left: 44.0, name: '台中 (Taichung)', keywords: ['台中', 'taichung'] },
+    '台南': { top: 71.0, left: 35.0, name: '台南 (Tainan)', keywords: ['台南', 'tainan'] },
+    '高雄': { top: 76.0, left: 37.0, name: '高雄 (Kaohsiung)', keywords: ['高雄', 'kaohsiung'] },
+    '金門': { top: 40.0, left: 15.0, name: '金門・高粱酒 (Kinmen)', keywords: ['金門', 'kinmen', '高粱'] },
+    '台灣': { top: 48.0, left: 52.0, name: '台灣名釀風土 (Taiwan)', keywords: ['台灣', '臺灣', 'taiwan'] }
   },
   'map_china': {
-    '茅台': { top: 66.0, left: 54.0, name: '貴州・茅台鎮 (Maotai)' },
-    '貴州': { top: 66.0, left: 54.0, name: '貴州醬酒產區 (Guizhou)' },
-    '寧夏': { top: 43.0, left: 50.0, name: '寧夏・賀蘭山東麓 (Ningxia)' },
-    '四川': { top: 61.0, left: 48.0, name: '四川・名酒帶 (Sichuan)' },
-    '紹興': { top: 59.0, left: 78.0, name: '浙江・紹興黃酒 (Shaoxing)' },
-    '山西': { top: 45.0, left: 59.0, name: '山西・杏花村汾酒 (Shanxi)' },
-    '中國': { top: 52.0, left: 58.0, name: '中國名產區 (China)' }
+    '茅台': { top: 66.0, left: 54.0, name: '貴州・茅台鎮 (Maotai)', keywords: ['茅台', 'maotai', 'moutai', '貴州', '仁懷', '赤水河', '醬香'] },
+    '寧夏': { top: 43.0, left: 50.0, name: '寧夏・賀蘭山東麓 (Ningxia)', keywords: ['寧夏', 'ningxia', '賀蘭山'] },
+    '四川': { top: 61.0, left: 48.0, name: '四川・名酒帶 (Sichuan)', keywords: ['四川', 'sichuan', '五糧液', '瀘州老窖', '郎酒', '劍南春'] },
+    '紹興': { top: 59.0, left: 78.0, name: '浙江・紹興黃酒 (Shaoxing)', keywords: ['紹興', 'shaoxing', '浙江', '古越龍山', '花雕'] },
+    '山西': { top: 45.0, left: 59.0, name: '山西・杏花村汾酒 (Shanxi)', keywords: ['山西', 'shanxi', '汾酒', '杏花村'] },
+    '中國': { top: 52.0, left: 58.0, name: '中國名產區 (China)', keywords: ['中國', 'china'] }
   },
   'map_hk': {
-    '新界': { top: 35.0, left: 48.0, name: '新界・本地釀造所' },
-    '九龍': { top: 56.0, left: 52.0, name: '九龍・精釀酒吧帶' },
-    '中環': { top: 68.0, left: 56.0, name: '港島・中環品飲聚落' },
-    '香港': { top: 55.0, left: 54.0, name: '香港・本地精釀與烈酒 (Hong Kong)' }
+    '新界': { top: 35.0, left: 48.0, name: '新界・本地釀造所', keywords: ['新界', '荃灣', '火炭', '葵涌', '少爺', 'young master'] },
+    '九龍': { top: 56.0, left: 52.0, name: '九龍・精釀酒吧帶', keywords: ['九龍', '旺角', '尖沙咀', '觀塘', '大角咀'] },
+    '中環': { top: 68.0, left: 56.0, name: '港島・中環品飲聚落', keywords: ['中環', '上環', '灣仔', '港島', '黃竹坑', '白蘭樹下', 'perfume trees'] },
+    '香港': { top: 55.0, left: 54.0, name: '香港・本地精釀與烈酒 (Hong Kong)', keywords: ['香港', 'hk', 'hong kong'] }
   },
   'map_africa': {
-    '南非': { top: 86.0, left: 48.0, name: '南非・開普敦 Stellenbosch' },
-    '非洲': { top: 50.0, left: 50.0, name: '非洲產區 (Africa)' }
+    '南非': { top: 86.0, left: 48.0, name: '南非・開普敦 Stellenbosch', keywords: ['南非', 'south africa', 'stellenbosch', 'paarl', 'cape town', '開普敦', '皮諾塔吉', 'pinotage'] },
+    '非洲': { top: 50.0, left: 50.0, name: '非洲產區 (Africa)', keywords: ['非洲', 'africa'] }
   },
   'map_russia': {
-    '莫斯科': { top: 48.0, left: 25.0, name: '俄羅斯・莫斯科伏特加' },
-    '俄羅斯': { top: 50.0, left: 45.0, name: '俄羅斯 (Russia)' }
+    '莫斯科': { top: 48.0, left: 25.0, name: '俄羅斯・莫斯科伏特加', keywords: ['莫斯科', 'moscow', '伏特加', 'vodka', 'beluga'] },
+    '俄羅斯': { top: 50.0, left: 45.0, name: '俄羅斯 (Russia)', keywords: ['俄羅斯', 'russia'] }
   }
 };
 
-function resolveRegionalPinPos(mapKey, country, region) {
+// 智慧產區座標解析：整合產區、酒款名稱、種類與筆記，採嚴格優先權階層比對
+// 1. 優先精準匹配特定子產區 (如沖繩、波爾多、斯貝賽)
+// 2. 杜絕被寬泛國家名（如日本、法國）搶先匹配導致偏位至中部
+function resolveRegionalPinPos(mapKey, country, region, b = null) {
   const mapTable = REGIONAL_MAP_PINS[mapKey];
-  if (mapTable) {
-    if (region && mapTable[region]) return mapTable[region];
-    if (country && mapTable[country]) return mapTable[country];
-    for (const k in mapTable) {
-      if (region && region.includes(k)) return mapTable[k];
-      if (country && country.includes(k)) return mapTable[k];
+  if (!mapTable) return { top: 50.0, left: 50.0, name: region || country || '產區核心' };
+
+  // 匯聚該酒款所有文字線索
+  const bName = b ? bottleName(b) : '';
+  const bCat = b ? (b.category || b.identification?.category || '') : '';
+  const bProd = b ? (b.identification?.producer || '') : '';
+  const bLoc = b ? (b.location || b.diary?.location || '') : '';
+  const fullText = `${region || ''} ${country || ''} ${bName} ${bCat} ${bProd} ${bLoc}`.toLowerCase();
+
+  // 第一階段：優先匹配具體特定子產區 (完全排除通用大國名，確保沖繩、余市、納帕等精確命中)
+  const broadCountryKeys = ['日本', '法國', '英國', '蘇格蘭', '美國', '台灣', '中國', '香港', '非洲', '俄羅斯'];
+  for (const k in mapTable) {
+    if (broadCountryKeys.includes(k)) continue;
+    const item = mapTable[k];
+    const kws = item.keywords || [k];
+    for (const kw of kws) {
+      if (kw && fullText.includes(kw.toLowerCase())) {
+        return item;
+      }
     }
   }
+
+  // 第二階段：若完全無任何子產區特徵，才匹配大國別
+  for (const k of broadCountryKeys) {
+    if (mapTable[k]) {
+      const item = mapTable[k];
+      const kws = item.keywords || [k];
+      for (const kw of kws) {
+        if (kw && fullText.includes(kw.toLowerCase())) {
+          return item;
+        }
+      }
+    }
+  }
+
   return { top: 52.0, left: 48.0, name: region || country || '產區核心' };
 }
 
-function resolveGitHubMapKey(country, region) {
-  const c = (country || '').toLowerCase();
-  const r = (region || '').toLowerCase();
+// 世界地圖飛航座標解析 (同樣具備子產區優先權，確保沖繩飛向西南，余市飛向東北)
+function resolveRealImagePinPos(country, region, b = null) {
+  const bName = b ? bottleName(b) : '';
+  const bCat = b ? (b.category || b.identification?.category || '') : '';
+  const fullText = `${region || ''} ${country || ''} ${bName} ${bCat}`.toLowerCase();
 
-  if (c.includes('法') || r.includes('波爾多') || r.includes('香檳') || r.includes('勃艮第') || c.includes('france') ||
-      c.includes('英') || c.includes('蘇格蘭') || r.includes('斯貝賽') || r.includes('艾雷') || c.includes('scotland') || c.includes('uk') ||
-      c.includes('義') || c.includes('意') || c.includes('italy') ||
-      c.includes('西') || c.includes('spain') ||
-      c.includes('德') || c.includes('germany') ||
-      c.includes('葡') || c.includes('portugal') ||
-      c.includes('歐') || c.includes('europe')) {
-    return 'map_europe';
+  // 1. 優先匹配子產區
+  if (fullText.includes('沖繩') || fullText.includes('沖縄') || fullText.includes('okinawa') || fullText.includes('泡盛') || fullText.includes('琉球')) {
+    return { top: 39.0, left: 80.5 }; // 世界地圖上的沖繩琉球群島 (西南端)
+  }
+  if (fullText.includes('余市') || fullText.includes('北海道') || fullText.includes('hokkaido')) {
+    return { top: 27.5, left: 84.5 }; // 世界地圖上的北海道
+  }
+  if (fullText.includes('山崎') || fullText.includes('京都') || fullText.includes('大阪')) {
+    return { top: 33.0, left: 83.0 }; // 關西山崎
+  }
+  if (fullText.includes('波爾多') || fullText.includes('bordeaux')) {
+    return { top: 30.0, left: 48.8 };
+  }
+  if (fullText.includes('香檳') || fullText.includes('champagne')) {
+    return { top: 27.2, left: 49.8 };
+  }
+  if (fullText.includes('斯貝賽') || fullText.includes('speyside')) {
+    return { top: 22.5, left: 47.8 };
+  }
+  if (fullText.includes('納帕') || fullText.includes('napa')) {
+    return { top: 31.8, left: 16.5 };
+  }
+  if (fullText.includes('宜蘭') || fullText.includes('噶瑪蘭')) {
+    return { top: 40.0, left: 79.8 };
+  }
+  if (fullText.includes('香港') || fullText.includes('hong kong')) {
+    return { top: 41.2, left: 77.8 };
   }
 
-  if (c.includes('美') || r.includes('納帕') || r.includes('加州') || c.includes('usa') || c.includes('america') ||
-      c.includes('智利') || c.includes('chile') ||
-      c.includes('阿根廷') || c.includes('argentina') ||
-      c.includes('加') || c.includes('canada')) {
-    return 'map_america';
+  // 2. 查閱原有座標表
+  if (region && REAL_IMAGE_GEO_POINTS[region]) return REAL_IMAGE_GEO_POINTS[region];
+  if (country && REAL_IMAGE_GEO_POINTS[country]) return REAL_IMAGE_GEO_POINTS[country];
+  for (const k in REAL_IMAGE_GEO_POINTS) {
+    if (k !== '日本' && k !== '美國' && k !== '中國' && fullText.includes(k.toLowerCase())) {
+      return REAL_IMAGE_GEO_POINTS[k];
+    }
   }
+  if (country && REAL_IMAGE_GEO_POINTS[country]) return REAL_IMAGE_GEO_POINTS[country];
 
-  if (c.includes('日') || r.includes('山崎') || r.includes('余市') || r.includes('白州') || r.includes('沖繩') || c.includes('japan')) {
-    return 'map_japan';
-  }
-
-  if (c.includes('台') || c.includes('臺灣') || r.includes('宜蘭') || r.includes('南投') || c.includes('taiwan')) {
-    return 'map_taiwan';
-  }
-
-  if (c.includes('中') || r.includes('茅台') || r.includes('寧夏') || r.includes('紹興') || c.includes('china')) {
-    return 'map_china';
-  }
-
-  if (c.includes('港') || c.includes('hk') || c.includes('hong kong') || r.includes('香港') || r.includes('九龍') || r.includes('中環')) {
-    return 'map_hk';
-  }
-
-  if (c.includes('非') || c.includes('南非') || c.includes('africa') || c.includes('south africa')) {
-    return 'map_africa';
-  }
-
-  if (c.includes('俄') || c.includes('russia')) {
-    return 'map_russia';
-  }
-
-  return 'map_world';
-}
-
-function getRegionalHeaderLabel(mapKey, country, region) {
-  const c = country || '';
-  const r = region || '';
-
-  const labelMap = {
-    'map_europe': '🇪🇺 歐洲・' + (r || c || '名釀產區'),
-    'map_america': '🇺🇸 美洲・' + (r || c || '名釀產區'),
-    'map_japan': '🇯🇵 日本・' + (r || c || '名釀產區'),
-    'map_taiwan': '🇹🇼 台灣・' + (r || c || '名釀產區'),
-    'map_china': '🇨🇳 中國・' + (r || c || '名釀產區'),
-    'map_hk': '🇭🇰 香港・' + (r || c || '本地精釀'),
-    'map_africa': '🇿🇦 非洲・' + (r || c || '名釀產區'),
-    'map_russia': '🇷🇺 俄羅斯・' + (r || c || '名釀產區'),
-    'map_world': '🌍 世界名釀產區'
-  };
-
-  return labelMap[mapKey] || '🌍 ' + c + (r ? '・' + r : '');
+  return { top: 32.0, left: 83.5 };
 }
 
 async function renderExplore() {
@@ -1581,7 +1609,7 @@ async function renderRealWorldPinsAndFeed() {
       pinsLayer.innerHTML = publicFeed.slice(0, 10).map((b) => {
         const country = bottleCountry(b);
         const region = bottleRegion(b);
-        const pos = resolveRealImagePinPos(country, region);
+        const pos = resolveRealImagePinPos(country, region, b);
         return `
           <div class="geo-pin-node" style="top:${pos.top}%; left:${pos.left}%; pointer-events:auto;" onclick="flyToBottleRegion('${esc(b.id)}'); highlightFeedItem('${esc(b.id)}');" title="${esc(bottleName(b))}">
             🍷
@@ -1696,7 +1724,7 @@ function flyToBottleRegion(bottleId) {
 
   const country = bottleCountry(b);
   const region = bottleRegion(b);
-  const pos = resolveRealImagePinPos(country, region);
+  const pos = resolveRealImagePinPos(country, region, b);
 
   const box = document.getElementById('worldRadarBox');
   if (box) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1780,7 +1808,7 @@ function showRegionalMap(country, region, b) {
       pinLayer.innerHTML = ''; // 該地區無分享品飲，酒杯 icon 完全不出現
     } else {
       pinLayer.innerHTML = regionBottles.map(item => {
-        const itemPos = resolveRegionalPinPos(mapKey, bottleCountry(item), bottleRegion(item));
+        const itemPos = resolveRegionalPinPos(mapKey, bottleCountry(item), bottleRegion(item), item);
         const isCurrent = b && String(b.id) === String(item.id);
         return `
           <div class="geo-pin-node ${isCurrent ? 'feed-highlight' : ''}"
