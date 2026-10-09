@@ -67,7 +67,20 @@ function apiErrorMessage(code, data) {
     BAD_IMAGE_SIZE: zh ? '相片太大或太小，請重新拍攝' : 'Bad image size',
     AI_UPSTREAM_ERROR: zh ? 'AI 服務暫時不可用，請稍後再試' : 'AI service unavailable',
     AI_NOT_CONFIGURED: zh ? 'AI 服務尚未設定' : 'AI not configured',
-    CELLAR_TOO_LARGE: zh ? '酒窖資料太大，請聯絡開發者' : 'Cellar too large'
+    CELLAR_TOO_LARGE: zh ? '酒窖資料太大，請聯絡開發者' : 'Cellar too large',
+    UNDER_AGE: zh ? `未滿 ${(data && data.minAge) || 18} 歲不可使用本服務` : 'You must be of legal drinking age',
+    BIRTHDAY_REQUIRED: zh ? '請填寫有效生日' : 'Please enter a valid birthday',
+    AGE_REQUIRED: zh ? '請先喺設定填寫生日（需年滿 18 歲）才可公開發布' : 'Please set your birthday (18+) in Settings to publish',
+    CONTENT_REJECTED: zh ? '內容未能通過審查，未能公開發布' : 'Content rejected',
+    NOT_ALCOHOL_IMAGE: zh ? '相片似乎唔係酒類，請用酒瓶或酒標相片發布' : 'Photo does not look like an alcoholic drink',
+    NOT_ALCOHOL: zh ? '呢張相似乎唔係酒瓶或酒標，請重新拍攝（唔會扣你額度）' : 'This does not look like a bottle or label (not counted)',
+    TEMP_BLOCKED: zh ? '嘗試次數過多，辨識功能暫停 24 小時' : 'Scanning paused for 24 hours',
+    BANNED: zh ? '此帳號已被限制，如有疑問請聯絡我們' : 'Account restricted',
+    KEY_MISMATCH: zh ? '登入狀態異常，請重新登入' : 'Session mismatch, please sign in again',
+    CODE_INVALID: zh ? '兌換碼無效' : 'Invalid code',
+    CODE_EXPIRED: zh ? '兌換碼已過期' : 'Code expired',
+    CODE_USED_UP: zh ? '兌換碼已被領完' : 'Code fully redeemed',
+    CODE_ALREADY: zh ? '你已經用過呢個兌換碼' : 'You already redeemed this code',
   };
   if (code && map[code]) return map[code];
   if (code && /^EMAIL_SEND_FAILED/.test(code)) return (zh ? '驗證郵件發送失敗：' : 'Email failed: ') + code.replace('EMAIL_SEND_FAILED: ', '');
@@ -1186,6 +1199,11 @@ async function publishToCommunityPool(bottleId, sessionId) {
   if (blockIfVisitor()) return;
   const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
   if (!b) return;
+  if (!localStorage.getItem('bottlesense_account_bound')) {
+    showToast(currentLang === 'zh' ? '🔒 請先登入帳號，先可以公開發布到探索' : '🔒 Please sign in to publish');
+    setTimeout(() => renderSettings(), 500);
+    return;
+  }
   if (await uploadPhotoIfNeeded(b)) await saveBottleToDB(b);
   const s = sessionId ? (b.tastings || []).find(t => String(t.id) === String(sessionId)) : null;
 
@@ -1207,8 +1225,13 @@ async function publishToCommunityPool(bottleId, sessionId) {
       method: 'POST',
       body: JSON.stringify(payload)
     });
-    if (!pr.ok) { let c = ''; try { c = (await pr.json()).error; } catch (e) {} showToast(apiErrorMessage(c)); return; }
-    showToast(t('published_toast'));
+    if (!pr.ok) {
+      let c = '', d = {}; try { d = await pr.json(); c = d.error; } catch (e) {}
+      showToast(apiErrorMessage(c, d) || (currentLang === 'zh' ? '發布失敗' : 'Publish failed'));
+      return;
+    }
+    let pj = {}; try { pj = await pr.json(); } catch (e) {}
+    showToast(pj.status === 'pending' ? (currentLang === 'zh' ? '✓ 已提交，審核通過後會顯示喺探索' : '✓ Submitted for review') : t('published_toast'));
   } catch(e) {
     showToast(t('published_toast'));
   }
@@ -1239,7 +1262,7 @@ async function shareEntireCellar() {
   if (!window.cellar || !window.cellar.length) return;
   const shareId = await publishCellarForShare();
   if (!shareId) return;
-  const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(shareId)}`;
+  const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(shareId)}${refSuffix()}`;
   const shareText = `🍾 歡迎參觀我的私人酒窖 (BottleSense)：內有 ${window.cellar.length} 款精選佳釀與真實品飲手記！`;
 
   if (navigator.share) {
@@ -1261,7 +1284,7 @@ async function shareSingleBottle(id) {
   if (!b) return;
   const shareId = await publishCellarForShare();
   if (!shareId) return;
-  const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(shareId)}&bottle=${b.id}`;
+  const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(shareId)}&bottle=${b.id}${refSuffix()}`;
   const shareText = `🍾 BottleSense 藏酒推薦：${bottleName(b)}`;
 
   if (navigator.share) {
@@ -1284,7 +1307,7 @@ async function shareSingleSession(bottleId, sessionId) {
   if (!s) return;
   const shareId = await publishCellarForShare();
   if (!shareId) return;
-  const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(shareId)}&bottle=${b.id}`;
+  const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(shareId)}&bottle=${b.id}${refSuffix()}`;
   const noteStr = s.notes ? `\n心得：「${s.notes}」` : '';
   const shareText = `🥃 BottleSense 品飲手記\n酒款：${bottleName(b)}\n時間：${s.dateStr}\n評分：${'★'.repeat(s.rating||5)}${noteStr}`;
 
@@ -2435,7 +2458,7 @@ async function identifyBottle(image, mediaType) {
   try { data = await res.json(); } catch {}
   if (!res.ok) throw new Error(apiErrorMessage(data.error, data) || `AI API Error (${res.status})`);
   if (data._quota) {
-    const left = data._quota.limit - data._quota.used;
+    const left = (data._quota.limit - data._quota.used) + (data._quota.bonus || 0);
     if (left <= 2) showToast(currentLang === 'zh' ? `本月餘下 ${left} 次 AI 辨識${data._quota.tier === 'guest' ? '（登入後可獲更多）' : ''}` : `${left} AI scans left this month`);
   }
   return data || {};
@@ -2617,7 +2640,12 @@ function renderSettings() {
           <div style="font-size:11.5px; font-weight:600; color:var(--text); margin-bottom:4px;">
             ${currentLang === 'zh' ? '生日' : 'Birthday'}
           </div>
-          <input type="date" id="edit-profile-birthday" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13px; text-align:left;" value="${esc(birthday)}">
+          <input type="date" id="edit-profile-birthday" max="${adultMaxDate()}" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13px; text-align:left;" value="${esc(birthday)}" ${birthday ? 'disabled' : ''}>
+          <div style="font-size:11px; color:var(--text-faint); margin-top:4px; line-height:1.5;">
+            ${birthday
+              ? (currentLang === 'zh' ? '🔒 生日設定後不可更改。如需更正，請聯絡我們。' : '🔒 Birthday is locked once set. Contact us to correct it.')
+              : (currentLang === 'zh' ? '填寫生日（需年滿 18 歲）可解鎖公開發布及壽星禮遇。只可設定一次。' : 'Set your birthday (18+) to publish and get birthday perks. One-time only.')}
+          </div>
 
           <button id="btn-save-profile" class="btn btn-primary btn-block" style="padding:10px; margin-top:14px; font-size:13px; font-weight:700;" onclick="executeSaveProfile()">
             ${currentLang === 'zh' ? '儲存變更' : 'Save Changes'}
@@ -2628,6 +2656,7 @@ function renderSettings() {
       // 分頁 2: 雲端狀態、安裝至手機、登出、永久刪除
       contentHTML = `
         ${tabHeaderHTML}
+        ${creditsCardHTML()}
         <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px;">
           <div style="font-size:12.5px; font-weight:700; color:var(--gold); margin-bottom:8px;">
             ☁️ ${currentLang === 'zh' ? '酒窖備份狀態' : 'Cloud Status'}
@@ -2727,7 +2756,7 @@ function renderSettings() {
           <div style="font-size:12px; font-weight:600; color:var(--text); margin-top:12px; margin-bottom:4px;">
             ${currentLang === 'zh' ? '生日' : 'Birthday'}
           </div>
-          <input type="date" id="reg-birthday" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13px; text-align:left;" value="${esc(authFlowState.birthday)}">
+          <input type="date" id="reg-birthday" max="${adultMaxDate()}" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13px; text-align:left;" value="${esc(authFlowState.birthday)}">
           <label style="display:flex; align-items:flex-start; gap:8px; font-size:12px; color:var(--text-muted); margin-top:14px; cursor:pointer; line-height:1.4;">
             <input type="checkbox" id="reg-terms-check" style="margin-top:2px; accent-color:var(--gold);">
             <span>
@@ -2842,12 +2871,15 @@ async function executeLoginWithOtp() {
     const localDeleted = (typeof getDeletedMap === 'function') ? getDeletedMap() : {};
     const res = await apiFetch('/api/auth/verify-otp', {
       method: 'POST',
-      body: JSON.stringify({ email, otp, syncKey: clientSyncKey, localCellar, localDeleted })
+      body: JSON.stringify({ email, otp, syncKey: clientSyncKey, localCellar, localDeleted, ref: localStorage.getItem('bottlesense_ref') || '' })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(apiErrorMessage(data.error, data) || '驗證失敗');
     setSessionToken(data.token);
     localStorage.setItem('bottlesense_plan', data.plan || 'free');
+    try { localStorage.removeItem('bottlesense_ref'); } catch (e) {}
+    if (Array.isArray(data.granted)) data.granted.forEach(announceGrant);
+    _authExpiredShown = false;
 
     if (data.cellar) {
       await restoreCellarToLocal(data.cellar, data.syncKey, data.name || data.email, data.deleted);
@@ -2860,6 +2892,7 @@ async function executeLoginWithOtp() {
 
     updateHeaderGreeting();
     closeModal();
+    refreshMe();
     showToast(currentLang === 'zh' ? '✓ 登入成功！已還原雲端酒窖' : '✓ Logged in! Cloud cellar restored');
 
     // 首次登入成功彈出 PWA 加入主畫面邀請
@@ -2961,6 +2994,8 @@ async function executeSendVerificationLink() {
   }
   const gender = document.getElementById('reg-gender')?.value || 'unspecified';
   const birthday = document.getElementById('reg-birthday')?.value || '';
+  if (!birthday) { showToast(apiErrorMessage('BIRTHDAY_REQUIRED')); return; }
+  if (calcAge(birthday) < 18) { showToast(apiErrorMessage('UNDER_AGE', { minAge: 18 })); return; }
 
   authFlowState.name = name;
   authFlowState.gender = gender;
@@ -3048,16 +3083,20 @@ async function executeSaveProfile() {
   localStorage.setItem('bottlesense_profile_name', name);
   localStorage.setItem('bottlesense_owner_name', name);
   localStorage.setItem('bottlesense_profile_gender', gender);
-  localStorage.setItem('bottlesense_profile_birthday', birthday);
-
   updateHeaderGreeting();
 
   try {
     const clientSyncKey = localStorage.getItem('bottlesense_sync_key');
-    await apiFetch('/api/profile/update', {
+    const lockedBd = localStorage.getItem('bottlesense_profile_birthday') || '';
+    if (!lockedBd && birthday && calcAge(birthday) < 18) { showToast(apiErrorMessage('UNDER_AGE', { minAge: 18 })); return; }
+    const pr = await apiFetch('/api/profile/update', {
       method: 'POST',
-      body: JSON.stringify({ email, name, gender, birthday, syncKey: clientSyncKey })
+      body: JSON.stringify({ email, name, gender, birthday: lockedBd ? '' : birthday, syncKey: clientSyncKey })
     });
+    const pd = await pr.json().catch(() => ({}));
+    if (!pr.ok) { showToast(apiErrorMessage(pd.error, pd) || '儲存失敗'); return; }
+    if (pd.birthday) localStorage.setItem('bottlesense_profile_birthday', pd.birthday);
+    refreshMe();
   } catch (e) {}
 
   showToast(currentLang === 'zh' ? '✓ 個人資料已儲存！' : '✓ Profile saved!');
@@ -3075,6 +3114,7 @@ async function executeAccountLogout() {
   try { await apiFetch('/api/auth/logout', { method: 'POST' }); } catch(e) {}
   setSessionToken('');
   localStorage.removeItem('bottlesense_plan');
+  localStorage.removeItem('bottlesense_me');
   if (typeof clearLocalCellar === 'function') await clearLocalCellar();
   window.cellar = [];
   localStorage.removeItem('bottlesense_sync_key');
@@ -3240,6 +3280,7 @@ function closeModal() { modalContainer.innerHTML = ''; }
 
 async function initApp() {
   try {
+    captureRefParam();
     updateHeaderGreeting();
     document.getElementById('langSwitchBtn').textContent = currentLang === 'zh' ? 'EN' : '繁';
     await refreshCellar();
@@ -3249,12 +3290,14 @@ async function initApp() {
     const sharedBottleId = params.get('bottle');
 
     if (publicKey) {
+      setTimeout(maybeShowOnboarding, 700);
       await loadPublicCellar(publicKey, sharedShelf, sharedBottleId);
       return;
     }
     renderHome();
     schedulePhotoMigration();
     setTimeout(maybeShowOnboarding, 900);
+    if (getSessionToken()) setTimeout(refreshMe, 1500);
     if (localStorage.getItem('bottlesense_account_bound')) {
       if (!getSessionToken()) handleAuthExpired(); else syncToCloudKV();
     } else setSyncStatus('ok');
@@ -3338,7 +3381,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
 
 
 /* ---------------- 贊助購買建議 (只以酒款屬性配對，不帶任何用戶身份) ---------------- */
-function offersEnabled() { try { return localStorage.getItem('bottlesense_offers') !== '0'; } catch (e) { return true; } }
+function offersEnabled() { try { return localStorage.getItem('bottlesense_offers') !== '0' && localStorage.getItem('bottlesense_age_ok') === '1'; } catch (e) { return false; } }
 function toggleOffers(on) {
   try { localStorage.setItem('bottlesense_offers', on ? '1' : '0'); } catch (e) {}
   showToast(currentLang === 'zh' ? (on ? '✓ 已開啟購買建議' : '✓ 已關閉購買建議與匿名需求統計') : (on ? 'Suggestions on' : 'Suggestions off'));
@@ -3410,9 +3453,26 @@ function exportCellarCSV() {
 
 /* ---------------- 首次使用導覽 ---------------- */
 function maybeShowOnboarding() {
-  try { if (localStorage.getItem('bottlesense_onboarded') || isVisitorMode) return; } catch (e) { return; }
   if (document.querySelector('.modal-overlay')) return;
+  let ageOk = '', blocked = '', onboarded = '';
+  try { ageOk = localStorage.getItem('bottlesense_age_ok') || ''; blocked = localStorage.getItem('bottlesense_age_blocked') || ''; onboarded = localStorage.getItem('bottlesense_onboarded') || ''; } catch (e) { return; }
   const zh = currentLang === 'zh';
+  if (blocked) { showAgeBlocked(); return; }
+  if (!ageOk) {
+    modalContainer.innerHTML = `
+      <div class="modal-overlay">
+        <div class="modal-card" role="dialog" aria-modal="true" style="max-width:360px; text-align:center;">
+          <div style="font-size:42px; margin-bottom:6px;">🍷</div>
+          <h2 style="font-family:var(--serif); color:var(--gold); font-size:20px; margin-bottom:10px;">${zh ? '年齡確認' : 'Age confirmation'}</h2>
+          <p style="font-size:13.5px; color:var(--text-muted); line-height:1.6; margin-bottom:16px;">${zh ? 'BottleSense 與酒類相關，只供年滿 18 歲（及符合所在地法定飲酒年齡）人士使用。你是否已年滿 18 歲？' : 'BottleSense is about alcoholic drinks and is for adults aged 18+ (and of legal drinking age where you live). Are you 18 or older?'}</p>
+          <button class="btn btn-primary btn-block" onclick="confirmAge(true)">${zh ? '我已年滿 18 歲' : 'I am 18 or older'}</button>
+          <button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="confirmAge(false)">${zh ? '我未滿 18 歲' : 'I am under 18'}</button>
+          <p style="font-size:11px; color:var(--text-faint); margin-top:12px;">${zh ? '請適量飲酒，飲酒不駕駛。' : 'Please drink responsibly.'}</p>
+        </div>
+      </div>`;
+    return;
+  }
+  if (onboarded || isVisitorMode) return;
   modalContainer.innerHTML = `
     <div class="modal-overlay">
       <div class="modal-card" role="dialog" aria-modal="true" style="max-width:360px; text-align:left;">
@@ -3420,10 +3480,19 @@ function maybeShowOnboarding() {
         <div class="onb-step"><span>📷</span><div><strong>${zh ? '影酒標，AI 即時辨識' : 'Snap a label'}</strong><br>${zh ? '自動填好酒款、產區同八維價值。' : 'AI fills in the bottle details and value profile.'}</div></div>
         <div class="onb-step"><span>🗂️</span><div><strong>${zh ? '四個空間管理你的酒' : 'Four spaces'}</strong><br>${zh ? '⚡未飲、🪵已飲、🥃飲完、🏷️想買。喺酒款詳情隨時移動。' : 'Unopened, Opened, Finished, Wishlist.'}</div></div>
         <div class="onb-step"><span>🌍</span><div><strong>${zh ? '探索酒友分享' : 'Explore'}</strong><br>${zh ? '喺世界地圖睇其他人喺邊度飲咩酒。' : 'See what others are drinking around the world.'}</div></div>
-        <div class="onb-step"><span>☁️</span><div><strong>${zh ? '登入即可跨裝置同步' : 'Sign in to sync'}</strong><br>${zh ? '用電郵驗證碼登入，手機同電腦酒窖一致。' : 'Email code login keeps your devices in sync.'}</div></div>
+        <div class="onb-step"><span>🎁</span><div><strong>${zh ? '登入有額外禮遇' : 'Perks when you sign in'}</strong><br>${zh ? '跨裝置同步、壽星送辨識額度、邀請朋友雙方有獎。' : 'Sync devices, birthday bonus, invite friends for rewards.'}</div></div>
         <button class="btn btn-primary btn-block" style="margin-top:14px;" onclick="try{localStorage.setItem('bottlesense_onboarded','1')}catch(e){}; closeModal();">${zh ? '開始使用' : 'Get started'}</button>
       </div>
     </div>`;
+}
+function confirmAge(isAdult) {
+  try { localStorage.setItem(isAdult ? 'bottlesense_age_ok' : 'bottlesense_age_blocked', '1'); } catch (e) {}
+  closeModal();
+  if (isAdult) setTimeout(maybeShowOnboarding, 200); else showAgeBlocked();
+}
+function showAgeBlocked() {
+  const zh = currentLang === 'zh';
+  document.body.innerHTML = `<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; background:#11120D; color:#e8e6dc; text-align:center; font-family:-apple-system,sans-serif;"><div><div style="font-size:42px;">🚫</div><h2 style="color:#D4AF37; margin:10px 0;">${zh ? '未能使用本服務' : 'Not available'}</h2><p style="color:#9a9a8c; line-height:1.6;">${zh ? 'BottleSense 只供年滿 18 歲人士使用。' : 'BottleSense is for adults aged 18+.'}</p></div></div>`;
 }
 
 
@@ -3452,4 +3521,107 @@ async function showPrivacyModal() {
     const el = document.getElementById('privacy-body');
     if (el) el.textContent = zh ? '暫時無法載入，請連線後再試。' : 'Unable to load. Please try again online.';
   }
+}
+
+
+/* ---------------- 年齡 / 額度 / 兌換碼 / 邀請 ---------------- */
+function calcAge(bd) {
+  const d = new Date(bd + 'T00:00:00'), n = new Date();
+  let age = n.getFullYear() - d.getFullYear();
+  const m = n.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && n.getDate() < d.getDate())) age--;
+  return age;
+}
+function adultMaxDate() {
+  const d = new Date(); d.setFullYear(d.getFullYear() - 18);
+  return d.toISOString().slice(0, 10);
+}
+function getMe() { try { return JSON.parse(localStorage.getItem('bottlesense_me') || 'null'); } catch (e) { return null; } }
+function refSuffix() { const me = getMe(); return me && me.refCode ? '&ref=' + encodeURIComponent(me.refCode) : ''; }
+function captureRefParam() {
+  try {
+    const p = new URLSearchParams(location.search);
+    const r = (p.get('ref') || '').toUpperCase();
+    if (/^[0-9A-F]{8}$/.test(r) && !localStorage.getItem('bottlesense_account_bound')) localStorage.setItem('bottlesense_ref', r);
+  } catch (e) {}
+}
+function announceGrant(g) {
+  const zh = currentLang === 'zh';
+  if (!g) return;
+  if (g.src === 'birthday') showToast(zh ? `🎂 生日快樂！送你 ${g.n} 次 AI 辨識額度` : `🎂 Happy birthday! +${g.n} scans`);
+  else if (g.src === 'campaign') showToast(zh ? `🎁 ${g.name || '活動'}：送你 ${g.n} 次 AI 辨識額度` : `🎁 ${g.name || 'Promo'}: +${g.n} scans`);
+  else if (g.src === 'referral') showToast(zh ? `🤝 邀請獎勵：+${g.n} 次 AI 辨識額度` : `🤝 Referral reward: +${g.n} scans`);
+}
+async function refreshMe() {
+  if (!getSessionToken()) return null;
+  try {
+    const res = await apiFetch('/api/me');
+    if (!res.ok) return null;
+    const me = await res.json();
+    localStorage.setItem('bottlesense_me', JSON.stringify(me));
+    if (me.birthday) localStorage.setItem('bottlesense_profile_birthday', me.birthday);
+    localStorage.setItem('bottlesense_plan', me.plan || 'free');
+    (me.granted || []).forEach(announceGrant);
+    return me;
+  } catch (e) { return null; }
+}
+async function redeemCode() {
+  const el = document.getElementById('redeem-code');
+  const code = (el && el.value || '').trim();
+  if (!code) return;
+  try {
+    const res = await apiFetch('/api/redeem', { method: 'POST', body: JSON.stringify({ code }) });
+    const d = await res.json();
+    if (!res.ok) { showToast(apiErrorMessage(d.error, d) || '兌換失敗'); return; }
+    const zh = currentLang === 'zh';
+    const parts = [];
+    if (d.scans) parts.push(zh ? `+${d.scans} 次辨識` : `+${d.scans} scans`);
+    if (d.proDays) parts.push(zh ? `Pro ${d.proDays} 日` : `Pro ${d.proDays} days`);
+    showToast('🎁 ' + (zh ? '兌換成功：' : 'Redeemed: ') + parts.join(' / '));
+    if (d.voucher) setTimeout(() => alert((d.voucher.title || '') + '\n' + (d.voucher.text || '') + (d.voucher.url ? '\n' + d.voucher.url : '')), 400);
+    await refreshMe();
+    renderSettings();
+  } catch (e) { showToast(currentLang === 'zh' ? '兌換失敗，請稍後再試' : 'Failed'); }
+}
+function inviteLink() {
+  const me = getMe();
+  return me && me.refCode ? `${location.origin}${location.pathname}?ref=${me.refCode}` : '';
+}
+async function shareInvite() {
+  const link = inviteLink();
+  if (!link) return;
+  const zh = currentLang === 'zh';
+  const text = zh ? '我用緊 BottleSense 管理酒窖，用我嘅邀請連結註冊，我哋都有額外 AI 辨識額度：' : 'I use BottleSense for my cellar. Sign up with my link and we both get bonus scans:';
+  try {
+    if (navigator.share) { await navigator.share({ title: 'BottleSense', text, url: link }); return; }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(text + ' ' + link); showToast(zh ? '✓ 邀請連結已複製' : '✓ Invite link copied'); }
+  catch (e) { prompt(zh ? '複製邀請連結：' : 'Copy link:', link); }
+}
+function creditsCardHTML() {
+  const me = getMe();
+  if (!me) return '';
+  const zh = currentLang === 'zh';
+  const pro = me.plan === 'pro';
+  const left = Math.max(0, (me.quota?.limit || 0) - (me.quota?.used || 0));
+  const proTxt = pro ? (me.proUntil ? (zh ? `Pro 至 ${new Date(me.proUntil).toISOString().slice(0, 10)}` : `Pro until ${new Date(me.proUntil).toISOString().slice(0, 10)}`) : 'Pro') : (zh ? '免費版' : 'Free');
+  return `
+    <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px;">
+      <div style="font-size:12.5px; font-weight:700; color:var(--gold); margin-bottom:8px;">🎟️ ${zh ? '我的額度' : 'My credits'} · ${proTxt}</div>
+      <div style="font-size:12.5px; color:var(--text); line-height:1.7;">
+        ${zh ? `本月 AI 辨識：餘 <strong style="color:var(--gold);">${left}</strong> / ${me.quota?.limit || 0} 次` : `Monthly scans left: <strong style="color:var(--gold);">${left}</strong> / ${me.quota?.limit || 0}`}<br>
+        ${zh ? `額外額度：<strong style="color:var(--gold);">${me.bonus || 0}</strong> 次（90 日內有效）` : `Bonus scans: <strong style="color:var(--gold);">${me.bonus || 0}</strong>`}
+      </div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <input type="text" id="redeem-code" class="text-input" style="margin-top:0; padding:8px 10px; font-size:13px; flex:1; text-transform:uppercase;" placeholder="${zh ? '輸入兌換碼' : 'Gift code'}" autocomplete="off">
+        <button class="btn btn-primary btn-sm" style="font-size:12px;" onclick="redeemCode()">${zh ? '兌換' : 'Redeem'}</button>
+      </div>
+      <div style="border-top:1px solid var(--line); margin-top:12px; padding-top:10px;">
+        <div style="font-size:12.5px; font-weight:700; color:var(--gold); margin-bottom:4px;">🤝 ${zh ? '邀請朋友，雙方有獎' : 'Invite friends'}</div>
+        <div style="font-size:11.5px; color:var(--text-faint); line-height:1.5; margin-bottom:8px;">
+          ${zh ? `朋友用你嘅連結註冊、完成首次辨識並滿 3 日，你哋各得 10 次額度（每月上限 10 位）。已成功邀請 ${me.refCount || 0} 位。` : `Friends who join via your link, scan once and stay 3 days: you both get 10 scans. Invited: ${me.refCount || 0}.`}
+        </div>
+        <button class="btn btn-ghost btn-sm btn-block" style="font-size:12px;" onclick="shareInvite()">📨 ${zh ? '分享邀請連結' : 'Share invite link'}</button>
+      </div>
+    </div>`;
 }

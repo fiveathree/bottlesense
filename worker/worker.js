@@ -82,7 +82,7 @@ function mergeCellars(cloud, incoming, deletedCloud, deletedIncoming) {
   return { cellar: merged, deleted };
 }
 
-const SCAN_PROMPT = `你是一個世界頂級侍酒師與酒類數據庫專家。請辨識相片中的酒標，並以嚴格的純 JSON 格式輸出（不要包含任何 markdown 標籤或額外文字）：
+const SCAN_PROMPT = `你是一個世界頂級侍酒師與酒類數據庫專家。請辨識相片中的酒標，並以嚴格的純 JSON 格式輸出（不要包含任何 markdown 標籤或額外文字）。若相片明顯不是酒類（酒瓶、酒罐、酒標、酒杯），只輸出 {"not_alcohol": true}。
 {
   "category": "紅酒/白酒/威士忌/清酒/氣泡酒/啤酒/琴酒/蘭姆酒/白蘭地/泡盛/利口酒/其他",
   "name": "酒款名稱（中英文皆可，精準全名）",
@@ -254,18 +254,18 @@ async function rotateKey(env, kv, email, oldKey) {
 async function scanTier(request, kv, env) {
   const s = await getSession(request, kv);
   if (s) {
-    const plan = await kv.get('plan:' + s.email);
-    if (plan === 'pro') return { tier: 'pro', id: 'u:' + s.email, limit: envInt(env.SCAN_PRO_MONTHLY, 1000) };
-    return { tier: 'free', id: 'u:' + s.email, limit: envInt(env.SCAN_FREE_MONTHLY, 40) };
+    const pl = await planOf(kv, s.email);
+    if (pl.plan === 'pro') return { tier: 'pro', id: 'u:' + s.email, email: s.email, limit: envInt(env.SCAN_PRO_MONTHLY, 1000) };
+    return { tier: 'free', id: 'u:' + s.email, email: s.email, limit: envInt(env.SCAN_FREE_MONTHLY, 40) };
   }
   const k = request.headers.get('X-Sync-Key') || '';
   const gid = 'g:' + (await sha256hex(isStrongKey(k) ? k : 'anon:' + clientIp(request))).slice(0, 24);
-  return { tier: 'guest', id: gid, limit: envInt(env.SCAN_GUEST_MONTHLY, 8) };
+  return { tier: 'guest', id: gid, email: null, limit: envInt(env.SCAN_GUEST_MONTHLY, 8) };
 }
 
 // ============ 探索池 ============
 const EXP_TTL = 60 * 60 * 24 * 90;
-function sanitizeExploreItem(b, id, ownerShareId) {
+function sanitizeExploreItem(b, id, ownerShareId, origin) {
   const idn = (b.identification && typeof b.identification === 'object') ? b.identification : {};
   const ident = {};
   for (const k of ['name', 'producer', 'country', 'region', 'vintage', 'category', 'abv', 'vol']) {
@@ -274,7 +274,7 @@ function sanitizeExploreItem(b, id, ownerShareId) {
   let image = '';
   if (typeof b.image === 'string') {
     if (/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(b.image) && b.image.length <= 450_000) image = b.image;
-    else if (/^https:\/\/[^\s"'<>]{1,300}$/.test(b.image)) image = b.image;
+    else if (b.image.startsWith(origin + '/api/photo/') && /^https:\/\/[^\s"'<>]{1,300}$/.test(b.image)) image = b.image;
   }
   const rating = Math.min(5, Math.max(1, Math.round(Number(b.personalRating) || 5)));
   return {
@@ -326,6 +326,197 @@ async function bumpStat(kv, mid, kind) {
   await kv.put(key, String(cur + 1), { expirationTtl: 60 * 60 * 24 * 400 });
 }
 
+// ============ 年齡 / 額度 / 邀請 / 審查 工具 ============
+function validBirthday(b) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(b || ''))) return false;
+  const d = new Date(b + 'T00:00:00Z');
+  return !isNaN(d) && d.getUTCFullYear() >= 1900 && d.getTime() <= Date.now();
+}
+function ageOf(b) {
+  const d = new Date(b + 'T00:00:00Z'), n = new Date();
+  let a = n.getUTCFullYear() - d.getUTCFullYear();
+  const m = n.getUTCMonth() - d.getUTCMonth();
+  if (m < 0 || (m === 0 && n.getUTCDate() < d.getUTCDate())) a--;
+  return a;
+}
+function minAge(env) { return envInt(env.MIN_AGE, 18); }
+async function ipHash(ip) { return (await sha256hex('ip:' + ip)).slice(0, 16); }
+
+async function planOf(kv, email) {
+  if ((await kv.get('plan:' + email)) === 'pro') return { plan: 'pro', proUntil: 0 };
+  const u = parseInt(await kv.get('proUntil:' + email) || '0', 10);
+  if (u > Date.now()) return { plan: 'pro', proUntil: u };
+  return { plan: 'free', proUntil: 0 };
+}
+async function loadBonus(kv, email) {
+  try { return JSON.parse(await kv.get('bonus:' + email) || '[]').filter(x => x.n > 0 && x.exp > Date.now()); } catch (e) { return []; }
+}
+async function grantBonus(kv, email, n, src, days = 90) {
+  const l = await loadBonus(kv, email);
+  l.push({ n, src, exp: Date.now() + days * 86400000 });
+  await kv.put('bonus:' + email, JSON.stringify(l));
+}
+async function bonusBalance(kv, email) { return (await loadBonus(kv, email)).reduce((a, x) => a + x.n, 0); }
+async function consumeBonus(kv, email) {
+  const l = (await loadBonus(kv, email)).sort((a, b) => a.exp - b.exp);
+  const x = l.find(y => y.n > 0);
+  if (!x) return false;
+  x.n--;
+  await kv.put('bonus:' + email, JSON.stringify(l));
+  return true;
+}
+async function ensureRefCode(kv, email) {
+  let c = await kv.get('refcode:' + email);
+  if (c) return c;
+  for (let i = 0; i < 5; i++) {
+    c = randomHex(4).toUpperCase();
+    if (!(await kv.get('refowner:' + c))) break;
+  }
+  await kv.put('refcode:' + email, c);
+  await kv.put('refowner:' + c, email);
+  return c;
+}
+// 被邀請者：驗證電郵 + 完成首次掃描 + 註冊滿 3 日，雙方先派獎
+async function evaluateReferral(kv, env, email) {
+  const raw = await kv.get('refpending:' + email);
+  if (!raw) return null;
+  let r; try { r = JSON.parse(raw); } catch (e) { await kv.delete('refpending:' + email); return null; }
+  if (Date.now() < r.eligibleAt || !(await kv.get('scanned:' + email))) return null;
+  await kv.delete('refpending:' + email);
+  const n = envInt(env.REF_REWARD, 10);
+  await grantBonus(kv, email, n, 'referral');
+  const ck = `refcap:${r.owner}:${ym()}`;
+  const cnt = parseInt(await kv.get(ck) || '0', 10);
+  const ownerIp = await kv.get('lastip:' + r.owner);
+  if (cnt < envInt(env.REF_MONTHLY_CAP, 10) && !(ownerIp && ownerIp === r.ip)) {
+    await grantBonus(kv, r.owner, n, 'referral');
+    await kv.put(ck, String(cnt + 1), { expirationTtl: 60 * 60 * 24 * 40 });
+    await kv.put('refcount:' + r.owner, String(parseInt(await kv.get('refcount:' + r.owner) || '0', 10) + 1));
+  }
+  return { n };
+}
+// 壽星 / 節日活動 / 邀請獎勵：登入後自動入帳，回傳今次新入帳項目
+async function grantDue(kv, env, email, profile) {
+  const granted = [];
+  const now = new Date();
+  if (profile && validBirthday(profile.birthday) && profile.birthday.slice(5, 7) === String(now.getUTCMonth() + 1).padStart(2, '0')) {
+    const k = `bday:${email}:${now.getUTCFullYear()}`;
+    if (!(await kv.get(k))) {
+      await kv.put(k, '1', { expirationTtl: 60 * 60 * 24 * 400 });
+      const n = envInt(env.BDAY_BONUS, 10);
+      await grantBonus(kv, email, n, 'birthday');
+      granted.push({ src: 'birthday', n });
+    }
+  }
+  const cl = await kv.list({ prefix: 'campaign:', limit: 50 });
+  for (const k of cl.keys) {
+    const v = await kv.get(k.name);
+    if (!v) continue;
+    let c; try { c = JSON.parse(v); } catch (e) { continue; }
+    if (Date.now() < c.start || Date.now() > c.end) continue;
+    const ck = `claimed:${c.id}:${email}`;
+    if (await kv.get(ck)) continue;
+    await kv.put(ck, '1', { expirationTtl: 60 * 60 * 24 * 400 });
+    await grantBonus(kv, email, c.bonus, 'campaign:' + c.id);
+    granted.push({ src: 'campaign', name: c.name, n: c.bonus });
+  }
+  const rr = await evaluateReferral(kv, env, email);
+  if (rr) granted.push({ src: 'referral', n: rr.n });
+  return granted;
+}
+
+function toBase64(buf) {
+  const u8 = new Uint8Array(buf); let s = '';
+  for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function sniffMime(u8) {
+  if (u8[0] === 0xFF && u8[1] === 0xD8) return 'image/jpeg';
+  if (u8[0] === 0x89 && u8[1] === 0x50) return 'image/png';
+  if (u8[0] === 0x52 && u8[1] === 0x49 && u8[8] === 0x57) return 'image/webp';
+  return null;
+}
+async function loadImageBytes(env, kv, origin, image) {
+  if (image.startsWith('data:')) {
+    const b64 = image.split(',')[1] || '';
+    const bin = atob(b64); const u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    return u8.buffer;
+  }
+  const pre = origin + '/api/photo/';
+  if (image.startsWith(pre)) {
+    const id = image.slice(pre.length);
+    if (!/^[0-9a-f]{12}\/[0-9a-f]{24}$/.test(id)) return null;
+    if (env.PHOTOS) { const o = await env.PHOTOS.get('photos/' + id); return o ? await o.arrayBuffer() : null; }
+    const r = await kv.getWithMetadata('photo:' + id, 'arrayBuffer');
+    return r.value || null;
+  }
+  return null;
+}
+async function callClaude(env, model, content, maxTokens) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model, max_tokens: maxTokens, messages: [{ role: 'user', content }] })
+  });
+  if (!res.ok) throw new Error('AI_UPSTREAM_' + res.status);
+  const data = await res.json();
+  return data.content?.[0]?.text || '';
+}
+function extractJson(text) {
+  const a = text.indexOf('{'), b = text.lastIndexOf('}');
+  if (a === -1 || b === -1) return null;
+  try { return JSON.parse(text.substring(a, b + 1)); } catch (e) { return null; }
+}
+// 公開前自動審查：相片須係酒類相、冇不雅/暴力/違法；文字冇騷擾/廣告垃圾。失敗一律「待覆核」，唔會直接公開
+async function moderateExploreItem(env, kv, origin, clean) {
+  if (!env.ANTHROPIC_API_KEY) return { v: 'pending' };
+  try {
+    const content = [];
+    if (clean.image) {
+      const buf = await loadImageBytes(env, kv, origin, clean.image);
+      if (!buf || buf.byteLength > 3_500_000) return { v: 'pending' };
+      const mime = sniffMime(new Uint8Array(buf));
+      if (!mime) return { v: 'reject' };
+      content.push({ type: 'image', source: { type: 'base64', media_type: mime, data: toBase64(buf) } });
+    }
+    const textBlob = [clean.author, clean.identification.name, clean.identification.producer, clean.diary.notes, clean.location].join(' | ');
+    content.push({ type: 'text', text: 'You are a strict content moderator for a public wine/spirits sharing feed. Reply with JSON only: {"alcohol_related": boolean (the photo shows an alcoholic drink, bottle, label or glass; true if there is no photo), "unsafe": boolean (nudity, sexual content, minors in unsafe context, gore/violence, illegal items, hateful or harassing content in photo or text), "spam": boolean (ads, links, contact info, scams in text)}.\nText fields: ' + textBlob.slice(0, 1500) });
+    const out = extractJson(await callClaude(env, env.MOD_MODEL || 'claude-haiku-5-5', content, 120));
+    if (!out) return { v: 'pending' };
+    if (out.unsafe) return { v: 'reject' };
+    if (clean.image && out.alcohol_related === false) return { v: 'not_alcohol' };
+    if (out.spam) return { v: 'pending' };
+    return { v: 'ok' };
+  } catch (e) { return { v: 'pending' }; }
+}
+
+// ============ 郵件：Resend (RESEND_API_KEY + MAIL_FROM) 優先，否則 Google Apps Script ============
+async function sendEmailViaResend(env, { to, code, type, name }) {
+  const isReg = type === 'register';
+  const html = `<div style="background:#11120D;padding:28px;font-family:-apple-system,Segoe UI,sans-serif;color:#e8e6dc">
+  <div style="max-width:420px;margin:auto;border:1px solid #3a3520;border-radius:14px;padding:26px;background:#181912">
+    <div style="color:#D4AF37;font-size:20px;letter-spacing:2px;font-weight:700">BOTTLESENSE</div>
+    <p style="margin:18px 0 6px">${isReg ? '歡迎加入' : '你好'}，${String(name).replace(/[<>&"]/g, '')}</p>
+    <p style="margin:0 0 14px;color:#b8b6a8">你的驗證碼（10 分鐘內有效）：</p>
+    <div style="font-size:34px;letter-spacing:8px;color:#D4AF37;font-weight:700;text-align:center;padding:14px;border:1px dashed #D4AF37;border-radius:10px">${code}</div>
+    <p style="margin:16px 0 0;color:#8a8a80;font-size:12px">如非本人操作，請忽略此郵件。請勿將驗證碼告訴任何人。</p>
+  </div></div>`;
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: env.MAIL_FROM, to: [to], subject: `BottleSense 驗證碼 ${code}`, html })
+    });
+    if (res.ok) return { ok: true };
+    return { ok: false, error: 'RESEND_' + res.status };
+  } catch (e) { return { ok: false, error: 'RESEND_FETCH_FAILED' }; }
+}
+async function sendEmail(env, args) {
+  if (env.RESEND_API_KEY && env.MAIL_FROM) return sendEmailViaResend(env, args);
+  return sendEmailViaGAS(env, args);
+}
+
 // ============ 主程式 ============
 export default {
   async fetch(request, env, ctx) {
@@ -354,6 +545,11 @@ export default {
         const { email, name, gender, birthday, type } = await readJson(request, 10_000);
         const e = String(email || '').toLowerCase().trim();
         if (!isEmail(e)) throw new HttpError(400, 'INVALID_EMAIL');
+        if (type === 'register') {
+          if (!validBirthday(birthday)) throw new HttpError(400, 'BIRTHDAY_REQUIRED');
+          if (ageOf(birthday) < minAge(env)) throw new HttpError(403, 'UNDER_AGE', { minAge: minAge(env) });
+        }
+        if (await kv.get('ban:' + e)) throw new HttpError(403, 'BANNED');
         await limitOrThrow(kv, `rl:otpip:${ip}:${ymd()}${new Date().getUTCHours()}`, 20, 3600, 'RATE_LIMITED_IP');
         await limitOrThrow(kv, `rl:otpem:${e}:${ymd()}${new Date().getUTCHours()}`, 5, 3600, 'RATE_LIMITED_EMAIL');
         if (await kv.get('otpcd:' + e)) throw new HttpError(429, 'COOLDOWN');
@@ -362,9 +558,9 @@ export default {
         const otp = randomOtp();
         await kv.put('otp:' + e, JSON.stringify({ h: await sha256hex(otp + ':' + e), tries: 0, exp: Date.now() + 600_000 }), { expirationTtl: 600 });
         if (name || birthday || gender) {
-          await kv.put('pending_reg:' + e, JSON.stringify({ name: clip(name, 60), gender: clip(gender, 20), birthday: clip(birthday, 12) }), { expirationTtl: 600 });
+          await kv.put('pending_reg:' + e, JSON.stringify({ name: clip(name, 60), gender: clip(gender, 20), birthday: validBirthday(birthday) ? birthday : '' }), { expirationTtl: 600 });
         }
-        const mailRes = await sendEmailViaGAS(env, { to: e, code: otp, type: clip(type, 20) || 'otp', name: clip(name, 60) || e.split('@')[0] });
+        const mailRes = await sendEmail(env, { to: e, code: otp, type: clip(type, 20) || 'otp', name: clip(name, 60) || e.split('@')[0] });
         const devMode = env.DEV_MODE === '1';
         if (!mailRes.ok && !devMode) {
           await kv.delete('otp:' + e);
@@ -381,7 +577,7 @@ export default {
       }
 
       if (path === '/api/auth/verify-otp' && request.method === 'POST') {
-        const { email, otp, syncKey, localCellar, localDeleted } = await readJson(request, 24_000_000);
+        const { email, otp, syncKey, localCellar, localDeleted, ref } = await readJson(request, 24_000_000);
         const e = String(email || '').toLowerCase().trim();
         await limitOrThrow(kv, `rl:ver:${ip}:${ymd()}${new Date().getUTCHours()}`, 40, 3600, 'RATE_LIMITED_IP');
         const raw = await kv.get('otp:' + e);
@@ -429,15 +625,27 @@ export default {
           const m = mergeCellars(existing.cellar, incoming, existing.deleted, localDeleted);
           cellar = m.cellar; deleted = m.deleted;
           await kv.put('user:' + userKey, JSON.stringify({ profile: profileData, cellar, deleted }));
+          const rc = String(ref || '').toUpperCase();
+          if (/^[0-9A-F]{8}$/.test(rc) && !(await kv.get('refclaimed:' + e))) {
+            const refOwner = await kv.get('refowner:' + rc);
+            if (refOwner && refOwner !== e) {
+              await kv.put('refclaimed:' + e, '1');
+              await kv.put('refpending:' + e, JSON.stringify({ owner: refOwner, ip: await ipHash(ip), eligibleAt: Date.now() + 3 * 86400000 }), { expirationTtl: 60 * 60 * 24 * 60 });
+            }
+          }
         }
+        await kv.put('lastip:' + e, await ipHash(ip), { expirationTtl: 60 * 60 * 24 * 90 });
         const token = await createSession(kv, e);
+        const grantedNow = await grantDue(kv, env, e, profileData);
+        const pl = await planOf(kv, e);
         return json({
           success: true, email: e,
           name: profileData.name || pendingInfo.name || e.split('@')[0],
           birthday: profileData.birthday || pendingInfo.birthday || '',
           gender: profileData.gender || pendingInfo.gender || 'unspecified',
           syncKey: userKey, token, cellar, deleted,
-          plan: (await kv.get('plan:' + e)) || 'free'
+          plan: pl.plan, proUntil: pl.proUntil, granted: grantedNow,
+          birthdayLocked: validBirthday(profileData.birthday)
         });
       }
 
@@ -459,22 +667,42 @@ export default {
       }
 
       if (path === '/api/me' && request.method === 'GET') {
-        const { email } = await requireSession(request, kv);
-        return json({ email, plan: (await kv.get('plan:' + email)) || 'free' });
+        const { email, userKey } = await requireSession(request, kv);
+        const rec = parseUserRecord(await kv.get('user:' + userKey));
+        const granted = await grantDue(kv, env, email, rec.profile);
+        await kv.put('lastip:' + email, await ipHash(ip), { expirationTtl: 60 * 60 * 24 * 90 });
+        const pl = await planOf(kv, email);
+        const limit = pl.plan === 'pro' ? envInt(env.SCAN_PRO_MONTHLY, 1000) : envInt(env.SCAN_FREE_MONTHLY, 40);
+        return json({
+          email, plan: pl.plan, proUntil: pl.proUntil,
+          bonus: await bonusBalance(kv, email),
+          quota: { used: parseInt(await kv.get(`quota:u:${email}:${ym()}`) || '0', 10), limit },
+          refCode: await ensureRefCode(kv, email),
+          refCount: parseInt(await kv.get('refcount:' + email) || '0', 10),
+          birthday: rec.profile.birthday || '', birthdayLocked: validBirthday(rec.profile.birthday),
+          minAge: minAge(env), granted
+        });
       }
 
       if (path === '/api/profile/update' && request.method === 'POST') {
         const { name, gender, birthday } = await readJson(request, 10_000);
         const { email, userKey } = await requireSession(request, kv);
         const r = parseUserRecord(await kv.get('user:' + userKey));
+        let bd = r.profile.birthday || '';
+        // 生日只可設定一次，之後鎖死 (需要更正請聯絡管理員)
+        if (!validBirthday(bd) && birthday) {
+          if (!validBirthday(birthday)) throw new HttpError(400, 'BIRTHDAY_REQUIRED');
+          if (ageOf(birthday) < minAge(env)) throw new HttpError(403, 'UNDER_AGE', { minAge: minAge(env) });
+          bd = birthday;
+        }
         r.profile = {
           ...r.profile, email,
           name: clip(name, 60) || r.profile.name,
           gender: clip(gender, 20) || r.profile.gender,
-          birthday: clip(birthday, 12) || r.profile.birthday
+          birthday: bd
         };
         await kv.put('user:' + userKey, JSON.stringify(r));
-        return json({ success: true });
+        return json({ success: true, birthday: bd, birthdayLocked: validBirthday(bd) });
       }
 
       if (path === '/api/account/delete' && request.method === 'POST') {
@@ -485,7 +713,9 @@ export default {
         await kv.delete('keyowner:' + userKey);
         await kv.delete('account:' + email);
         await kv.delete('otp:' + email);
-        await kv.delete('plan:' + email);
+        for (const k of ['plan:', 'proUntil:', 'bonus:', 'lastip:', 'scanned:', 'refpending:', 'pubban:', 'modstrike:']) await kv.delete(k + email);
+        const rcode = await kv.get('refcode:' + email);
+        if (rcode) { await kv.delete('refowner:' + rcode); await kv.delete('refcode:' + email); }
         await kv.put('sessver:' + email, String(parseInt(await kv.get('sessver:' + email) || '0', 10) + 1), { expirationTtl: 60 * 60 * 24 * 100 });
         const ex = await kv.list({ prefix: 'exp:', limit: 500 });
         for (const k of ex.keys) if (k.metadata && k.metadata.o === share) await kv.delete(k.name);
@@ -552,7 +782,12 @@ export default {
       if (path === '/api/explore/publish' && request.method === 'POST') {
         const body = await readJson(request, 700_000);
         const { syncKey, ...item } = body;
-        await requireKeyAccess(request, kv, syncKey);
+        // 公開發布：必須已登入、年滿 18 歲、未被封禁
+        const sess = await requireSession(request, kv);
+        if (!syncKey || sess.userKey !== syncKey) throw new HttpError(403, 'KEY_MISMATCH');
+        if (await kv.get('ban:' + sess.email) || await kv.get('pubban:' + sess.email)) throw new HttpError(403, 'BANNED');
+        const prof = parseUserRecord(await kv.get('user:' + sess.userKey)).profile;
+        if (!validBirthday(prof.birthday) || ageOf(prof.birthday) < minAge(env)) throw new HttpError(403, 'AGE_REQUIRED', { minAge: minAge(env) });
         const id = String(item.id || '');
         if (!/^[\w.\-]{1,120}$/.test(id)) throw new HttpError(400, 'BAD_ID');
         await limitOrThrow(kv, `rl:exp:${(await sha256hex(syncKey)).slice(0, 16)}:${ymd()}`, 20, 86400, 'RATE_LIMITED');
@@ -560,10 +795,20 @@ export default {
         const share = await shareIdOf(syncKey);
         const prev = await kv.getWithMetadata('exp:' + id);
         if (prev.value && prev.metadata && prev.metadata.o && prev.metadata.o !== share) throw new HttpError(409, 'ID_TAKEN');
-        const clean = sanitizeExploreItem(item, id, share);
+        const clean = sanitizeExploreItem(item, id, share, url.origin);
         if (!clean.identification.name && !clean.identification.producer) throw new HttpError(400, 'MISSING_NAME');
-        await kv.put('exp:' + id, JSON.stringify(clean), { metadata: { t: clean.publishedAt, o: share }, expirationTtl: EXP_TTL });
-        return json({ success: true });
+        const mod = await moderateExploreItem(env, kv, url.origin, clean);
+        if (mod.v === 'reject') {
+          const sk = 'modstrike:' + sess.email;
+          const n = parseInt(await kv.get(sk) || '0', 10) + 1;
+          await kv.put(sk, String(n), { expirationTtl: 60 * 60 * 24 * 90 });
+          if (n >= 3) await kv.put('pubban:' + sess.email, '1');
+          throw new HttpError(422, 'CONTENT_REJECTED');
+        }
+        if (mod.v === 'not_alcohol') throw new HttpError(422, 'NOT_ALCOHOL_IMAGE');
+        const status = mod.v === 'ok' ? 'live' : 'pending';
+        await kv.put('exp:' + id, JSON.stringify(clean), { metadata: { t: clean.publishedAt, o: share, ...(status === 'pending' ? { h: 2 } : {}) }, expirationTtl: EXP_TTL });
+        return json({ success: true, status });
       }
 
       if (path === '/api/explore/delete' && request.method === 'POST') {
@@ -683,6 +928,30 @@ export default {
         return json({ success: true });
       }
 
+      // ---------- 兌換碼 ----------
+      if (path === '/api/redeem' && request.method === 'POST') {
+        const { email } = await requireSession(request, kv);
+        const { code } = await readJson(request, 1000);
+        await limitOrThrow(kv, `rl:redip:${ip}:${ymd()}`, 20, 86400, 'RATE_LIMITED_IP');
+        await limitOrThrow(kv, `rl:redem:${email}:${ymd()}`, 10, 86400, 'RATE_LIMITED');
+        const c = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 32);
+        const raw = c ? await kv.get('code:' + c) : null;
+        if (!raw) throw new HttpError(404, 'CODE_INVALID');
+        const cd = JSON.parse(raw);
+        if (cd.expires && Date.now() > cd.expires) throw new HttpError(410, 'CODE_EXPIRED');
+        if (await kv.get(`redeemed:${c}:${email}`)) throw new HttpError(409, 'CODE_ALREADY');
+        const used = parseInt(await kv.get('codeuses:' + c) || '0', 10);
+        if (cd.maxUses && used >= cd.maxUses) throw new HttpError(410, 'CODE_USED_UP');
+        if (cd.scans) await grantBonus(kv, email, cd.scans, 'code:' + c);
+        if (cd.proDays) {
+          const cur = parseInt(await kv.get('proUntil:' + email) || '0', 10);
+          await kv.put('proUntil:' + email, String(Math.max(Date.now(), cur) + cd.proDays * 86400000));
+        }
+        await kv.put('codeuses:' + c, String(used + 1));
+        await kv.put(`redeemed:${c}:${email}`, '1', { expirationTtl: 60 * 60 * 24 * 800 });
+        return json({ success: true, scans: cd.scans || 0, proDays: cd.proDays || 0, voucher: cd.voucher || null });
+      }
+
       // ---------- 管理 (需設定 ADMIN_TOKEN secret) ----------
       if (path.startsWith('/api/admin/')) {
         const tok = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
@@ -723,6 +992,72 @@ export default {
           demand.sort((a, b) => b.c - a.c);
           return json({ month, merchants: stats, demand: demand.slice(0, 100) });
         }
+        if (path === '/api/admin/code' && request.method === 'POST') {
+          const c = await readJson(request, 5000);
+          const code = String(c.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 32);
+          if (code.length < 4) throw new HttpError(400, 'BAD_CODE');
+          const exp = c.expires ? Date.parse(c.expires) : 0;
+          await kv.put('code:' + code, JSON.stringify({
+            scans: Math.min(1000, parseInt(c.scans, 10) || 0), proDays: Math.min(366, parseInt(c.proDays, 10) || 0),
+            maxUses: parseInt(c.maxUses, 10) || 0, expires: isNaN(exp) ? 0 : exp,
+            voucher: c.voucher ? { title: clip(c.voucher.title, 80), text: clip(c.voucher.text, 300), url: /^https:\/\//.test(c.voucher.url || '') ? clip(c.voucher.url, 400) : '' } : null
+          }));
+          return json({ success: true, code });
+        }
+        if (path === '/api/admin/campaign' && request.method === 'POST') {
+          const c = await readJson(request, 2000);
+          if (!/^[a-z0-9_-]{2,40}$/.test(String(c.id || ''))) throw new HttpError(400, 'BAD_ID');
+          const st = Date.parse(c.start), en = Date.parse(c.end);
+          if (isNaN(st) || isNaN(en) || en <= st) throw new HttpError(400, 'BAD_DATES');
+          await kv.put('campaign:' + c.id, JSON.stringify({ id: c.id, name: clip(c.name, 60), start: st, end: en, bonus: Math.min(200, parseInt(c.bonus, 10) || 0) }));
+          return json({ success: true });
+        }
+        if (path === '/api/admin/grant' && request.method === 'POST') {
+          const g = await readJson(request, 1000);
+          const e = String(g.email || '').toLowerCase().trim();
+          if (!isEmail(e)) throw new HttpError(400, 'INVALID_EMAIL');
+          if (g.scans) await grantBonus(kv, e, Math.min(1000, parseInt(g.scans, 10) || 0), 'admin');
+          if (g.proDays) { const cur = parseInt(await kv.get('proUntil:' + e) || '0', 10); await kv.put('proUntil:' + e, String(Math.max(Date.now(), cur) + Math.min(366, parseInt(g.proDays, 10) || 0) * 86400000)); }
+          return json({ success: true });
+        }
+        if (path === '/api/admin/ban' && request.method === 'POST') {
+          const b = await readJson(request, 1000);
+          const e = String(b.email || '').toLowerCase().trim();
+          if (!isEmail(e)) throw new HttpError(400, 'INVALID_EMAIL');
+          if (b.off) { await kv.delete('ban:' + e); await kv.delete('pubban:' + e); await kv.delete('modstrike:' + e); }
+          else {
+            await kv.put('ban:' + e, clip(b.reason, 200) || '1');
+            await kv.put('sessver:' + e, String(parseInt(await kv.get('sessver:' + e) || '0', 10) + 1));
+            const key = await kv.get('account:' + e);
+            if (key) { const sh = await shareIdOf(key); const ex = await kv.list({ prefix: 'exp:', limit: 500 }); for (const k of ex.keys) if (k.metadata && k.metadata.o === sh) await kv.delete(k.name); await kv.delete('public_cellar:' + sh); }
+          }
+          return json({ success: true });
+        }
+        if (path === '/api/admin/birthday' && request.method === 'POST') {
+          const b = await readJson(request, 1000);
+          const e = String(b.email || '').toLowerCase().trim();
+          const key = await kv.get('account:' + e);
+          if (!key || !validBirthday(b.birthday)) throw new HttpError(400, 'BAD_REQUEST');
+          const r = parseUserRecord(await kv.get('user:' + key));
+          r.profile.birthday = b.birthday;
+          await kv.put('user:' + key, JSON.stringify(r));
+          return json({ success: true });
+        }
+        if (path === '/api/admin/explore/pending' && request.method === 'GET') {
+          const l = await kv.list({ prefix: 'exp:', limit: 500 });
+          const out = [];
+          for (const k of l.keys) if (k.metadata && k.metadata.h === 2) { const v = await kv.get(k.name); if (v) out.push(JSON.parse(v)); }
+          return json(out);
+        }
+        if (path === '/api/admin/explore/approve' && request.method === 'POST') {
+          const { id } = await readJson(request, 1000);
+          const cur = await kv.getWithMetadata('exp:' + id);
+          if (!cur.value) throw new HttpError(404, 'NOT_FOUND');
+          const md = { ...(cur.metadata || {}) }; delete md.h;
+          await kv.put('exp:' + id, cur.value, { metadata: md, expirationTtl: EXP_TTL });
+          await kv.delete('repcount:' + id);
+          return json({ success: true });
+        }
         if (path === '/api/admin/explore/remove' && request.method === 'POST') {
           const { id } = await readJson(request, 1000);
           await kv.delete('exp:' + id);
@@ -739,37 +1074,51 @@ export default {
         if (!env.ANTHROPIC_API_KEY) throw new HttpError(503, 'AI_NOT_CONFIGURED');
 
         const tier = await scanTier(request, kv, env);
+        if (tier.email && await kv.get('ban:' + tier.email)) throw new HttpError(403, 'BANNED');
+        if (await kv.get('scanblock:' + tier.id)) throw new HttpError(429, 'TEMP_BLOCKED');
         const mk = `quota:${tier.id}:${ym()}`;
         const used = parseInt(await kv.get(mk) || '0', 10);
-        if (used >= tier.limit) throw new HttpError(429, 'QUOTA_EXCEEDED', { tier: tier.tier, limit: tier.limit, used });
+        let viaBonus = false;
+        if (used >= tier.limit) {
+          if (tier.email && (await bonusBalance(kv, tier.email)) > 0) viaBonus = true;
+          else throw new HttpError(429, 'QUOTA_EXCEEDED', { tier: tier.tier, limit: tier.limit, used });
+        }
         await limitOrThrow(kv, `rl:scanip:${ip}:${ymd()}`, envInt(env.SCAN_IP_DAILY, 60), 86400, 'RATE_LIMITED_IP');
-        const gk = `rl:scanall:${ymd()}`;
-        await limitOrThrow(kv, gk, envInt(env.SCAN_GLOBAL_DAILY, 1500), 86400, 'SERVICE_BUSY');
+        await limitOrThrow(kv, `rl:scanall:${ymd()}`, envInt(env.SCAN_GLOBAL_DAILY, 1500), 86400, 'SERVICE_BUSY');
 
-        const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-          body: JSON.stringify({
-            model: 'claude-sonnet-5-5',
-            max_tokens: 2000,
-            messages: [{
-              role: 'user',
-              content: [
-                { type: 'image', source: { type: 'base64', media_type: ['image/jpeg', 'image/png', 'image/webp'].includes(mediaType) ? mediaType : 'image/jpeg', data: image } },
-                { type: 'text', text: SCAN_PROMPT }
-              ]
-            }]
-          })
-        });
-        if (!anthropicRes.ok) throw new HttpError(502, 'AI_UPSTREAM_ERROR');
-        const anthropicData = await anthropicRes.json();
-        let text = anthropicData.content?.[0]?.text || '{}';
-        const s = text.indexOf('{'), e = text.lastIndexOf('}');
-        if (s !== -1 && e !== -1) text = text.substring(s, e + 1);
-        await kv.put(mk, String(used + 1), { expirationTtl: 60 * 60 * 24 * 40 });
-        let out;
-        try { out = JSON.parse(text); out._quota = { tier: tier.tier, used: used + 1, limit: tier.limit }; text = JSON.stringify(out); } catch (er) {}
-        return new Response(text, { headers: jsonHeaders });
+        const mt = ['image/jpeg', 'image/png', 'image/webp'].includes(mediaType) ? mediaType : 'image/jpeg';
+        const content = [
+          { type: 'image', source: { type: 'base64', media_type: mt, data: image } },
+          { type: 'text', text: SCAN_PROMPT }
+        ];
+        const strong = env.SCAN_MODEL_STRONG || 'claude-sonnet-5-5';
+        const fast = env.SCAN_MODEL_FAST || 'claude-haiku-5-5';
+        let out = null, modelUsed = strong;
+        try {
+          if (env.SCAN_FAST_FIRST === '1') {
+            out = extractJson(await callClaude(env, fast, content, 2000));
+            modelUsed = fast;
+            const lowConf = !out || (!out.not_alcohol && Number(out.conf || 0) < envInt(env.SCAN_CONF_MIN, 75));
+            if (lowConf) out = null;
+          }
+          if (!out) { out = extractJson(await callClaude(env, strong, content, 2000)); modelUsed = strong; }
+        } catch (er) { throw new HttpError(502, 'AI_UPSTREAM_ERROR'); }
+        if (!out) throw new HttpError(502, 'AI_UPSTREAM_ERROR');
+
+        if (out.not_alcohol) {
+          // 唔係酒類相：唔扣額度，但累計警告，反覆亂影會被暫停 24 小時
+          const sk = `strike:${tier.id}:${ymd()}`;
+          const n = parseInt(await kv.get(sk) || '0', 10) + 1;
+          await kv.put(sk, String(n), { expirationTtl: 86400 });
+          if (n >= 5) await kv.put('scanblock:' + tier.id, '1', { expirationTtl: 86400 });
+          throw new HttpError(422, 'NOT_ALCOHOL');
+        }
+        if (viaBonus) await consumeBonus(kv, tier.email);
+        else await kv.put(mk, String(used + 1), { expirationTtl: 60 * 60 * 24 * 40 });
+        if (tier.email) await kv.put('scanned:' + tier.email, '1', { expirationTtl: 60 * 60 * 24 * 400 });
+        out._quota = { tier: tier.tier, used: viaBonus ? used : used + 1, limit: tier.limit, bonus: tier.email ? await bonusBalance(kv, tier.email) : 0 };
+        out._model = modelUsed;
+        return new Response(JSON.stringify(out), { headers: jsonHeaders });
       }
 
       return new Response('Not Found', { status: 404, headers: corsHeaders });
