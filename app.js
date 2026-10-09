@@ -170,13 +170,17 @@ const I18N = {
     empty_recent_loggedin: "尚未有最近加入的酒款<br>拍一瓶酒標，開始建立你的酒窖。",
     space_cooler: "🧊 未開瓶",
     space_wood: "🥃 飲緊",
-    space_bar: "🏆 回憶牆",
+    space_bar: "🏁 飲完",
+    space_kept: "💎 收藏",
+    space_gift: "🎁 送人",
     space_wish: "🏷️ 想買",
     space_fav: "⭐ 最愛",
     space_random: "🎲 隨機賞味",
     shelf_cooler_title: "🧊 未開瓶 (等緊決定)",
     shelf_wood_title: "🥃 飲緊 (開咗未飲完)",
-    shelf_bar_title: "🏆 回憶牆 (飲完、送出、售出)",
+    shelf_bar_title: "🏁 飲完 (回憶牆)",
+    shelf_kept_title: "💎 收藏 (唔飲，好好收住)",
+    shelf_gift_title: "🎁 送人 (已經送出)",
     shelf_wish_title: "🏷️ 願望清單 (想買)",
     shelf_fav_title: "⭐ 心頭好精選 (最愛)",
     share_cellar: "分享全窖",
@@ -227,13 +231,17 @@ const I18N = {
     empty_recent_loggedin: "No recent bottles yet.<br>Snap a label to start building your cellar.",
     space_cooler: "⚡ Unopened",
     space_wood: "🪵 Opened",
-    space_bar: "🥃 Finished",
+    space_bar: "🏁 Finished",
+    space_kept: "💎 Kept",
+    space_gift: "🎁 Gifted",
     space_wish: "🏷️ Wishlist",
     space_fav: "⭐ Favorite",
     space_random: "🎲 Surprise Pick",
     shelf_cooler_title: "⚡ Wine Cooler (Unopened)",
     shelf_wood_title: "🪵 Daily Rack (Opened)",
-    shelf_bar_title: "🥃 Bar Table (Finished)",
+    shelf_bar_title: "🏁 Finished (Memories)",
+    shelf_kept_title: "💎 Kept (not for drinking)",
+    shelf_gift_title: "🎁 Gifted",
     shelf_wish_title: "🏷️ Wishlist (To Buy)",
     shelf_fav_title: "⭐ Favorites (Top Pick)",
     share_cellar: "Share Cellar",
@@ -365,7 +373,9 @@ function statCounts() {
     total: c.length,
     cooler: c.filter(b => b.status === 'unopened').length,
     wood: c.filter(b => b.status === 'opened').length,
-    bar: c.filter(b => ['finished','gifted','sold'].includes(b.status)).length,
+    bar: c.filter(b => ['finished','sold'].includes(b.status)).length,
+    kept: c.filter(b => b.status === 'kept').length,
+    gift: c.filter(b => b.status === 'gifted').length,
     wish: c.filter(b => b.status === 'wishlist').length,
     fav: c.filter(b => b.isFavorite).length
   };
@@ -423,15 +433,17 @@ function renderHome() {
           <div class="stat-num" style="color:var(--purple-glow);">${s.wish}</div>
           <div class="stat-label">${t('space_wish')}</div>
         </div>
-        <div class="stat-card" onclick="openScene('favorite')">
-          <div class="stat-num" style="color:var(--rose-glow);">${s.fav}</div>
-          <div class="stat-label">${t('space_fav')}</div>
+        <div class="stat-card" onclick="openScene('kept')">
+          <div class="stat-num" style="color:var(--gold);">${s.kept}</div>
+          <div class="stat-label">${t('space_kept')}</div>
         </div>
-        <div class="stat-card" onclick="pickRandomBottle()">
-          <div class="stat-num" style="color:var(--gold);">🎲</div>
-          <div class="stat-label">${t('space_random')}</div>
+        <div class="stat-card" onclick="openScene('gift')">
+          <div class="stat-num" style="color:var(--rose-glow);">${s.gift}</div>
+          <div class="stat-label">${t('space_gift')}</div>
         </div>
       </div>
+
+      <div class="fav-link" onclick="openScene('favorite')">⭐ ${currentLang==='zh'?'我嘅最愛':'Favorites'} (${s.fav})</div>
 
       <div class="section-head">
         <h2>${t('recent_title')}</h2>
@@ -483,7 +495,9 @@ function renderCellar() {
   const c = window.cellar || [];
   const coolerBottles = c.filter(b => b.status === 'unopened');
   const woodBottles = c.filter(b => b.status === 'opened');
-  const barBottles = c.filter(b => ['finished', 'gifted', 'sold'].includes(b.status));
+  const barBottles = c.filter(b => ['finished', 'sold'].includes(b.status));
+  const keptBottles = c.filter(b => b.status === 'kept');
+  const giftBottles = c.filter(b => b.status === 'gifted');
   const wishBottles = c.filter(b => b.status === 'wishlist');
   const favBottles = c.filter(b => b.isFavorite);
 
@@ -494,6 +508,8 @@ function renderCellar() {
   if (currentScene === 'cooler') { spaceList = coolerBottles; shelfTitle = t('shelf_cooler_title'); }
   else if (currentScene === 'wood') { spaceList = woodBottles; shelfTitle = t('shelf_wood_title'); }
   else if (currentScene === 'bar') { spaceList = barBottles; shelfTitle = t('shelf_bar_title'); }
+  else if (currentScene === 'kept') { spaceList = keptBottles; shelfTitle = t('shelf_kept_title'); shelfKey = 'kept'; }
+  else if (currentScene === 'gift') { spaceList = giftBottles; shelfTitle = t('shelf_gift_title'); shelfKey = 'gift'; }
   else if (currentScene === 'wishlist') { spaceList = wishBottles; shelfTitle = t('shelf_wish_title'); }
   else { spaceList = favBottles; shelfTitle = t('shelf_fav_title'); shelfKey = 'fav'; }
 
@@ -526,31 +542,38 @@ function renderCellar() {
 
       <div class="cellar-scene-tabs">
         <div class="scene-tab ${currentScene==='cooler'?'active-cooler':''}" onclick="switchScene('cooler')">
-          <span class="scene-icon">⚡</span>
-          <div class="scene-name">${t('space_cooler')}</div>
+          <span class="scene-icon">🧊</span>
+          <div class="scene-name">${t('space_cooler').replace(/^\S+\s/, '')}</div>
           <div class="scene-count">${coolerBottles.length}</div>
         </div>
         <div class="scene-tab ${currentScene==='wood'?'active-wood':''}" onclick="switchScene('wood')">
-          <span class="scene-icon">🪵</span>
-          <div class="scene-name">${t('space_wood')}</div>
+          <span class="scene-icon">🥃</span>
+          <div class="scene-name">${t('space_wood').replace(/^\S+\s/, '')}</div>
           <div class="scene-count">${woodBottles.length}</div>
         </div>
         <div class="scene-tab ${currentScene==='bar'?'active-bar':''}" onclick="switchScene('bar')">
-          <span class="scene-icon">🥃</span>
-          <div class="scene-name">${t('space_bar')}</div>
+          <span class="scene-icon">🏁</span>
+          <div class="scene-name">${t('space_bar').replace(/^\S+\s/, '')}</div>
           <div class="scene-count">${barBottles.length}</div>
+        </div>
+        <div class="scene-tab ${currentScene==='kept'?'active-kept':''}" onclick="switchScene('kept')">
+          <span class="scene-icon">💎</span>
+          <div class="scene-name">${currentLang==='zh'?'收藏':'Kept'}</div>
+          <div class="scene-count">${keptBottles.length}</div>
+        </div>
+        <div class="scene-tab ${currentScene==='gift'?'active-gift':''}" onclick="switchScene('gift')">
+          <span class="scene-icon">🎁</span>
+          <div class="scene-name">${currentLang==='zh'?'送人':'Gifted'}</div>
+          <div class="scene-count">${giftBottles.length}</div>
         </div>
         <div class="scene-tab ${currentScene==='wishlist'?'active-wish':''}" onclick="switchScene('wishlist')">
           <span class="scene-icon">🏷️</span>
-          <div class="scene-name">${t('space_wish')}</div>
+          <div class="scene-name">${currentLang==='zh'?'想買':'Wishlist'}</div>
           <div class="scene-count">${wishBottles.length}</div>
         </div>
-        <div class="scene-tab ${currentScene==='favorite'?'active-fav':''}" onclick="switchScene('favorite')">
-          <span class="scene-icon">⭐</span>
-          <div class="scene-name">${t('space_fav')}</div>
-          <div class="scene-count">${favBottles.length}</div>
-        </div>
       </div>
+
+      <div class="fav-link" onclick="switchScene('favorite')">${currentScene==='favorite'?'<b>':''}⭐ ${currentLang==='zh'?'我嘅最愛':'Favorites'} (${favBottles.length})${currentScene==='favorite'?'</b>':''}</div>
 
       ${filterOptions.length > 1 ? `
         <div class="filter-row">
@@ -790,13 +813,13 @@ async function verdictAct(id, key) {
   } else if (key === 'open') {
     openPourParty(id);
   } else if (key === 'keep') {
-    b.status = b.status === 'wishlist' ? 'unopened' : b.status;
-    b.isFavorite = true;
+    b.status = 'kept';
     await saveBottleToDB(b);
-    showToast(currentLang === 'zh' ? '💎 已收好，並標記為最愛，唔急開' : '💎 Kept safe and starred');
+    showToast(currentLang === 'zh' ? '💎 已放入「收藏」，唔急開' : '💎 Moved to Kept');
     renderBottleDetail(id);
   } else if (key === 'gift') {
     openShareActionSheet(id);
+    showToast(currentLang === 'zh' ? '🎁 送出後，記得喺下面㩒「送人」' : '🎁 Tap "Gifted" below once given');
   }
 }
 
@@ -895,6 +918,7 @@ function pickForOccasion(k) {
           <button class="btn btn-ghost btn-block" onclick="occasionSkip['${k}']=(occasionSkip['${k}']||0)+1; pickForOccasion('${k}')">${zh ? '換一支' : 'Another'}</button>
           <button class="btn btn-primary btn-block" onclick="closeModal(); renderBottleDetail('${esc(pick.id)}')">${zh ? '就係佢' : 'This one'}</button>
         </div>
+        ${k === 'party' ? `<button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="openPourParty('${esc(pick.id)}')">🍾 ${zh ? '約朋友開呢支' : 'Invite friends'}</button>` : ''}
       </div>
     </div>`;
 }
@@ -1093,6 +1117,8 @@ function renderBottleDetail(id) {
     { key:'unopened', label: t('space_cooler') },
     { key:'opened', label: t('space_wood') },
     { key:'finished', label: t('space_bar') },
+    { key:'kept', label: t('space_kept') },
+    { key:'gifted', label: t('space_gift') },
     { key:'wishlist', label: t('space_wish') }
   ];
 
@@ -1139,6 +1165,7 @@ function renderBottleDetail(id) {
 
       <!-- 2. 八維價值地圖雷達圖 (Know your bottle 核心) -->
       ${renderVerdictCard(b)}
+      ${(!isVisitorMode && ['unopened','opened','kept'].includes(b.status) && deriveVerdict(b).key !== 'open') ? `<button class="btn btn-ghost btn-block" style="margin-bottom:10px;" onclick="openPourParty('${esc(b.id)}')">🍾 ${currentLang==='zh'?'約朋友開瓶':'Start a pour party'}</button>` : ''}
 
       ${(() => { const r = renderRadar(vm); return r ? `<details class="radar-fold"><summary>${currentLang==='zh'?'睇詳細評分':'Detailed scores'}</summary>${r}</details>` : ''; })()}
 
