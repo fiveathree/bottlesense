@@ -25,6 +25,13 @@ let activeFilter = 'all';
 let isVisitorMode = false;
 let visitorCellarData = null;
 
+// 訪客(查看他人分享連結)只可閱讀，所有寫入動作一律攔截
+function blockIfVisitor() {
+  if (!isVisitorMode) return false;
+  showToast(currentLang === 'zh' ? '👀 訪客模式僅供瀏覽，無法修改' : '👀 View-only: visitors cannot make changes');
+  return true;
+}
+
 // ==========================================
 // 繁英雙語字典系統 (i18n)
 // ==========================================
@@ -508,14 +515,14 @@ function bottleCardHTML(b) {
 
   return `
     <div class="swipe-item-wrapper" id="wrap-${esc(b.id)}">
-      <div class="swipe-action-left" onclick="toggleFavorite('${esc(b.id)}')">
+      ${isVisitorMode ? '' : `<div class="swipe-action-left" onclick="toggleFavorite('${esc(b.id)}')">
         <span class="swipe-action-icon">${b.isFavorite ? '★' : '☆'}</span>
         <span>${b.isFavorite ? (currentLang==='zh'?'取消':'Unfav') : (currentLang==='zh'?'最愛':'Fav')}</span>
       </div>
       <div class="swipe-action-right" onclick="deleteBottle('${esc(b.id)}')">
         <span class="swipe-action-icon">×</span>
         <span>${currentLang==='zh'?'刪除':'Delete'}</span>
-      </div>
+      </div>`}
 
       <article class="bottle-card" id="card-${esc(b.id)}" onclick="renderBottleDetail('${esc(b.id)}')">
         <div class="bottle-photo-box">
@@ -541,6 +548,7 @@ function bottleCardHTML(b) {
 }
 
 function attachSwipeListeners() {
+  if (isVisitorMode) return;
   const wrappers = document.querySelectorAll('.swipe-item-wrapper');
   wrappers.forEach(wrap => {
     const card = wrap.querySelector('.bottle-card');
@@ -617,10 +625,10 @@ function renderBottleDetail(id) {
         <button class="btn btn-ghost" style="padding:8px 14px; font-size:14px;" onclick="${currentView === 'cellar' ? 'renderCellar()' : 'goHome()'}">
           ${t('back')}
         </button>
-        <button class="share-plane-btn" onclick="openShareActionSheet('${esc(b.id)}')">
+        ${isVisitorMode ? '' : `<button class="share-plane-btn" onclick="openShareActionSheet('${esc(b.id)}')">
           ${TELEGRAM_PLANE_SVG}
           <span>${t('share_bottle')}</span>
-        </button>
+        </button>`}
       </div>
 
       ${img ? `<div class="detail-photo-hero"><img src="${esc(img)}" alt=""></div>` : ''}
@@ -636,9 +644,9 @@ function renderBottleDetail(id) {
 
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
           <div class="label-eyebrow" style="margin-bottom:0;">${esc(bottleCategory(b))}</div>
-          <button class="edit-badge-btn" onclick="openEditBottleModal('${esc(b.id)}')">
+          ${isVisitorMode ? '' : `<button class="edit-badge-btn" onclick="openEditBottleModal('${esc(b.id)}')">
             ${EDIT_PENCIL_SVG} ${t('edit_info')}
-          </button>
+          </button>`}
         </div>
 
         <div class="label-name">${esc(bottleName(b))}</div>
@@ -659,7 +667,7 @@ function renderBottleDetail(id) {
       ${renderRecommendation(rec)}
 
       <!-- 4. 轉移藏酒空間 (單行極致收窄膠囊列) -->
-      <div class="info-block">
+      ${isVisitorMode ? '' : `<div class="info-block">
         <h3 style="font-size:14px; margin-bottom:6px;">${t('transfer_title')}</h3>
         <div class="destination-strip">
           ${statuses.map(s => `
@@ -668,16 +676,16 @@ function renderBottleDetail(id) {
             </div>
           `).join('')}
         </div>
-      </div>
+      </div>`}
 
       <!-- 5. 品飲歷史時間軸 (智慧隱藏：僅在「已飲」與「飲完」狀態顯示) -->
       ${['opened', 'finished'].includes(b.status) ? `
         <div class="info-block" id="tasting-timeline-block">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
             <h3>${t('timeline_title')} (${(b.tastings || []).length})</h3>
-            <button class="btn btn-primary btn-sm" onclick="openAddSessionModal('${esc(b.id)}')">
+            ${isVisitorMode ? '' : `<button class="btn btn-primary btn-sm" onclick="openAddSessionModal('${esc(b.id)}')">
               ${t('btn_add_log')}
-            </button>
+            </button>`}
           </div>
           <div style="font-size:13px; color:var(--text-faint); margin-bottom:14px;">${t('timeline_hint')}</div>
 
@@ -697,7 +705,7 @@ function renderBottleDetail(id) {
                       <span class="timeline-time" style="font-family:var(--mono); color:var(--gold); font-size:12px;">#${idx+1} · ${esc(tItem.dateStr || tItem.date || '')}</span>
                       <div style="color:var(--gold); font-size:13.5px; margin-top:2px;">${'★'.repeat(tItem.rating || 5)}</div>
                     </div>
-                    <div style="display:flex; gap:6px;">
+                    <div style="display:flex; gap:6px;${isVisitorMode ? ' display:none;' : ''}">
                       <button class="btn btn-ghost btn-sm" style="padding:3px 8px; font-size:11px;" onclick="togglePublishSession('${esc(b.id)}', '${esc(tItem.id)}')">
                         ${tItem.isPublic ? '↩️ 收回' : '🌐 發布'}
                       </button>
@@ -728,9 +736,9 @@ function renderBottleDetail(id) {
         </div>
       ` : ''}
 
-      <div style="margin-top:24px;">
+      ${isVisitorMode ? `<div style="margin-top:24px; text-align:center;"><button class="btn btn-primary btn-block" onclick="exitVisitorMode()">${currentLang==='zh'?'返回我的酒窖':'Back to my cellar'}</button></div>` : `<div style="margin-top:24px;">
         <button class="btn btn-wine btn-block" onclick="deleteBottle('${esc(b.id)}')">${t('btn_remove')}</button>
-      </div>
+      </div>`}
     </div>
   `;
 }
@@ -828,6 +836,7 @@ function renderRecommendation(rec) {
 }
 
 async function moveStatus(id, newStatus) {
+  if (blockIfVisitor()) return;
   const b = (window.cellar || []).find(x => String(x.id) === String(id));
   if (!b) return;
   b.status = newStatus;
@@ -836,6 +845,7 @@ async function moveStatus(id, newStatus) {
 }
 
 function openEditBottleModal(id) {
+  if (blockIfVisitor()) return;
   const b = (window.cellar || []).find(x => String(x.id) === String(id));
   if (!b) return;
 
@@ -880,6 +890,7 @@ function openEditBottleModal(id) {
 }
 
 async function saveEditedBottle(id) {
+  if (blockIfVisitor()) return;
   const b = (window.cellar || []).find(x => String(x.id) === String(id));
   if (!b) return;
 
@@ -905,6 +916,7 @@ function defaultNowStr() {
 }
 
 function openAddSessionModal(bottleId) {
+  if (blockIfVisitor()) return;
   const now = new Date();
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
   const defaultIso = now.toISOString().slice(0, 16);
@@ -1021,6 +1033,7 @@ function setModalRating(n) {
 }
 
 async function saveNewSession(bottleId) {
+  if (blockIfVisitor()) return;
   const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
   if (!b) return;
 
@@ -1042,6 +1055,7 @@ async function saveNewSession(bottleId) {
 }
 
 function openShareActionSheet(bottleId, sessionId = null) {
+  if (blockIfVisitor()) return;
   const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
   if (!b) return;
 
@@ -1071,6 +1085,7 @@ function openShareActionSheet(bottleId, sessionId = null) {
 }
 
 async function publishToCommunityPool(bottleId, sessionId) {
+  if (blockIfVisitor()) return;
   const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
   if (!b) return;
   const s = sessionId ? (b.tastings || []).find(t => String(t.id) === String(sessionId)) : null;
@@ -1103,21 +1118,28 @@ function executePrivateShare(bottleId, sessionId) {
   else shareSingleBottle(bottleId);
 }
 
-function syncPublishCellarAsync() {
+async function publishCellarForShare() {
   const key = getOrCreateSyncKey();
-  fetch(`${WORKER_API_URL}/api/cellar/publish`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ syncKey: key, cellar: window.cellar, ownerName: '品飲家' })
-  }).catch(() => {});
+  const ownerName = localStorage.getItem('bottlesense_profile_name') || '品飲家';
+  try {
+    const res = await fetch(`${WORKER_API_URL}/api/cellar/publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ syncKey: key, cellar: window.cellar, ownerName })
+    });
+    const data = await res.json();
+    if (res.ok && data.shareId) return data.shareId;
+  } catch(e) {}
+  showToast(currentLang === 'zh' ? '分享連結建立失敗，請檢查網絡後重試' : 'Could not create share link, please retry');
+  return null;
 }
 
 async function shareEntireCellar() {
+  if (blockIfVisitor()) return;
   if (!window.cellar || !window.cellar.length) return;
-  syncPublishCellarAsync();
-
-  const key = getOrCreateSyncKey();
-  const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(key)}`;
+  const shareId = await publishCellarForShare();
+  if (!shareId) return;
+  const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(shareId)}`;
   const shareText = `🍾 歡迎參觀我的私人酒窖 (BottleSense)：內有 ${window.cellar.length} 款精選佳釀與真實品飲手記！`;
 
   if (navigator.share) {
@@ -1134,12 +1156,12 @@ async function shareEntireCellar() {
 }
 
 async function shareSingleBottle(id) {
+  if (blockIfVisitor()) return;
   const b = (window.cellar || []).find(x => String(x.id) === String(id));
   if (!b) return;
-  syncPublishCellarAsync();
-
-  const key = getOrCreateSyncKey();
-  const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(key)}&bottle=${b.id}`;
+  const shareId = await publishCellarForShare();
+  if (!shareId) return;
+  const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(shareId)}&bottle=${b.id}`;
   const shareText = `🍾 BottleSense 藏酒推薦：${bottleName(b)}`;
 
   if (navigator.share) {
@@ -1155,14 +1177,14 @@ async function shareSingleBottle(id) {
 }
 
 async function shareSingleSession(bottleId, sessionId) {
+  if (blockIfVisitor()) return;
   const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
   if (!b) return;
   const s = (b.tastings || []).find(t => String(t.id) === String(sessionId));
   if (!s) return;
-  syncPublishCellarAsync();
-
-  const key = getOrCreateSyncKey();
-  const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(key)}&bottle=${b.id}`;
+  const shareId = await publishCellarForShare();
+  if (!shareId) return;
+  const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(shareId)}&bottle=${b.id}`;
   const noteStr = s.notes ? `\n心得：「${s.notes}」` : '';
   const shareText = `🥃 BottleSense 品飲手記\n酒款：${bottleName(b)}\n時間：${s.dateStr}\n評分：${'★'.repeat(s.rating||5)}${noteStr}`;
 
@@ -1634,6 +1656,7 @@ async function deleteMyExploreShare(bottleId) {
 }
 
 async function addExploreItemToWishlist(bottleId) {
+  if (blockIfVisitor()) return;
   const b = currentExploreFeed.find(x => String(x.id) === String(bottleId));
   if (!b) return;
 
@@ -1977,6 +2000,7 @@ function showError(msg) {
 }
 
 async function toggleFavorite(id, rerender = false) {
+  if (blockIfVisitor()) return;
   const b = (window.cellar || []).find(x => String(x.id) === String(id));
   if (!b) return;
   b.isFavorite = !b.isFavorite;
@@ -1987,6 +2011,7 @@ async function toggleFavorite(id, rerender = false) {
 }
 
 async function deleteBottle(id) {
+  if (blockIfVisitor()) return;
   if (!confirm(t('confirm_delete'))) return;
   const idx = (window.cellar || []).findIndex(x => String(x.id) === String(id));
   if (idx < 0) return;
@@ -2336,16 +2361,19 @@ async function executeLoginWithOtp() {
   showToast(currentLang === 'zh' ? '正在驗證並載入酒窖…' : 'Verifying code & loading cellar...');
   try {
     const clientSyncKey = localStorage.getItem('bottlesense_sync_key') || '';
+    // 訪客期間在本機加入的酒款/品飲記錄一併帶入帳號 (與雲端資料合併，不覆蓋)
+    const localCellar = (typeof readAllLocal === 'function') ? await readAllLocal() : [];
+    const localDeleted = (typeof getDeletedMap === 'function') ? getDeletedMap() : {};
     const res = await fetch(`${WORKER_API_URL}/api/auth/verify-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, otp, syncKey: clientSyncKey })
+      body: JSON.stringify({ email, otp, syncKey: clientSyncKey, localCellar, localDeleted })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '驗證失敗');
 
     if (data.cellar) {
-      await restoreCellarToLocal(data.cellar, data.syncKey, data.name || data.email);
+      await restoreCellarToLocal(data.cellar, data.syncKey, data.name || data.email, data.deleted);
     }
     localStorage.setItem('bottlesense_account_bound', data.email);
     localStorage.setItem('bottlesense_profile_name', data.name || email.split('@')[0]);
@@ -2569,8 +2597,12 @@ async function executeAccountLogout() {
     : 'Are you sure you want to log out? Local data on this device will be cleared. Cloud data is safely backed up and can be restored anytime by verifying your email again.';
   if (!confirm(confirmMsg)) return;
 
+  try { if (typeof syncToCloudKV === 'function') await syncToCloudKV(); } catch(e) {}
   if (typeof clearLocalCellar === 'function') await clearLocalCellar();
   window.cellar = [];
+  localStorage.removeItem('bottlesense_sync_key');
+  localStorage.removeItem('bottlesense_deleted');
+  getOrCreateSyncKey();
   localStorage.removeItem('bottlesense_account_bound');
   localStorage.removeItem('bottlesense_owner_name');
   localStorage.removeItem('bottlesense_profile_name');
@@ -2615,13 +2647,17 @@ async function executeDeleteAccountPermanently() {
   goHome();
 }
 
-async function restoreCellarToLocal(cellarData, syncKey, name) {
+async function restoreCellarToLocal(cellarData, syncKey, name, deleted) {
   if (syncKey) localStorage.setItem('bottlesense_sync_key', syncKey);
   if (name) localStorage.setItem('bottlesense_profile_name', name);
+  if (deleted && typeof deleted === 'object') setDeletedMap({ ...getDeletedMap(), ...deleted });
+  // 以雲端合併結果為準寫入本機 (不逐筆觸發同步，避免用舊資料覆蓋雲端)
   if (Array.isArray(cellarData)) {
-    for (const b of cellarData) {
-      await saveBottleToDB(b);
-    }
+    const keep = new Set(cellarData.map(b => String(b.id)));
+    const existing = await readAllLocal();
+    const toDel = existing.filter(b => !keep.has(String(b.id)) && deleted && deleted[b.id]).map(b => b.id);
+    if (toDel.length) await deleteBottlesLocalRaw(toDel);
+    await putBottlesLocalRaw(cellarData);
   }
   await refreshCellar();
 }
@@ -2741,11 +2777,28 @@ async function initApp() {
       return;
     }
     renderHome();
+    if (localStorage.getItem('bottlesense_account_bound')) syncToCloudKV();
   } catch(e) {
     window.cellar = [];
     renderHome();
   }
 }
+
+// 雲端有較新資料寫入本機後，重新整理畫面
+function onCloudCellarChanged() {
+  if (isVisitorMode) return;
+  window.cellar = Array.isArray(window.cellar) ? window.cellar.map(normalizeBottle) : [];
+  if (document.querySelector('.modal-overlay')) return;
+  if (currentView === 'cellar') renderCellar();
+  else if (currentView === 'home') renderHome();
+}
+
+// 切回 App(PWA 回到前景)時拉取其他裝置的更新
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !isVisitorMode && localStorage.getItem('bottlesense_account_bound')) {
+    syncToCloudKV();
+  }
+});
 
 document.addEventListener('DOMContentLoaded', initApp);
 
@@ -2756,6 +2809,7 @@ function expandTimeline(bottleId) {
 }
 
 async function togglePublishSession(bottleId, sessionId) {
+  if (blockIfVisitor()) return;
   const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
   if (!b || !b.tastings) return;
   const tItem = b.tastings.find(s => String(s.id) === String(sessionId));
