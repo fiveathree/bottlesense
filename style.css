@@ -1312,3 +1312,104 @@ main {
   word-break: keep-all;
   line-break: strict;
 }
+
+/* =======================================================
+   酒瓶 Silhouette HUD 邊框樣式與懸浮提示膠囊
+======================================================= */
+.bottle-hud-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.crop-hud-hint {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(18, 19, 14, 0.88);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--sans);
+  padding: 5px 14px;
+  border-radius: 999px;
+  z-index: 10;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+/* =======================================================
+   世界地圖 Loading 遮罩樣式 (杜絕一格格漸進式破圖)
+======================================================= */
+.map-loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 15;
+  transition: opacity 0.3s ease;
+}
+.map-loading-overlay .loading-ring {
+  width: 42px;
+  height: 42px;
+  border: 2px solid var(--line);
+  border-top-color: var(--gold);
+  animation: spin 1s linear infinite;
+  margin-bottom: 10px;
+}
+.map-loading-text {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--gold-dim);
+  letter-spacing: 1px;
+}
+
+/* =======================================================
+   AI 辨識階段排版最佳化 (單行高雅標籤與文字)
+======================================================= */
+.loading-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 55px 20px;
+  text-align: center;
+}
+.loading-badge {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--gold);
+  background: rgba(212, 175, 55, 0.12);
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  padding: 4px 14px;
+  border-radius: 999px;
+  margin-bottom: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.loading-title {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+  white-space: nowrap;
+}
+.loading-desc {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 320px;
+  margin: 0 auto;
+  word-break: keep-all;
+  line-break: strict;
+}
