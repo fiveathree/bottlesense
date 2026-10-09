@@ -159,24 +159,24 @@ const I18N = {
     nav_scan: "辨識",
     nav_cellar: "酒櫃",
     nav_explore: "探索",
-    hero_title: "認識你的每一瓶酒",
-    hero_desc: "拍下酒標，AI 分析風味維度、最佳賞味期與處置決策。",
+    hero_title: "Know what to do with it",
+    hero_desc: "拍低酒標，即刻知呢支酒應該 開 · 飲 · 藏 · 送。",
     choose_album: "從相簿選照片",
-    spaces_title: "藏酒空間與隨機探索",
+    spaces_title: "你嘅酒架",
     open_cellar: "打開酒櫃 →",
     recent_title: "最近加入",
     view_all: "查看全部 →",
     empty_cellar: "酒櫃目前是空的<br>先拍一瓶酒標開始吧。",
     empty_recent_loggedin: "尚未有最近加入的酒款<br>拍一瓶酒標，開始建立你的酒窖。",
-    space_cooler: "⚡ 未飲",
-    space_wood: "🪵 已飲",
-    space_bar: "🥃 飲完",
+    space_cooler: "🧊 未開瓶",
+    space_wood: "🥃 飲緊",
+    space_bar: "🏆 回憶牆",
     space_wish: "🏷️ 想買",
     space_fav: "⭐ 最愛",
     space_random: "🎲 隨機賞味",
-    shelf_cooler_title: "⚡ 電子恆溫酒櫃 (未飲)",
-    shelf_wood_title: "🪵 實木日常酒架 (已飲中)",
-    shelf_bar_title: "🥃 吧台展示桌 (飲完紀念)",
+    shelf_cooler_title: "🧊 未開瓶 (等緊決定)",
+    shelf_wood_title: "🥃 飲緊 (開咗未飲完)",
+    shelf_bar_title: "🏆 回憶牆 (飲完、送出、售出)",
     shelf_wish_title: "🏷️ 願望清單 (想買)",
     shelf_fav_title: "⭐ 心頭好精選 (最愛)",
     share_cellar: "分享全窖",
@@ -217,7 +217,7 @@ const I18N = {
     nav_cellar: "Cellar",
     nav_explore: "Explore",
     hero_title: "Know What To Do With It",
-    hero_desc: "Snap a label. Let AI analyze flavor profiles, peak window & drinking decisions.",
+    hero_desc: "Snap a label. Know whether to open, drink, keep or gift it.",
     choose_album: "Upload from Photos",
     spaces_title: "Spaces & Random Pick",
     open_cellar: "Open Cellar →",
@@ -397,6 +397,9 @@ function renderHome() {
           <span class="upload-subtext" onclick="openGallery()">${t('choose_album')}</span>
         </div>
       </section>
+
+      ${occasionPickerHTML()}
+      ${collectionCardHTML()}
 
       <div class="section-head">
         <h2>${t('spaces_title')}</h2>
@@ -614,6 +617,7 @@ function bottleCardHTML(b) {
           </div>
           <div class="bottle-sub">${esc(safeIdentification(b).producer || '')}${vintage ? ' · ' + esc(vintage) : ''}</div>
           <div class="tag-cluster">
+            ${rarityBadge(b)}
             <span class="tag-badge">${esc(cat)}</span>
             ${region ? `<span class="tag-badge secondary">${esc(region)}</span>` : ''}
             ${pourCount > 0 ? `<span class="tag-badge" style="background:rgba(56,189,248,0.15); color:var(--cyan-glow); border-color:rgba(56,189,248,0.3);">${currentLang==='zh'?'品飲':'Pours'} ×${pourCount}</span>` : ''}
@@ -679,6 +683,401 @@ function attachSwipeListeners() {
   });
 }
 
+/* ---------------- 開 / 飲 / 藏 / 送：幫唔識酒嘅人決定 ---------------- */
+const VERDICTS = {
+  open:  { emoji: '🍾', zh: '開', en: 'Open',  ctaZh: '約朋友開瓶', ctaEn: 'Start a pour party',
+           headZh: '呢支適合約人一齊開', headEn: 'Best opened with friends',
+           whenZh: '揾個聚會或者生日一齊開，氣氛會最好', whenEn: 'Save it for a gathering' },
+  drink: { emoji: '🥃', zh: '飲', en: 'Drink', ctaZh: '我而家開咗，記錄一下', ctaEn: 'I opened it - log it',
+           headZh: '呢支啱自己慢慢飲', headEn: 'Great for enjoying yourself',
+           whenZh: '近期開嚟飲就最啱，唔使留', whenEn: 'Enjoy it soon' },
+  keep:  { emoji: '💎', zh: '藏', en: 'Keep',  ctaZh: '收好佢，唔急開', ctaEn: 'Keep it safe',
+           headZh: '呢支值得收好，等佢更好', headEn: 'Worth keeping for later',
+           whenZh: '放喺陰涼避光嘅地方，遇到大日子先開', whenEn: 'Store cool and dark, open on a big day' },
+  gift:  { emoji: '🎁', zh: '送', en: 'Gift',  ctaZh: '分享畀想送嘅人', ctaEn: 'Share with the lucky person',
+           headZh: '呢支送人好有面', headEn: 'Makes a great gift',
+           whenZh: '下次要送禮或者探長輩，就用佢', whenEn: 'Use it for your next gift' }
+};
+const VERDICT_ORDER = ['open', 'drink', 'keep', 'gift'];
+
+function normVerdictKey(a) {
+  a = String(a || '').toLowerCase();
+  if (a === 'share' || a === 'open') return 'open';
+  if (a === 'drink' || a === 'pair') return 'drink';
+  if (a === 'keep' || a === 'store' || a === 'collect' || a === 'sell') return 'keep';
+  if (a === 'gift') return 'gift';
+  return '';
+}
+
+function bottleVM(b) {
+  return calibrateValueMap(b.scan?.vm || safeIdentification(b).vm || {}, bottleCategory(b), bottleName(b));
+}
+
+function deriveVerdict(b) {
+  const rec = b.scan?.rec || safeIdentification(b).rec || {};
+  const vm = bottleVM(b);
+  let key = normVerdictKey(rec.verdict) || normVerdictKey(rec.actions?.[0]?.a);
+  if (!key) {
+    const cv = Number(vm.cv || 0), sto = Number(vm.sto || 0), gv = Number(vm.gv || 0), sv = Number(vm.sv || 0);
+    if (cv >= 60 || sto >= 60) key = 'keep';
+    else if (gv >= 70 && gv >= sv) key = 'gift';
+    else if (sv >= 65) key = 'open';
+    else key = 'drink';
+  }
+  const zh = currentLang === 'zh';
+  const v = VERDICTS[key];
+  return {
+    key,
+    headline: rec.headline || (zh ? v.headZh : v.headEn),
+    when: rec.when || (zh ? v.whenZh : v.whenEn),
+    reason: rec.reason || ''
+  };
+}
+
+function actionLabel(a) {
+  const k = normVerdictKey(a);
+  const v = VERDICTS[k];
+  if (!v) return String(a || '');
+  return currentLang === 'zh' ? v.zh : v.en;
+}
+
+function renderVerdictCard(b) {
+  const d = deriveVerdict(b);
+  const v = VERDICTS[d.key];
+  const zh = currentLang === 'zh';
+  const rec = b.scan?.rec || safeIdentification(b).rec || {};
+  const others = VERDICT_ORDER.filter(k => k !== d.key).map(k => {
+    const hit = (rec.actions || []).find(a => normVerdictKey(a.a) === k);
+    return { k, reason: hit?.reason || '' };
+  });
+  const party = b.party && !isVisitorMode ? `
+    <div class="party-banner">
+      🍾 ${zh ? '開瓶局' : 'Pour party'}：${esc(b.party.date || '')} ${esc(b.party.place || '')}
+      <button class="btn btn-primary btn-sm" onclick="finishPourParty('${esc(b.id)}')">${zh ? '開完啦，記錄今次' : 'Done - log it'}</button>
+    </div>` : '';
+  return `
+    <div class="verdict-card verdict-${d.key}">
+      <div class="verdict-eyebrow">${zh ? '呢支酒應該點處理？' : 'What to do with it?'}</div>
+      <div class="verdict-main">
+        <div class="verdict-word">${v.emoji}<span>${zh ? v.zh : v.en}</span></div>
+        <div class="verdict-text">
+          <div class="verdict-headline">${esc(d.headline)}</div>
+          <div class="verdict-when">🕒 ${esc(d.when)}</div>
+        </div>
+      </div>
+      ${d.reason ? `<div class="verdict-reason">${esc(d.reason)}</div>` : ''}
+      ${isVisitorMode ? '' : `<button class="btn btn-primary btn-block verdict-cta" onclick="verdictAct('${esc(b.id)}','${d.key}')">${zh ? v.ctaZh : v.ctaEn}</button>`}
+      <details class="verdict-others">
+        <summary>${zh ? '睇下其他選擇' : 'Other options'}</summary>
+        ${others.map(o => `
+          <div class="verdict-other-row">
+            <span class="verdict-other-tag">${VERDICTS[o.k].emoji} ${zh ? VERDICTS[o.k].zh : VERDICTS[o.k].en}</span>
+            <span>${esc(o.reason || (zh ? VERDICTS[o.k].headZh : VERDICTS[o.k].headEn))}</span>
+          </div>`).join('')}
+      </details>
+      ${party}
+    </div>`;
+}
+
+async function verdictAct(id, key) {
+  if (blockIfVisitor()) return;
+  const b = (window.cellar || []).find(x => String(x.id) === String(id));
+  if (!b) return;
+  if (key === 'drink') {
+    if (b.status !== 'opened') { b.status = 'opened'; await saveBottleToDB(b); }
+    renderBottleDetail(id);
+    openAddSessionModal(id);
+  } else if (key === 'open') {
+    openPourParty(id);
+  } else if (key === 'keep') {
+    b.status = b.status === 'wishlist' ? 'unopened' : b.status;
+    b.isFavorite = true;
+    await saveBottleToDB(b);
+    showToast(currentLang === 'zh' ? '💎 已收好，並標記為最愛，唔急開' : '💎 Kept safe and starred');
+    renderBottleDetail(id);
+  } else if (key === 'gift') {
+    openShareActionSheet(id);
+  }
+}
+
+/* ---------------- 稀有度與收集冊 ---------------- */
+function rarityOf(b) {
+  const vm = bottleVM(b);
+  const score = Math.max(Number(vm.cv || 0), Number(vm.mv || 0) * 0.9);
+  if (score >= 80) return { k: 'ssr', label: currentLang === 'zh' ? '傳說' : 'Legend' };
+  if (score >= 60) return { k: 'sr', label: currentLang === 'zh' ? '珍稀' : 'Rare' };
+  if (score >= 40) return { k: 'r', label: currentLang === 'zh' ? '精選' : 'Select' };
+  return { k: 'n', label: currentLang === 'zh' ? '日常' : 'Everyday' };
+}
+function rarityBadge(b) {
+  const r = rarityOf(b);
+  return `<span class="rarity-badge rarity-${r.k}">${r.label}</span>`;
+}
+
+function collectionStats() {
+  const c = window.cellar || [];
+  const owned = c.filter(b => b.status !== 'wishlist');
+  const countries = new Set(owned.map(b => bottleCountry(b)).filter(Boolean));
+  const cats = new Set(owned.map(b => bottleCategory(b)).filter(Boolean));
+  const pours = owned.reduce((n, b) => n + (b.tastings || []).length, 0);
+  const ssr = owned.filter(b => rarityOf(b).k === 'ssr' || rarityOf(b).k === 'sr').length;
+  return { total: owned.length, countries: countries.size, cats: cats.size, pours, rare: ssr };
+}
+
+function collectionCardHTML() {
+  const s = collectionStats();
+  if (!s.total) return '';
+  const zh = currentLang === 'zh';
+  const steps = [1, 5, 10, 25, 50, 100, 200];
+  const next = steps.find(n => n > s.total) || (Math.ceil(s.total / 100) + 1) * 100;
+  const prev = [...steps].reverse().find(n => n <= s.total) || 0;
+  const pct = Math.max(4, Math.round(((s.total - prev) / (next - prev)) * 100));
+  return `
+    <div class="collect-card">
+      <div class="collect-head">
+        <div class="collect-title">🎴 ${zh ? '我的酒卡冊' : 'My collection'}</div>
+        <div class="collect-count">${s.total} / ${next}</div>
+      </div>
+      <div class="collect-bar"><div class="collect-fill" style="width:${pct}%"></div></div>
+      <div class="collect-hint">${zh ? `再收 ${next - s.total} 張，就解鎖下一個里程碑` : `${next - s.total} more to the next milestone`}</div>
+      <div class="collect-chips">
+        <span>🌍 ${s.countries} ${zh ? '個國家' : 'countries'}</span>
+        <span>🥂 ${s.cats} ${zh ? '種酒類' : 'types'}</span>
+        <span>🥃 ${s.pours} ${zh ? '次開瓶' : 'pours'}</span>
+        <span>✨ ${s.rare} ${zh ? '張珍稀卡' : 'rare'}</span>
+      </div>
+    </div>`;
+}
+
+/* ---------------- 今晚點算：按場合幫你揀 ---------------- */
+const OCCASIONS = [
+  { k: 'self',   emoji: '🛋️', zh: '自己慢慢飲', en: 'Solo night' },
+  { k: 'party',  emoji: '🎉', zh: '朋友聚會',   en: 'Party' },
+  { k: 'dinner', emoji: '🍽️', zh: '食飯襯餐',   en: 'Dinner' },
+  { k: 'gift',   emoji: '🎁', zh: '送禮',       en: 'Gift' },
+  { k: 'keep',   emoji: '💎', zh: '揀支收藏',   en: 'To keep' }
+];
+let occasionSkip = {};
+
+function occasionScore(b, k) {
+  const vm = bottleVM(b);
+  const n = x => Number(vm[x] || 0);
+  if (k === 'self') return n('dv') * 1.0 + (b.status === 'opened' ? 10 : 0) - n('cv') * 0.3;
+  if (k === 'party') return n('sv') * 0.6 + n('dv') * 0.4;
+  if (k === 'dinner') return n('pv') * 0.8 + n('dv') * 0.2;
+  if (k === 'gift') return n('gv');
+  return n('cv') * 0.5 + n('sto') * 0.5;
+}
+
+function pickForOccasion(k) {
+  const zh = currentLang === 'zh';
+  const pool = (window.cellar || []).filter(b => b.status === 'unopened' || b.status === 'opened');
+  const occ = OCCASIONS.find(o => o.k === k);
+  if (!pool.length) {
+    showToast(zh ? '酒架未有酒，先掃一支酒標啦' : 'Scan a bottle first');
+    return;
+  }
+  const ranked = pool.map(b => ({ b, s: occasionScore(b, k) })).sort((a, b) => b.s - a.s);
+  const idx = (occasionSkip[k] || 0) % ranked.length;
+  const pick = ranked[idx].b;
+  const img = bottleImage(pick);
+  const d = deriveVerdict(pick);
+  modalContainer.innerHTML = `
+    <div class="modal-overlay" onclick="closeModal()">
+      <div class="modal-card" role="dialog" aria-modal="true" style="max-width:360px; text-align:center;" onclick="event.stopPropagation()">
+        <div style="font-size:13px; color:var(--text-faint);">${occ.emoji} ${zh ? occ.zh : occ.en}</div>
+        <div style="font-family:var(--serif); font-size:18px; font-weight:700; color:var(--gold); margin:6px 0 10px;">${zh ? '今次我揀呢支' : 'My pick'}</div>
+        ${img ? `<img src="${esc(img)}" alt="" style="width:110px; height:110px; object-fit:cover; border-radius:14px;">` : `<div style="font-size:54px;">${categoryEmoji(bottleCategory(pick))}</div>`}
+        <div style="font-weight:700; margin-top:8px;">${esc(bottleName(pick))}</div>
+        <div style="margin:6px 0;">${rarityBadge(pick)}</div>
+        <div style="font-size:13px; color:var(--text-muted); line-height:1.5;">${esc(d.headline)}</div>
+        <div style="display:flex; gap:8px; margin-top:14px;">
+          <button class="btn btn-ghost btn-block" onclick="occasionSkip['${k}']=(occasionSkip['${k}']||0)+1; pickForOccasion('${k}')">${zh ? '換一支' : 'Another'}</button>
+          <button class="btn btn-primary btn-block" onclick="closeModal(); renderBottleDetail('${esc(pick.id)}')">${zh ? '就係佢' : 'This one'}</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function occasionPickerHTML() {
+  const zh = currentLang === 'zh';
+  return `
+    <div class="section-head"><h2>${zh ? '今晚點算？' : 'What tonight?'}</h2></div>
+    <div class="occasion-row">
+      ${OCCASIONS.map(o => `<button class="occasion-chip" onclick="pickForOccasion('${o.k}')"><span>${o.emoji}</span>${zh ? o.zh : o.en}</button>`).join('')}
+    </div>`;
+}
+
+/* ---------------- 開瓶局 ---------------- */
+function openPourParty(id) {
+  if (blockIfVisitor()) return;
+  const b = (window.cellar || []).find(x => String(x.id) === String(id));
+  if (!b) return;
+  const zh = currentLang === 'zh';
+  const d = new Date(); d.setDate(d.getDate() + 7);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  modalContainer.innerHTML = `
+    <div class="modal-overlay" onclick="closeModal()">
+      <div class="modal-card" role="dialog" aria-modal="true" style="max-width:370px; text-align:left;" onclick="event.stopPropagation()">
+        <div style="font-family:var(--serif); font-size:19px; font-weight:700; color:var(--gold); margin-bottom:4px;">🍾 ${zh ? '約朋友開瓶' : 'Pour party'}</div>
+        <div style="font-size:13px; color:var(--text-muted); margin-bottom:10px;">${esc(bottleName(b))}</div>
+        <div style="font-size:12px; color:var(--text-faint);">${zh ? '日期同時間' : 'When'}</div>
+        <input type="datetime-local" id="party-date" class="text-input" value="${d.toISOString().slice(0, 16)}">
+        <div style="font-size:12px; color:var(--text-faint); margin-top:8px;">${zh ? '地點' : 'Where'}</div>
+        <input type="text" id="party-place" class="text-input" maxlength="40" placeholder="${zh ? '例如：我屋企、中環某餐廳' : 'e.g. my place'}">
+        <div style="font-size:12px; color:var(--text-faint); margin-top:8px;">${zh ? '想同朋友講咩（可留空）' : 'Message (optional)'}</div>
+        <input type="text" id="party-msg" class="text-input" maxlength="80" placeholder="${zh ? '例如：留咗好耐，終於可以開' : ''}">
+        <div style="display:flex; gap:8px; margin-top:14px;">
+          <button class="btn btn-ghost btn-block" onclick="closeModal()">${zh ? '取消' : 'Cancel'}</button>
+          <button class="btn btn-primary btn-block" onclick="sendPourParty('${esc(b.id)}')">${zh ? '發邀請' : 'Send invite'}</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function sendPourParty(id) {
+  const b = (window.cellar || []).find(x => String(x.id) === String(id));
+  if (!b) return;
+  const zh = currentLang === 'zh';
+  const raw = document.getElementById('party-date').value;
+  const place = document.getElementById('party-place').value.trim();
+  const msg = document.getElementById('party-msg').value.trim();
+  const date = raw ? raw.replace('T', ' ') : '';
+  b.party = { date, place, msg };
+  await saveBottleToDB(b);
+  const link = (typeof inviteLink === 'function' && inviteLink()) || location.origin + location.pathname;
+  const text = zh
+    ? `🍾 我想開「${bottleName(b)}」，${date}${place ? ' 喺' + place : ''}，一齊嚟飲？${msg ? '\n' + msg : ''}\n我用 BottleSense 記低每次開瓶：`
+    : `🍾 Let's open "${bottleName(b)}" ${date}${place ? ' at ' + place : ''}.${msg ? '\n' + msg : ''}\nI log every bottle with BottleSense:`;
+  closeModal();
+  renderBottleDetail(id);
+  try {
+    if (navigator.share) { await navigator.share({ title: 'BottleSense', text, url: link }); return; }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(text + ' ' + link); showToast(zh ? '✓ 邀請已複製，貼畀朋友啦' : '✓ Invite copied'); }
+  catch (e) { prompt(zh ? '複製邀請：' : 'Copy invite:', text + ' ' + link); }
+}
+
+async function finishPourParty(id) {
+  const b = (window.cellar || []).find(x => String(x.id) === String(id));
+  if (!b) return;
+  const p = b.party || {};
+  if (b.status !== 'opened') b.status = 'opened';
+  await saveBottleToDB(b);
+  openAddSessionModal(id);
+  setTimeout(() => {
+    const loc = document.getElementById('sess-loc'); if (loc && p.place) loc.value = p.place;
+    const dt = document.getElementById('sess-date'); if (dt && p.date) dt.value = p.date.replace(' ', 'T');
+  }, 30);
+}
+
+/* ---------------- 回憶卡 ---------------- */
+function loadImageForCanvas(src) {
+  return new Promise(resolve => {
+    if (!src) return resolve(null);
+    const im = new Image();
+    im.crossOrigin = 'anonymous';
+    im.onload = () => resolve(im);
+    im.onerror = () => resolve(null);
+    im.src = src;
+  });
+}
+
+function wrapCanvasText(ctx, text, maxW, maxLines) {
+  const lines = []; let line = '';
+  for (const ch of String(text)) {
+    if (ctx.measureText(line + ch).width > maxW) { lines.push(line); line = ch; if (lines.length >= maxLines) break; }
+    else line += ch;
+  }
+  if (lines.length < maxLines && line) lines.push(line);
+  return lines;
+}
+
+async function drawMemoryCard(b, s, withPhoto) {
+  const W = 1080, H = 1350;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#1b1410'); g.addColorStop(1, '#0b0907');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = '#D4AF37'; ctx.lineWidth = 6; ctx.strokeRect(36, 36, W - 72, H - 72);
+  ctx.strokeStyle = 'rgba(212,175,55,0.35)'; ctx.lineWidth = 2; ctx.strokeRect(54, 54, W - 108, H - 108);
+  let y = 150;
+  const zh = currentLang === 'zh';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#D4AF37'; ctx.font = '600 34px sans-serif';
+  ctx.fillText(zh ? '— 值得記住嘅一刻 —' : '— A moment to remember —', W / 2, y);
+  y += 40;
+  let drawn = false;
+  if (withPhoto) {
+    const im = await loadImageForCanvas(bottleImage(b));
+    if (im) {
+      const box = 520, r = Math.min(box / im.width, box / im.height);
+      const w = im.width * r, h = im.height * r;
+      ctx.save(); ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect((W - w) / 2, y, w, h, 28); else ctx.rect((W - w) / 2, y, w, h);
+      ctx.clip(); ctx.drawImage(im, (W - w) / 2, y, w, h); ctx.restore();
+      y += h + 40; drawn = true;
+    }
+  }
+  if (!drawn) { ctx.font = '220px serif'; ctx.fillStyle = '#fff'; ctx.fillText(categoryEmoji(bottleCategory(b)), W / 2, y + 230); y += 300; }
+  ctx.fillStyle = '#f5e8c8'; ctx.font = '700 54px serif';
+  for (const ln of wrapCanvasText(ctx, bottleName(b), W - 220, 2)) { ctx.fillText(ln, W / 2, y + 50); y += 66; }
+  y += 20;
+  ctx.fillStyle = '#D4AF37'; ctx.font = '48px sans-serif';
+  ctx.fillText('★'.repeat(s.rating || 5), W / 2, y + 40); y += 90;
+  ctx.fillStyle = '#e9dcc0'; ctx.font = '36px sans-serif';
+  const meta = [s.dateStr ? s.dateStr.slice(0, 10) : '', s.location ? '📍' + s.location : '', s.companions ? '👥' + s.companions : ''].filter(Boolean);
+  for (const m of meta) { ctx.fillText(m, W / 2, y + 30); y += 52; }
+  if (s.notes) {
+    y += 20; ctx.fillStyle = '#cdbf9f'; ctx.font = 'italic 36px serif';
+    for (const ln of wrapCanvasText(ctx, '「' + s.notes + '」', W - 240, 3)) { ctx.fillText(ln, W / 2, y + 30); y += 50; }
+  }
+  ctx.fillStyle = 'rgba(212,175,55,0.8)'; ctx.font = '600 30px sans-serif';
+  ctx.fillText('BottleSense · Know what to do with it', W / 2, H - 90);
+  return cv;
+}
+
+async function openMemoryCard(bottleId, sessionId) {
+  const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
+  if (!b) return;
+  const s = (b.tastings || []).find(x => String(x.id) === String(sessionId)) || b.tastings?.[0];
+  if (!s) return;
+  const zh = currentLang === 'zh';
+  let cv;
+  try {
+    cv = await drawMemoryCard(b, s, true);
+    cv.toDataURL('image/png'); // 圖片跨域時會丟錯
+  } catch (e) { cv = await drawMemoryCard(b, s, false); }
+  window._memoryCanvas = cv;
+  modalContainer.innerHTML = `
+    <div class="modal-overlay" onclick="closeModal()">
+      <div class="modal-card" role="dialog" aria-modal="true" style="max-width:380px; text-align:center;" onclick="event.stopPropagation()">
+        <div style="font-family:var(--serif); font-size:18px; font-weight:700; color:var(--gold); margin-bottom:8px;">🖼️ ${zh ? '今次嘅回憶卡' : 'Memory card'}</div>
+        <img src="${cv.toDataURL('image/png')}" alt="" style="width:100%; border-radius:12px;">
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button class="btn btn-ghost btn-block" onclick="closeModal()">${zh ? '關閉' : 'Close'}</button>
+          <button class="btn btn-primary btn-block" onclick="shareMemoryCard()">${zh ? '分享 / 儲存' : 'Share / Save'}</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function shareMemoryCard() {
+  const cv = window._memoryCanvas; if (!cv) return;
+  const zh = currentLang === 'zh';
+  const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+  if (!blob) return;
+  const file = new File([blob], 'bottlesense-memory.png', { type: 'image/png' });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'BottleSense' }); return; }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'bottlesense-memory.png';
+  document.body.appendChild(a); a.click(); a.remove();
+  showToast(zh ? '✓ 已儲存圖片' : '✓ Saved');
+}
+
 /* ---------------- Know your bottle: 介紹與建議置頂，品飲歷程與轉移列下移 ---------------- */
 function renderBottleDetail(id) {
   const b = (window.cellar || []).find(x => String(x.id) === String(id));
@@ -739,10 +1138,9 @@ function renderBottleDetail(id) {
       </div>
 
       <!-- 2. 八維價值地圖雷達圖 (Know your bottle 核心) -->
-      ${renderRadar(vm)}
+      ${renderVerdictCard(b)}
 
-      <!-- 3. 專業處置建議 (置頂，先知點做) -->
-      ${renderRecommendation(rec)}
+      ${(() => { const r = renderRadar(vm); return r ? `<details class="radar-fold"><summary>${currentLang==='zh'?'睇詳細評分':'Detailed scores'}</summary>${r}</details>` : ''; })()}
 
       <!-- 4. 轉移藏酒空間 (單行極致收窄膠囊列) -->
       ${isVisitorMode ? '' : `<div class="info-block">
@@ -787,6 +1185,7 @@ function renderBottleDetail(id) {
                       <button class="btn btn-ghost btn-sm" style="padding:3px 8px; font-size:11px;" onclick="togglePublishSession('${esc(b.id)}', '${esc(tItem.id)}')">
                         ${tItem.isPublic ? '↩️ 收回' : '🌐 發布'}
                       </button>
+                      <button class="btn btn-ghost btn-sm" style="padding:3px 8px; font-size:11px;" onclick="openMemoryCard('${esc(b.id)}', '${esc(tItem.id)}')">🖼️ ${currentLang==='zh'?'回憶卡':'Card'}</button>
                       <button class="timeline-share-btn" onclick="openShareActionSheet('${esc(b.id)}', '${esc(tItem.id)}')" title="Share this pour">
                         ${TELEGRAM_PLANE_SVG}
                       </button>
@@ -826,7 +1225,7 @@ function renderBottleDetail(id) {
 
 function renderRadar(vm) {
   const dimKeys = ['mv','ql','dv','pv','sv','gv','cv','sto'];
-  const dimZh = { mv:"市場價值", ql:"品質工藝", dv:"飲用價值", pv:"配餐價值", sv:"社交話題", gv:"送禮價值", cv:"收藏價值", sto:"保存潛力" };
+  const dimZh = { mv:"值錢程度", ql:"品質", dv:"好唔好飲", pv:"襯餐", sv:"啱分享", gv:"送禮體面", cv:"值得收藏", sto:"放得幾耐" };
   const dimEn = { mv:"Market", ql:"Quality", dv:"Drinking", pv:"Pairing", sv:"Social", gv:"Gifting", cv:"Collection", sto:"Storage" };
   const labels = currentLang === 'zh' ? dimZh : dimEn;
 
@@ -879,7 +1278,7 @@ function renderRadar(vm) {
 
   return `
     <div class="radar-wrap" style="text-align:center;">
-      <h3 style="margin-bottom:6px;">${currentLang === 'zh' ? '八維價值地圖' : 'Value Profile Map'}</h3>
+      <h3 style="margin-bottom:6px;">${currentLang === 'zh' ? '酒款評分' : 'Scores'}</h3>
       <svg width="280" height="280" viewBox="0 0 280 280" style="overflow:visible; margin:0 auto; display:block;">
         ${rings}
         ${axes}
@@ -896,7 +1295,7 @@ function renderRecommendation(rec) {
   if (!rec || (!rec.reason && !rec.actions)) return '';
   return `
     <div class="rec-card">
-      <h3>${currentLang === 'zh' ? '專業處置建議' : 'Sommelier Guidance'}</h3>
+      <h3>${currentLang === 'zh' ? '處理建議' : 'Guidance'}</h3>
       <div class="rec-reason">${esc(rec.reason || '')}</div>
       ${(rec.actions || [
         {a:"drink", reason: currentLang==='zh'?"現在正是最佳風味表現期":"Peak drinking window is now"},
@@ -907,7 +1306,7 @@ function renderRecommendation(rec) {
           <div class="action-rank">${['🥇','🥈','🥉'][i]||(i+1)}</div>
           <div class="action-icon">${ACTION_ICONS[a.a]||'🍷'}</div>
           <div class="action-body">
-            <div class="action-title">${esc(a.a||'')}</div>
+            <div class="action-title">${esc(actionLabel(a.a))}</div>
             <div class="action-reason">${esc(a.reason||'')}</div>
           </div>
         </div>
@@ -1133,9 +1532,11 @@ async function saveNewSession(bottleId) {
 
   b.tastings.unshift(newSession);
   b.personalRating = newSession.rating;
+  delete b.party;
   await saveBottleToDB(b);
   closeModal();
   renderBottleDetail(bottleId);
+  openMemoryCard(bottleId, newSession.id);
 }
 
 function openShareActionSheet(bottleId, sessionId = null) {

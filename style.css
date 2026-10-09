@@ -1755,3 +1755,41 @@ select.text-input {
 .privacy-body ul { padding-left: 18px; margin: 6px 0; }
 .privacy-body li { margin-bottom: 4px; }
 .privacy-body .muted { color: var(--text-faint); font-size: 12px; }
+
+/* ---- verdict card (open / drink / keep / gift) ---- */
+.verdict-card { margin: 14px 0; padding: 16px; border-radius: 18px; border: 1px solid var(--gold-dim, #5c4a1a); background: linear-gradient(160deg, rgba(212,175,55,0.14), rgba(20,16,10,0.6)); }
+.verdict-eyebrow { font-size: 12px; color: var(--text-faint); letter-spacing: 0.04em; margin-bottom: 8px; }
+.verdict-main { display: flex; align-items: center; gap: 14px; }
+.verdict-word { display: flex; flex-direction: column; align-items: center; min-width: 74px; font-size: 34px; line-height: 1; }
+.verdict-word span { font-family: var(--serif); font-size: 30px; font-weight: 800; color: var(--gold); margin-top: 4px; }
+.verdict-headline { font-size: 17px; font-weight: 700; line-height: 1.4; }
+.verdict-when { font-size: 13px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+.verdict-reason { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-top: 10px; }
+.verdict-cta { margin-top: 12px; }
+.verdict-others { margin-top: 10px; font-size: 13px; }
+.verdict-others summary { cursor: pointer; color: var(--gold); padding: 4px 0; }
+.verdict-other-row { display: flex; gap: 8px; padding: 6px 0; border-top: 1px dashed rgba(212,175,55,0.2); color: var(--text-muted); }
+.verdict-other-tag { white-space: nowrap; color: var(--text); font-weight: 600; }
+.party-banner { margin-top: 10px; padding: 10px; border-radius: 12px; background: rgba(212,175,55,0.12); font-size: 13px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.radar-fold { margin: 10px 0; }
+.radar-fold summary { cursor: pointer; color: var(--gold); font-size: 14px; padding: 6px 0; }
+
+/* ---- rarity ---- */
+.rarity-badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; border: 1px solid transparent; }
+.rarity-n { background: rgba(255,255,255,0.08); color: #bbb; border-color: rgba(255,255,255,0.15); }
+.rarity-r { background: rgba(56,189,248,0.15); color: #7dd3fc; border-color: rgba(56,189,248,0.4); }
+.rarity-sr { background: rgba(168,85,247,0.18); color: #d8b4fe; border-color: rgba(168,85,247,0.5); }
+.rarity-ssr { background: linear-gradient(90deg, #b8860b, #f5e08b); color: #2a1d00; }
+
+/* ---- collection card + occasion chips ---- */
+.collect-card { margin: 14px 0; padding: 14px; border-radius: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(212,175,55,0.25); }
+.collect-head { display: flex; justify-content: space-between; align-items: baseline; }
+.collect-title { font-weight: 700; }
+.collect-count { font-family: var(--mono); color: var(--gold); }
+.collect-bar { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.08); margin: 8px 0 4px; overflow: hidden; }
+.collect-fill { height: 100%; background: linear-gradient(90deg, #b8860b, #f5e08b); border-radius: 999px; }
+.collect-hint { font-size: 12px; color: var(--text-faint); }
+.collect-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.collect-chips span { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: rgba(212,175,55,0.1); }
+.occasion-row { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 8px; -webkit-overflow-scrolling: touch; }
+.occasion-chip { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(212,175,55,0.35); background: rgba(212,175,55,0.08); color: var(--text); font-size: 14px; cursor: pointer; }
