@@ -2467,16 +2467,59 @@ async function deleteBottle(id) {
   else renderHome();
 }
 
-function renderSettings() {
-  const key = localStorage.getItem('bottlesense_sync_key') || '';
+// ==========================================
+// 電郵註冊／OTP登入與問候語系統 (Email Auth & Greeting)
+// ==========================================
+let authFlowState = {
+  step: 'email', // 'email' | 'register_form' | 'register_sent' | 'login_otp'
+  email: '',
+  name: '',
+  gender: 'unspecified',
+  birthday: ''
+};
+let loginOtpCountdownTimer = null;
+
+function updateHeaderGreeting() {
+  const taglineEl = document.getElementById('appTagline') || document.querySelector('.tagline');
+  if (!taglineEl) return;
   const boundAccount = localStorage.getItem('bottlesense_account_bound');
+  const profileName = localStorage.getItem('bottlesense_profile_name') || (boundAccount ? boundAccount.split('@')[0] : '');
+  const birthday = localStorage.getItem('bottlesense_profile_birthday') || '';
+
+  if (boundAccount && profileName) {
+    let isBirthday = false;
+    if (birthday && birthday.includes('-')) {
+      const parts = birthday.split('-');
+      const bMonth = parseInt(parts[1], 10);
+      const bDay = parseInt(parts[2], 10);
+      const now = new Date();
+      if ((now.getMonth() + 1) === bMonth && now.getDate() === bDay) {
+        isBirthday = true;
+      }
+    }
+
+    if (isBirthday) {
+      taglineEl.innerHTML = `🎉 <strong style="color:var(--gold);">Happy birthday, ${esc(profileName)}!</strong>`;
+    } else {
+      taglineEl.innerHTML = `Hello, <strong style="color:var(--gold); font-weight:600;">${esc(profileName)}</strong>`;
+    }
+  } else {
+    taglineEl.textContent = 'know what to do with it';
+  }
+}
+
+function renderSettings() {
+  const boundAccount = localStorage.getItem('bottlesense_account_bound');
+  const profileName = localStorage.getItem('bottlesense_profile_name') || (boundAccount ? boundAccount.split('@')[0] : '');
+  const birthday = localStorage.getItem('bottlesense_profile_birthday') || '';
   const cellarCount = (window.cellar || []).length;
 
-  let accountSectionHTML = '';
+  let contentHTML = '';
 
   if (boundAccount) {
-    // 1. 已登入狀態：不顯示登入輸入框，顯示電郵帳號與登出機制 (Logout = 清空本機資料)
-    accountSectionHTML = `
+    // 1. 已登入狀態：完全不顯示登入註冊框，顯示已綁定資料與登出機制 (Logout = 清空資料)
+    let bdayDisplay = birthday ? `🎂 生日：${esc(birthday)}` : '';
+    contentHTML = `
       <div style="background:linear-gradient(180deg, var(--surface-2) 0%, #161810 100%); border:1px solid var(--gold-dim); border-radius:14px; padding:16px; margin-bottom:14px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
           <div style="font-size:12px; font-family:var(--mono); color:var(--gold); font-weight:700;">
@@ -2487,10 +2530,15 @@ function renderSettings() {
           </span>
         </div>
 
-        <div style="font-family:var(--serif); font-size:19px; font-weight:700; color:var(--text); margin-bottom:4px; word-break:break-all;">
+        <div style="font-family:var(--serif); font-size:20px; font-weight:700; color:var(--text); margin-bottom:4px; word-break:break-all;">
+          Hello, <span style="color:var(--gold);">${esc(profileName)}</span>
+        </div>
+        <div style="font-size:12.5px; color:var(--text-muted); margin-bottom:6px; word-break:break-all;">
           ✉️ ${esc(boundAccount)}
         </div>
-        <div style="font-size:12.5px; color:var(--text-muted); margin-bottom:14px;">
+        ${bdayDisplay ? `<div style="font-size:12px; color:var(--text-faint); margin-bottom:8px;">${bdayDisplay}</div>` : ''}
+
+        <div style="font-size:12.5px; color:var(--gold-dim); margin-bottom:14px;">
           ${currentLang === 'zh' ? `雲端目前已安全備份 ${cellarCount} 支藏酒與手記` : `${cellarCount} bottles & tasting notes safely backed up`}
         </div>
 
@@ -2501,85 +2549,179 @@ function renderSettings() {
       </div>
     `;
   } else {
-    // 2. 未登入狀態：純 Email 免密碼 OTP 登入/註冊 (註冊在左、登入在右換位)
-    accountSectionHTML = `
-      <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px;">
-        <div style="font-size:13px; font-weight:700; color:var(--gold); margin-bottom:6px;">
-          ✉️ ${currentLang === 'zh' ? '純電郵免密碼登入 / 註冊 (OTP)' : 'Email OTP Login / Register'}
-        </div>
-        <div style="font-size:11.5px; color:var(--text-faint); margin-bottom:8px; line-height:1.4;">
-          ${currentLang === 'zh' ? '直接輸入 Email 收一次性驗證碼，無須記住密碼，換手機隨時原裝還原！' : 'Passwordless login via Email OTP. Restore your cellar on any device anytime!'}
-        </div>
-
-        <div style="font-size:11.5px; font-family:var(--mono); color:var(--text-faint); margin-bottom:3px;">
-          ${currentLang === 'zh' ? '電郵地址 (Email)' : 'Email Address'}
-        </div>
-        <input type="email" id="auth-email" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13.5px;" placeholder="${currentLang === 'zh' ? '輸入你的電郵 (例如 user@gmail.com)' : 'Enter email (e.g. user@gmail.com)'}">
-
-        <button class="btn btn-ghost btn-block" id="btn-get-otp" style="border-color:var(--gold-dim); color:var(--gold); padding:9px; font-size:13px; margin-top:8px;" onclick="handleSendEmailOtp()">
-          ${currentLang === 'zh' ? '📨 獲取 6 位數電郵驗證碼' : '📨 Get 6-Digit Email OTP'}
-        </button>
-
-        <!-- OTP 驗證碼輸入區 (發送後平滑展開) -->
-        <div id="otp-input-section" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed var(--line);">
-          <div id="otp-banner-box" style="display:none; background:rgba(212,175,55,0.14); border:1px solid var(--gold); border-radius:10px; padding:10px 12px; margin-bottom:10px; text-align:center;">
-            <div style="font-size:11.5px; color:var(--gold); font-weight:600; margin-bottom:4px;">
-              🔑 ${currentLang === 'zh' ? '本次登入驗證碼（已自動為你填入）：' : 'Your OTP Code (Auto-filled):'}
-            </div>
-            <div id="otp-banner-number" style="font-family:var(--mono); font-size:24px; font-weight:800; color:var(--gold); letter-spacing:6px;">
-              ------
-            </div>
-            <div style="font-size:10.5px; color:var(--text-faint); margin-top:3px;">
-              ${currentLang === 'zh' ? '10分鐘內有效 · 直接點擊下方按鈕即可完成' : 'Valid for 10 mins · Tap buttons below to proceed'}
-            </div>
+    // 2. 未登入狀態：依據流程步驟顯示
+    if (authFlowState.step === 'email') {
+      // 步驟 1：只輸入 Email，下方換位按鈕 [註冊帳號] (左) 與 [登入酒窖] (右)，絕無「獲取6位驗證碼」
+      contentHTML = `
+        <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:14px; padding:15px; margin-bottom:12px;">
+          <div style="font-size:13.5px; font-weight:700; color:var(--gold); margin-bottom:6px;">
+            👤 ${currentLang === 'zh' ? '酒窖登入 / 註冊' : 'Cellar Login / Register'}
+          </div>
+          <div style="font-size:11.5px; color:var(--text-faint); margin-bottom:10px; line-height:1.4;">
+            ${currentLang === 'zh' ? '輸入你的電郵地址即可快速開始：' : 'Enter your email address to get started:'}
           </div>
 
-          <div style="font-size:11.5px; font-family:var(--mono); color:var(--text-faint); margin-bottom:3px;">
-            ${currentLang === 'zh' ? '6 位數電郵驗證碼' : '6-Digit OTP'}
+          <div style="font-size:11.5px; font-family:var(--mono); color:var(--text-faint); margin-bottom:4px;">
+            ${currentLang === 'zh' ? '電郵地址 (Email)' : 'Email Address'}
           </div>
-          <input type="text" id="auth-otp" class="text-input" placeholder="例如：123456" maxlength="6" style="letter-spacing:5px; font-weight:700; font-family:var(--mono); text-align:center; padding:9px; font-size:16px;">
+          <input type="email" id="auth-email" class="text-input" style="margin-top:0; padding:10px 12px; font-size:14px;" value="${esc(authFlowState.email)}" placeholder="${currentLang === 'zh' ? '輸入你的電郵 (例如 user@gmail.com)' : 'Enter email (e.g. user@gmail.com)'}">
+
+          <!-- 依指定：登入、註冊兩個 Button 換位（註冊在左、登入在右） -->
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:14px;">
+            <button class="btn btn-ghost btn-block" style="padding:10px; font-size:13px;" onclick="handleStartRegister()">
+              ${currentLang === 'zh' ? '註冊帳號' : 'Register'}
+            </button>
+            <button class="btn btn-primary btn-block" style="padding:10px; font-size:13px;" onclick="handleStartLogin()">
+              ${currentLang === 'zh' ? '登入酒窖' : 'Login'}
+            </button>
+          </div>
         </div>
 
-        <!-- 依指定：登入、註冊兩個 Button 換位（註冊在左、登入在右） -->
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:12px;">
-          <button class="btn btn-ghost btn-block" style="padding:9px; font-size:13px;" onclick="handleVerifyOtp('register')">
-            ${currentLang === 'zh' ? '註冊帳號' : 'Register'}
-          </button>
-          <button class="btn btn-primary btn-block" style="padding:9px; font-size:13px;" onclick="handleVerifyOtp('login')">
-            ${currentLang === 'zh' ? '登入酒窖' : 'Login'}
-          </button>
+        <!-- 社交帳號登入 -->
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); text-align:center; margin-bottom:6px; text-transform:uppercase;">
+            ${currentLang === 'zh' ? '或使用社交帳號登入' : 'Or via Social Account'}
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px;">
+            <button class="social-login-btn google-btn" onclick="executeSocialLogin('Google')">
+              <svg viewBox="0 0 24 24" width="15" height="15"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/><path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15.1c0 2.8.7 5.4 1.9 7.8l3.7-2.9z"/><path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2-6.4-4.8L1.9 16.9C3.7 20.6 7.5 23.5 12 23.5z"/></svg>
+              <span>Google</span>
+            </button>
+            <button class="social-login-btn apple-btn" onclick="executeSocialLogin('Apple')">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.64-.78 1.08-1.86.96-2.95-1 .04-2.14.66-2.79 1.43-.57.66-.99 1.76-.85 2.81 1.11.09 2.04-.51 2.68-1.29z"/></svg>
+              <span>Apple</span>
+            </button>
+            <button class="social-login-btn fb-btn" onclick="executeSocialLogin('Facebook')">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+              <span>FB</span>
+            </button>
+          </div>
         </div>
-      </div>
 
-      <!-- 社交帳號一鍵登入 -->
-      <div style="margin-bottom:12px;">
-        <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); text-align:center; margin-bottom:6px; text-transform:uppercase;">
-          ${currentLang === 'zh' ? '或使用社交帳號登入' : 'Or via Social Account'}
+        <!-- 最底遊客身分狀態 -->
+        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:12px; color:var(--text-faint);">${currentLang === 'zh' ? '目前身分狀態：' : 'Status:'}</span>
+          <span style="font-size:12.5px; font-weight:600; color:var(--text-muted);">
+            👤 ${currentLang === 'zh' ? '遊客模式 (未登入)' : 'Guest Mode'}
+          </span>
         </div>
-        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px;">
-          <button class="social-login-btn google-btn" onclick="executeSocialLogin('Google')">
-            <svg viewBox="0 0 24 24" width="15" height="15"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/><path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15.1c0 2.8.7 5.4 1.9 7.8l3.7-2.9z"/><path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2-6.4-4.8L1.9 16.9C3.7 20.6 7.5 23.5 12 23.5z"/></svg>
-            <span>Google</span>
-          </button>
-          <button class="social-login-btn apple-btn" onclick="executeSocialLogin('Apple')">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.64-.78 1.08-1.86.96-2.95-1 .04-2.14.66-2.79 1.43-.57.66-.99 1.76-.85 2.81 1.11.09 2.04-.51 2.68-1.29z"/></svg>
-            <span>Apple</span>
-          </button>
-          <button class="social-login-btn fb-btn" onclick="executeSocialLogin('Facebook')">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-            <span>FB</span>
-          </button>
-        </div>
-      </div>
+      `;
+    } else if (authFlowState.step === 'register_form') {
+      // 步驟 2A：註冊表單（必填姓名、選填性別、選填生日、服務私隱協議）
+      contentHTML = `
+        <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:14px; padding:15px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="font-size:14px; font-weight:700; color:var(--gold);">
+              📝 ${currentLang === 'zh' ? '填寫註冊會員資料' : 'Register Profile'}
+            </div>
+            <span style="font-size:11px; color:var(--gold-dim); font-family:var(--mono);">
+              STEP 2/2
+            </span>
+          </div>
 
-      <!-- 最底遊客身分狀態 -->
-      <div style="background:rgba(255,255,255,0.02); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-size:12px; color:var(--text-faint);">${currentLang === 'zh' ? '目前身分狀態：' : 'Status:'}</span>
-        <span style="font-size:12.5px; font-weight:600; color:var(--text-muted);">
-          👤 ${currentLang === 'zh' ? '遊客模式 (未綁定電郵)' : 'Guest Mode'}
-        </span>
-      </div>
-    `;
+          <div style="background:rgba(0,0,0,0.3); border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:12px; color:var(--text-muted); margin-bottom:12px; word-break:break-all;">
+            ✉️ ${esc(authFlowState.email)}
+          </div>
+
+          <!-- 必填姓名 (之後登入上方顯示: Hello, XXX) -->
+          <div style="font-size:12px; font-weight:600; color:var(--text); margin-bottom:4px;">
+            ${currentLang === 'zh' ? '姓名 / 暱稱' : 'Name / Nickname'} <span style="color:var(--wine-bright);">*</span>
+          </div>
+          <input type="text" id="reg-name" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13.5px;" value="${esc(authFlowState.name)}" placeholder="${currentLang === 'zh' ? '例如：Alex / 侍酒愛好者 (必填)' : 'e.g. Alex (Required)'}">
+
+          <!-- 選填性別 -->
+          <div style="font-size:12px; font-weight:600; color:var(--text); margin-top:10px; margin-bottom:4px;">
+            ${currentLang === 'zh' ? '性別 (選填)' : 'Gender (Optional)'}
+          </div>
+          <select id="reg-gender" class="text-input" style="margin-top:0; padding:8px 10px; font-size:13px;">
+            <option value="unspecified" ${authFlowState.gender==='unspecified'?'selected':''}>${currentLang==='zh'?'保密 / 不透露':'Prefer not to say'}</option>
+            <option value="male" ${authFlowState.gender==='male'?'selected':''}>${currentLang==='zh'?'男 (Male)':'Male'}</option>
+            <option value="female" ${authFlowState.gender==='female'?'selected':''}>${currentLang==='zh'?'女 (Female)':'Female'}</option>
+          </select>
+
+          <!-- 選填生日 (生日果日寫 Happy birthday, XXX) -->
+          <div style="font-size:12px; font-weight:600; color:var(--text); margin-top:10px; margin-bottom:4px;">
+            ${currentLang === 'zh' ? '出生日期 (選填)' : 'Birthday (Optional)'}
+          </div>
+          <input type="date" id="reg-birthday" class="text-input" style="margin-top:0; padding:8px 10px; font-size:13px;" value="${esc(authFlowState.birthday)}">
+          <div style="font-size:11px; color:var(--text-faint); margin-top:3px;">
+            🎂 ${currentLang === 'zh' ? '生日當天將為你送上專屬開瓶祝福！' : 'We will celebrate with you on your special day!'}
+          </div>
+
+          <!-- 使用及私隱條款 Checkbox (必填) -->
+          <label style="display:flex; align-items:flex-start; gap:8px; font-size:12px; color:var(--text-muted); margin-top:14px; cursor:pointer; line-height:1.4;">
+            <input type="checkbox" id="reg-terms-check" style="margin-top:2px; accent-color:var(--gold);">
+            <span>
+              ${currentLang === 'zh'
+                ? '我已閱讀並同意 <a href="javascript:void(0)" onclick="openTermsModal()" style="color:var(--gold); text-decoration:underline;">使用條款</a> 及 <a href="javascript:void(0)" onclick="openPrivacyModal()" style="color:var(--gold); text-decoration:underline;">私隱政策</a>'
+                : 'I agree to the <a href="javascript:void(0)" onclick="openTermsModal()" style="color:var(--gold);">Terms of Service</a> and <a href="javascript:void(0)" onclick="openPrivacyModal()" style="color:var(--gold);">Privacy Policy</a>'}
+            </span>
+          </label>
+
+          <button class="btn btn-primary btn-block" style="padding:10px; margin-top:14px; font-size:13.5px;" onclick="executeSendVerificationLink()">
+            ${currentLang === 'zh' ? '📨 發送認證電郵 (Verify Email)' : '📨 Send Verification Email'}
+          </button>
+          
+          <button class="btn btn-ghost btn-block" style="padding:8px; margin-top:8px; font-size:12.5px; border-color:transparent; color:var(--text-faint);" onclick="backToEmailStep()">
+            ← ${currentLang === 'zh' ? '返回修改電郵' : 'Back to Email'}
+          </button>
+        </div>
+      `;
+    } else if (authFlowState.step === 'register_sent') {
+      // 步驟 2B：認證郵件已發送（引導用戶去信箱撳 Verify Link 完成註冊）
+      contentHTML = `
+        <div style="background:var(--surface-2); border:1px solid var(--gold-dim); border-radius:14px; padding:20px 16px; margin-bottom:12px; text-align:center;">
+          <div style="font-size:36px; margin-bottom:8px;">📨</div>
+          <h3 style="font-family:var(--serif); font-size:19px; color:var(--gold); margin-bottom:8px;">
+            ${currentLang === 'zh' ? '認證郵件已發送！' : 'Verification Email Sent!'}
+          </h3>
+          <div style="font-size:13.5px; color:var(--text); line-height:1.5; margin-bottom:12px;">
+            ${currentLang === 'zh' ? '我們已將驗證連結寄至你的信箱：' : 'We sent a verification link to:'}<br>
+            <strong style="color:var(--gold); word-break:break-all;">${esc(authFlowState.email)}</strong>
+          </div>
+          <div style="background:rgba(212,175,55,0.1); border:1px solid var(--gold-dim); border-radius:10px; padding:12px; font-size:12.5px; color:var(--gold); line-height:1.5; margin-bottom:16px; text-align:left;">
+            📌 <strong>${currentLang === 'zh' ? '完成註冊步驟：' : 'Next Steps:'}</strong><br>
+            1. 打開你的電子郵件收件箱<br>
+            2. 點擊信中的「<strong>✓ 立即認證電郵完成註冊</strong>」連結<br>
+            3. 點擊後你的酒窖將立即啟用，上方會顯示「Hello, ${esc(authFlowState.name)}」！
+          </div>
+          <button class="btn btn-primary btn-block" style="padding:10px;" onclick="closeModal()">
+            ${currentLang === 'zh' ? '我知道了' : 'Got it'}
+          </button>
+        </div>
+      `;
+    } else if (authFlowState.step === 'login_otp') {
+      // 步驟 2C：登入酒窖 OTP 輸入介面 (不會再彈窗即時顯示，純等候真實 Email)
+      contentHTML = `
+        <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:14px; padding:18px 16px; margin-bottom:12px; text-align:center;">
+          <div style="font-size:32px; margin-bottom:6px;">🔐</div>
+          <h3 style="font-family:var(--serif); font-size:18px; color:var(--gold); margin-bottom:6px;">
+            ${currentLang === 'zh' ? '輸入電郵驗證碼 (OTP)' : 'Enter Email OTP Code'}
+          </h3>
+          <div style="font-size:12.5px; color:var(--text-muted); margin-bottom:14px; line-height:1.4;">
+            ${currentLang === 'zh' ? '6 位數安全驗證碼已發送至：' : 'A 6-digit code has been sent to:'}<br>
+            <strong style="color:var(--text); word-break:break-all;">${esc(authFlowState.email)}</strong>
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <input type="text" id="login-otp" class="text-input" placeholder="------" maxlength="6" style="letter-spacing:8px; font-size:24px; font-weight:800; text-align:center; font-family:var(--mono); padding:10px; color:var(--gold);">
+          </div>
+
+          <button class="btn btn-primary btn-block" style="padding:10px; font-size:14px; font-weight:700;" onclick="executeLoginWithOtp()">
+            ${currentLang === 'zh' ? '確認登入並載入酒窖' : 'Verify & Load Cellar'}
+          </button>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+            <button id="btn-login-resend" class="btn btn-ghost btn-sm" style="font-size:11.5px; padding:4px 10px;" onclick="resendLoginOtp()">
+              ${currentLang === 'zh' ? '重新發送驗證碼' : 'Resend Code'}
+            </button>
+            <button class="btn btn-ghost btn-sm" style="font-size:11.5px; padding:4px 10px; border-color:transparent; color:var(--text-faint);" onclick="backToEmailStep()">
+              ${currentLang === 'zh' ? '返回修改電郵' : 'Change Email'}
+            </button>
+          </div>
+        </div>
+      `;
+    }
   }
 
   modalContainer.innerHTML = `
@@ -2589,7 +2731,7 @@ function renderSettings() {
           ${t('settings_title')}
         </h2>
 
-        ${accountSectionHTML}
+        ${contentHTML}
 
         <button class="btn btn-ghost btn-block" style="padding:9px; font-size:13px; color:var(--text-faint); border-color:transparent;" onclick="closeModal()">
           ${t('btn_close')}
@@ -2599,24 +2741,30 @@ function renderSettings() {
   `;
 }
 
-// 發送電郵 OTP 驗證碼
-let otpCountdownTimer = null;
-async function handleSendEmailOtp() {
+function handleStartRegister() {
   const emailInput = document.getElementById('auth-email');
   const email = (emailInput?.value || '').trim().toLowerCase();
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
   if (!email || !emailRegex.test(email)) {
     showToast(currentLang === 'zh' ? '請輸入有效的電郵地址 (例如 user@gmail.com)' : 'Please enter a valid email address');
     return;
   }
+  authFlowState.email = email;
+  authFlowState.step = 'register_form';
+  renderSettings();
+}
 
-  const btn = document.getElementById('btn-get-otp');
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = currentLang === 'zh' ? '正在發送驗證碼…' : 'Sending code...';
+async function handleStartLogin() {
+  const emailInput = document.getElementById('auth-email');
+  const email = (emailInput?.value || '').trim().toLowerCase();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email || !emailRegex.test(email)) {
+    showToast(currentLang === 'zh' ? '請輸入有效的電郵地址 (例如 user@gmail.com)' : 'Please enter a valid email address');
+    return;
   }
+  authFlowState.email = email;
 
+  showToast(currentLang === 'zh' ? '正在發送登入驗證碼…' : 'Sending login code...');
   try {
     const res = await fetch(`${WORKER_API_URL}/api/auth/send-otp`, {
       method: 'POST',
@@ -2626,116 +2774,215 @@ async function handleSendEmailOtp() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '發送失敗');
 
-    // 展開 OTP 輸入框並自動聚焦與持久顯示
-    const sec = document.getElementById('otp-input-section');
-    if (sec) sec.style.display = 'block';
-    
-    const bannerBox = document.getElementById('otp-banner-box');
-    const bannerNumber = document.getElementById('otp-banner-number');
-    const otpInput = document.getElementById('auth-otp');
-
-    if (data.devOtp) {
-      if (bannerBox && bannerNumber) {
-        bannerBox.style.display = 'block';
-        bannerNumber.textContent = data.devOtp;
-      }
-      if (otpInput) {
-        otpInput.value = data.devOtp; // 自動為用戶填入！
-      }
-    }
-    if (otpInput) otpInput.focus();
-
-    // 倒數 60 秒冷卻
-    let countdown = 60;
-    if (otpCountdownTimer) clearInterval(otpCountdownTimer);
-    otpCountdownTimer = setInterval(() => {
-      countdown--;
-      if (btn) {
-        if (countdown > 0) {
-          btn.textContent = currentLang === 'zh' ? `重新發送 (${countdown}s)` : `Resend (${countdown}s)`;
-          btn.disabled = true;
-        } else {
-          clearInterval(otpCountdownTimer);
-          btn.textContent = currentLang === 'zh' ? '重新獲取驗證碼' : 'Resend OTP';
-          btn.disabled = false;
-        }
-      }
-    }, 1000);
-
-    const toastMsg = data.devOtp 
-      ? `✓ 驗證碼已發送至電郵！[測試驗證碼: ${data.devOtp}]`
-      : '✓ 驗證碼已發送至你的電郵，請查收！';
-    showToast(toastMsg);
+    authFlowState.step = 'login_otp';
+    renderSettings();
+    showToast(currentLang === 'zh' ? '✓ 驗證碼已發送至你的電郵信箱！' : '✓ Code sent to your inbox!');
+    startLoginOtpCountdown();
   } catch (err) {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = currentLang === 'zh' ? '獲取電郵驗證碼' : 'Get Email OTP';
-    }
     showToast('發送失敗: ' + err.message);
   }
 }
 
-// 驗證 OTP 並執行登入或註冊
-async function handleVerifyOtp(actionType) {
-  const emailInput = document.getElementById('auth-email');
-  const otpInput = document.getElementById('auth-otp');
-  const email = (emailInput?.value || '').trim().toLowerCase();
+function backToEmailStep() {
+  authFlowState.step = 'email';
+  if (loginOtpCountdownTimer) clearInterval(loginOtpCountdownTimer);
+  renderSettings();
+}
+
+function startLoginOtpCountdown() {
+  let count = 60;
+  const btn = document.getElementById('btn-login-resend');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = currentLang === 'zh' ? `重新發送 (${count}s)` : `Resend (${count}s)`;
+  }
+  if (loginOtpCountdownTimer) clearInterval(loginOtpCountdownTimer);
+  loginOtpCountdownTimer = setInterval(() => {
+    count--;
+    const currentBtn = document.getElementById('btn-login-resend');
+    if (currentBtn) {
+      if (count > 0) {
+        currentBtn.textContent = currentLang === 'zh' ? `重新發送 (${count}s)` : `Resend (${count}s)`;
+        currentBtn.disabled = true;
+      } else {
+        clearInterval(loginOtpCountdownTimer);
+        currentBtn.textContent = currentLang === 'zh' ? '重新發送驗證碼' : 'Resend Code';
+        currentBtn.disabled = false;
+      }
+    }
+  }, 1000);
+}
+
+async function resendLoginOtp() {
+  if (!authFlowState.email) return;
+  showToast(currentLang === 'zh' ? '正在重新發送驗證碼…' : 'Resending code...');
+  try {
+    const res = await fetch(`${WORKER_API_URL}/api/auth/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: authFlowState.email })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '重新發送失敗');
+    showToast(currentLang === 'zh' ? '✓ 驗證碼已重新寄出！' : '✓ Code resent!');
+    startLoginOtpCountdown();
+  } catch (err) {
+    showToast('發送失敗: ' + err.message);
+  }
+}
+
+async function executeLoginWithOtp() {
+  const otpInput = document.getElementById('login-otp');
   const otp = (otpInput?.value || '').trim();
-  const syncKey = localStorage.getItem('bottlesense_sync_key') || '';
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!email || !emailRegex.test(email)) {
-    showToast(currentLang === 'zh' ? '請先填寫正確的電郵地址' : 'Please enter valid email');
-    return;
-  }
   if (!otp || otp.length < 6) {
-    showToast(currentLang === 'zh' ? '請填寫完整的 6 位數驗證碼' : 'Please enter 6-digit OTP');
+    showToast(currentLang === 'zh' ? '請輸入完整的 6 位數驗證碼' : 'Please enter 6-digit code');
     return;
   }
 
-  showToast(currentLang === 'zh' ? '正在驗證並載入酒窖…' : 'Verifying and syncing cellar...');
-
+  showToast(currentLang === 'zh' ? '正在驗證並載入雲端酒窖…' : 'Verifying and loading cellar...');
   try {
     const res = await fetch(`${WORKER_API_URL}/api/auth/verify-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email,
-        otp,
-        syncKey,
-        actionType,
-        cellar: window.cellar || []
+        email: authFlowState.email,
+        otp: otp,
+        syncKey: localStorage.getItem('bottlesense_sync_key') || ''
       })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '驗證失敗');
+    if (!res.ok) throw new Error(data.error || '登入失敗');
 
-    // 還原雲端藏酒到本地 IndexedDB
-    await restoreCellarToLocal(data.cellar || [], data.syncKey, data.email);
+    // 成功登入：寫入帳號與資料
+    await restoreCellarToLocal(data.cellar || [], data.syncKey, data.name || data.email);
     localStorage.setItem('bottlesense_account_bound', data.email);
-    localStorage.setItem('bottlesense_owner_name', data.email.split('@')[0]);
+    localStorage.setItem('bottlesense_profile_name', data.name || data.email.split('@')[0]);
+    if (data.birthday) localStorage.setItem('bottlesense_profile_birthday', data.birthday);
+    if (data.gender) localStorage.setItem('bottlesense_profile_gender', data.gender);
     localStorage.setItem('bottlesense_registered', 'true');
 
-    if (otpCountdownTimer) clearInterval(otpCountdownTimer);
+    if (loginOtpCountdownTimer) clearInterval(loginOtpCountdownTimer);
 
-    const successMsg = actionType === 'register'
-      ? (currentLang === 'zh' ? '✓ 註冊成功！現已綁定電郵雲端' : '✓ Registered successfully!')
-      : (currentLang === 'zh' ? `✓ 登入成功！已還原 ${(data.cellar || []).length} 支藏酒` : `✓ Logged in! Restored ${(data.cellar || []).length} bottles`);
-    showToast(successMsg);
+    showToast(currentLang === 'zh' ? `✓ 登入成功！已還原 ${(data.cellar || []).length} 支藏酒` : `✓ Logged in! Restored ${(data.cellar || []).length} bottles`);
 
-    // 重新渲染設定頁 (轉為已登入狀態)
+    updateHeaderGreeting();
     renderSettings();
 
-    // 重新渲染主畫面（讓用戶立刻睇返所有酒的資料）
+    // 重新渲染主畫面（讓用戶立即睇返所有酒的資料）
     if (currentView === 'cellar') renderCellar();
     else if (currentView === 'home') renderHome();
     else if (currentView === 'explore') renderExplore();
   } catch (err) {
-    showToast('驗證失敗: ' + err.message);
+    showToast('登入失敗: ' + err.message);
   }
 }
 
-// 登出機制：清空本地 IndexedDB 藏酒、清除登入標記、重設遊客碼 (Logout = 清空資料)
+async function executeSendVerificationLink() {
+  const nameInput = document.getElementById('reg-name');
+  const genderInput = document.getElementById('reg-gender');
+  const bdayInput = document.getElementById('reg-birthday');
+  const termsCheck = document.getElementById('reg-terms-check');
+
+  const name = (nameInput?.value || '').trim();
+  const gender = genderInput?.value || 'unspecified';
+  const birthday = bdayInput?.value || '';
+
+  if (!name) {
+    showToast(currentLang === 'zh' ? '⚠️ 請填寫姓名或暱稱 (必填)' : '⚠️ Please enter your name');
+    nameInput?.focus();
+    return;
+  }
+
+  if (!termsCheck?.checked) {
+    showToast(currentLang === 'zh' ? '⚠️ 請閱讀並勾選同意使用條款及私隱政策' : '⚠️ Please agree to Terms and Privacy Policy');
+    return;
+  }
+
+  authFlowState.name = name;
+  authFlowState.gender = gender;
+  authFlowState.birthday = birthday;
+
+  showToast(currentLang === 'zh' ? '正在發送註冊認證電郵…' : 'Sending verification email...');
+
+  try {
+    const originUrl = window.location.origin + window.location.pathname;
+    const res = await fetch(`${WORKER_API_URL}/api/auth/send-verify-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: authFlowState.email,
+        name: name,
+        gender: gender,
+        birthday: birthday,
+        syncKey: localStorage.getItem('bottlesense_sync_key') || '',
+        originUrl: originUrl,
+        cellar: window.cellar || []
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '發送失敗');
+
+    authFlowState.step = 'register_sent';
+    renderSettings();
+    showToast(currentLang === 'zh' ? '✓ 認證信已寄出，請查收信箱！' : '✓ Verification link sent!');
+  } catch (err) {
+    showToast('發送失敗: ' + err.message);
+  }
+}
+
+async function handleEmailVerificationFromUrl(token, email) {
+  showToast(currentLang === 'zh' ? '正在認證電郵並完成註冊…' : 'Verifying email registration...');
+  try {
+    const res = await fetch(`${WORKER_API_URL}/api/auth/confirm-verify-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, email })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '認證失敗');
+
+    // 還原或綁定酒窖
+    if (data.cellar) {
+      await restoreCellarToLocal(data.cellar, data.syncKey, data.name || data.email);
+    }
+    localStorage.setItem('bottlesense_account_bound', data.email);
+    localStorage.setItem('bottlesense_profile_name', data.name);
+    if (data.birthday) localStorage.setItem('bottlesense_profile_birthday', data.birthday);
+    if (data.gender) localStorage.setItem('bottlesense_profile_gender', data.gender);
+    localStorage.setItem('bottlesense_registered', 'true');
+
+    // 清理 URL
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    updateHeaderGreeting();
+
+    modalContainer.innerHTML = `
+      <div class="modal-overlay" onclick="closeModal()">
+        <div class="modal-card" style="text-align:center; max-width:380px;" onclick="event.stopPropagation()">
+          <div style="font-size:42px; margin-bottom:10px;">🎉</div>
+          <h3 style="font-family:var(--serif); font-size:20px; color:var(--gold); margin-bottom:8px;">
+            ${currentLang === 'zh' ? '電郵認證成功！' : 'Email Verified!'}
+          </h3>
+          <p style="font-size:14px; color:var(--text); line-height:1.6; margin-bottom:16px;">
+            ${currentLang === 'zh'
+              ? `歡迎你，<strong>${esc(data.name)}</strong>！你的專屬雲端酒窖已正式啟用。`
+              : `Welcome, <strong>${esc(data.name)}</strong>! Your cloud cellar is now active.`}
+          </p>
+          <button class="btn btn-primary btn-block" style="padding:10px;" onclick="closeModal()">
+            ${currentLang === 'zh' ? '開始探索我的酒窖' : 'Explore My Cellar'}
+          </button>
+        </div>
+      </div>
+    `;
+
+    if (currentView === 'cellar') renderCellar();
+    else if (currentView === 'home') renderHome();
+    else if (currentView === 'explore') renderExplore();
+  } catch (err) {
+    showToast('電郵認證失敗: ' + err.message);
+  }
+}
+
 async function executeAccountLogout() {
   const confirmMsg = currentLang === 'zh'
     ? '確定要登出帳號？登出後將會清空本機暫存藏酒。雲端酒窖資料已安全備份，重新輸入電郵驗證即可再次載入查看。'
@@ -2743,36 +2990,72 @@ async function executeAccountLogout() {
 
   if (!confirm(confirmMsg)) return;
 
-  // 1. 清空本地 IndexedDB
   if (typeof clearLocalCellar === 'function') {
     await clearLocalCellar();
   } else {
     window.cellar = [];
   }
 
-  // 2. 清空內存藏酒
   window.cellar = [];
-
-  // 3. 清除帳號綁定狀態
   localStorage.removeItem('bottlesense_account_bound');
   localStorage.removeItem('bottlesense_owner_name');
+  localStorage.removeItem('bottlesense_profile_name');
+  localStorage.removeItem('bottlesense_profile_birthday');
+  localStorage.removeItem('bottlesense_profile_gender');
   localStorage.removeItem('bottlesense_registered');
-  
-  // 4. 重置為全新乾淨的遊客同步碼
+
   const newGuestKey = 'BTL-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
   localStorage.setItem('bottlesense_sync_key', newGuestKey);
   mySyncKey = newGuestKey;
 
+  authFlowState = { step: 'email', email: '', name: '', gender: 'unspecified', birthday: '' };
+
   showToast(currentLang === 'zh' ? '✓ 已成功登出並清空本機藏酒資料' : '✓ Logged out and cleared local data');
 
-  // 5. 立即重新渲染主畫面（呈現 0 支酒的乾淨空狀態）
+  updateHeaderGreeting();
+
   if (currentView === 'cellar') renderCellar();
   else if (currentView === 'home') renderHome();
   else if (currentView === 'explore') renderExplore();
   else goHome();
 
-  // 6. 重新渲染設定彈窗 (轉回登入介面)
   renderSettings();
+}
+
+function openTermsModal() {
+  modalContainer.innerHTML = `
+    <div class="modal-overlay" onclick="closeModal()">
+      <div class="modal-card" style="text-align:left; max-width:400px; max-height:80vh; overflow-y:auto;" onclick="event.stopPropagation()">
+        <h3 style="font-family:var(--serif); font-size:18px; color:var(--gold); margin-bottom:10px;">
+          📜 BottleSense 使用條款
+        </h3>
+        <div style="font-size:13px; color:var(--text); line-height:1.6; space-y:8px;">
+          <p>1. <strong>服務宗旨</strong>：BottleSense 提供酒標識別、私人酒窖管理、八維風味分析與品飲筆記儲存服務。</p>
+          <p>2. <strong>數據擁有權</strong>：用戶上傳之藏酒相片與手記均屬用戶所有。本服務採用加密技術備份於雲端。</p>
+          <p>3. <strong>理性飲酒</strong>：本應用程式僅供品飲品味記錄與知識交流之用，請勿過量飲酒，未成年請勿飲酒。</p>
+        </div>
+        <button class="btn btn-primary btn-block" style="margin-top:16px; padding:9px;" onclick="renderSettings()">返回註冊</button>
+      </div>
+    </div>
+  `;
+}
+
+function openPrivacyModal() {
+  modalContainer.innerHTML = `
+    <div class="modal-overlay" onclick="closeModal()">
+      <div class="modal-card" style="text-align:left; max-width:400px; max-height:80vh; overflow-y:auto;" onclick="event.stopPropagation()">
+        <h3 style="font-family:var(--serif); font-size:18px; color:var(--gold); margin-bottom:10px;">
+          🔒 BottleSense 私隱政策
+        </h3>
+        <div style="font-size:13px; color:var(--text); line-height:1.6;">
+          <p>1. <strong>電郵與身分隱私</strong>：我們僅將你的電子郵件作為身份認證與帳號找回之用，絕不出售或提供給任何第三方。</p>
+          <p>2. <strong>公開分享控制</strong>：除非你主動點擊「發布到公開探索池」，否則你的私人酒櫃與品飲手記預設 100% 保持私密。</p>
+          <p>3. <strong>生日資訊保護</strong>：選填之生日資訊僅用於在應用程式內為你呈現專屬生日祝福與開瓶建議。</p>
+        </div>
+        <button class="btn btn-primary btn-block" style="margin-top:16px; padding:9px;" onclick="renderSettings()">返回註冊</button>
+      </div>
+    </div>
+  `;
 }
 
 function executeSocialLogin(provider) {
@@ -2787,83 +3070,12 @@ function executeSocialLogin(provider) {
         </p>
         <div style="background:rgba(212,175,55,0.1); border:1px solid var(--gold-dim); border-radius:12px; padding:12px; font-size:13px; color:var(--gold); line-height:1.5; margin-bottom:16px;">
           💡 <strong>現已全面啟用的 100% 真實免密碼雲端儲存：</strong><br>
-          請直接在上方使用「<strong>純電郵免密碼登入 (OTP)</strong>」，輸入 Email 收取 6 位數驗證碼，即可跨手機即時登入與完整還原酒窖！
+          請直接在上方使用「<strong>純電郵免密碼登入 (OTP)</strong>」或「<strong>電郵註冊認證</strong>」，即可跨手機即時登入與完整還原酒窖！
         </div>
         <button class="btn btn-primary btn-block" style="padding:10px;" onclick="closeModal()">我知道了</button>
       </div>
     </div>
   `;
-}
-
-function openSyncKeyAndRestoreModal() {
-  const key = localStorage.getItem('bottlesense_sync_key') || '';
-
-  modalContainer.innerHTML = `
-    <div class="modal-overlay" onclick="closeModal()">
-      <div class="modal-card" style="text-align:left; max-width:400px;" onclick="event.stopPropagation()">
-        <h3 style="font-family:var(--serif); font-size:18px; color:var(--gold); margin-bottom:12px;">
-          🔄 專屬同步碼與換機登入
-        </h3>
-
-        <!-- 我的專屬同步碼 -->
-        <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:14px;">
-          <div style="font-size:12px; font-weight:700; color:var(--gold); margin-bottom:4px;">
-            📋 我的專屬同步碼 (Sync Key)
-          </div>
-          <div style="font-size:11.5px; color:var(--text-faint); margin-bottom:6px;">
-            換手機時，只需在新手機輸入此代碼即可找回所有藏酒。
-          </div>
-          <div class="text-input" style="text-align:center; font-family:var(--mono); font-size:13px; font-weight:700; color:var(--gold); padding:8px; user-select:all;">
-            ${esc(key)}
-          </div>
-          <button id="btn-copy-sync" class="btn btn-primary btn-block" style="margin-top:8px; padding:8px; font-size:12.5px;" onclick="copySyncKey()">
-            ${t('btn_copy_sync')}
-          </button>
-        </div>
-
-        <!-- 換手機登入還原 -->
-        <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:14px;">
-          <div style="font-size:12px; font-weight:700; color:var(--text); margin-bottom:4px;">
-            📲 換手機登入 / 輸入同步碼還原
-          </div>
-          <div style="font-size:11.5px; color:var(--text-faint); margin-bottom:6px;">
-            在下方輸入舊手機的專屬同步碼（如 BTL-XXXX-XXXX）：
-          </div>
-          <input type="text" id="restore-key" class="text-input" style="padding:8px; font-size:13px; font-family:var(--mono); text-transform:uppercase;" placeholder="例如：BTL-XXXX-XXXX">
-          <button class="btn btn-ghost btn-block" style="padding:8px; font-size:12.5px; margin-top:8px; border-color:var(--gold-dim); color:var(--gold);" onclick="executeKeyRestore()">
-            確認提取並還原藏酒
-          </button>
-        </div>
-
-        <button class="btn btn-ghost btn-block" style="padding:8px; font-size:13px;" onclick="renderSettings()">返回設定</button>
-      </div>
-    </div>
-  `;
-}
-
-async function executeKeyRestore() {
-  const inputEl = document.getElementById('restore-key');
-  const key = (inputEl?.value || '').trim().toUpperCase();
-  if (!key) {
-    showToast(currentLang === 'zh' ? '請輸入專屬同步碼' : 'Please enter sync key');
-    return;
-  }
-  showToast(currentLang === 'zh' ? '正在提取雲端酒窖資料…' : 'Restoring cellar from cloud...');
-  try {
-    const res = await fetch(`${WORKER_API_URL}/api/restore?key=${encodeURIComponent(key)}`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '提取失敗');
-
-    await restoreCellarToLocal(data.cellar || [], key, data.ownerName || '品飲同好');
-    localStorage.setItem('bottlesense_account_bound', data.ownerName || '同步碼用戶');
-    showToast(currentLang === 'zh' ? `✓ 成功還原 ${(data.cellar || []).length} 支藏酒！` : `✓ Restored ${(data.cellar || []).length} bottles!`);
-    closeModal();
-    if (currentView === 'cellar') renderCellar();
-    else if (currentView === 'home') renderHome();
-    else if (currentView === 'explore') renderExplore();
-  } catch(err) {
-    showToast(currentLang === 'zh' ? ('還原失敗: ' + err.message) : ('Restore failed: ' + err.message));
-  }
 }
 
 function closeModal() {
@@ -2880,6 +3092,20 @@ async function initApp() {
     if (preloadMapImg.decode) preloadMapImg.decode().catch(() => {});
 
     document.getElementById('langSwitchBtn').textContent = currentLang === 'zh' ? 'EN' : '繁';
+    
+    // 更新頂部問候語 (Hello, XXX 或 生日祝福)
+    updateHeaderGreeting();
+
+    // 檢查網址是否帶有電郵認證 Token (?verify_token=...&email=...)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('verify_token')) {
+      const vToken = urlParams.get('verify_token');
+      const vEmail = urlParams.get('email');
+      setTimeout(() => {
+        handleEmailVerificationFromUrl(vToken, vEmail);
+      }, 300);
+    }
+
     await refreshCellar();
     const params = new URLSearchParams(location.search);
     const publicKey = params.get('cellar') || params.get('key');
