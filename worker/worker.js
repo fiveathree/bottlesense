@@ -373,24 +373,53 @@ export default {
 
       // 5. 探索池：發布與獲取社群品飲
       if (path === '/api/explore/publish' && request.method === 'POST') {
-        const item = await request.json();
+        const body = await request.json();
+        const { syncKey, ...item } = body;
+        if (!item.id) return new Response(JSON.stringify({ error: 'Missing id' }), { status: 400, headers: jsonHeaders });
+        item.id = String(item.id);
+        if (syncKey) item.ownerShareId = await shareIdOf(syncKey);
         let feed = [];
         try {
           const raw = await kv.get('community_explore_feed');
           if (raw) feed = JSON.parse(raw);
         } catch(e){}
 
-        // 保留最新 30 筆社群分享
+        // 同一筆記錄只保留一份：重複發布會取代舊的，不會重複出現
+        feed = feed.filter(x => String(x.id) !== item.id);
         feed.unshift(item);
+        // 保留最新 30 筆社群分享
         feed = feed.slice(0, 30);
 
         await kv.put('community_explore_feed', JSON.stringify(feed), { expirationTtl: 31536000 });
-        return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({ success: true }), { headers: jsonHeaders });
+      }
+
+      // 收回：從探索池刪除 (只可刪除自己的分享；舊版沒有擁有者標記的記錄亦可刪)
+      if (path === '/api/explore/delete' && request.method === 'POST') {
+        const { ids, syncKey } = await request.json();
+        const idSet = new Set((Array.isArray(ids) ? ids : []).map(String));
+        const myShare = syncKey ? await shareIdOf(syncKey) : null;
+        let feed = [];
+        try {
+          const raw = await kv.get('community_explore_feed');
+          if (raw) feed = JSON.parse(raw);
+        } catch(e){}
+        const before = feed.length;
+        feed = feed.filter(x => !(idSet.has(String(x.id)) && (!x.ownerShareId || x.ownerShareId === myShare)));
+        await kv.put('community_explore_feed', JSON.stringify(feed), { expirationTtl: 31536000 });
+        return new Response(JSON.stringify({ success: true, removed: before - feed.length }), { headers: jsonHeaders });
       }
 
       if (path === '/api/explore' && request.method === 'GET') {
-        const raw = await kv.get('community_explore_feed');
-        return new Response(raw || '[]', { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        let feed = [];
+        try {
+          const raw = await kv.get('community_explore_feed');
+          if (raw) feed = JSON.parse(raw);
+        } catch(e){}
+        // 同一 id 只回傳一筆 (最新)，清掉舊版造成的重複
+        const seen = new Set();
+        feed = feed.filter(x => { const k = String(x.id); if (seen.has(k)) return false; seen.add(k); return true; });
+        return new Response(JSON.stringify(feed), { headers: jsonHeaders });
       }
 
       // 6. AI 酒標辨識 (強化 Prompt 與純 JSON 容錯解析)

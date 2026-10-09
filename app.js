@@ -929,7 +929,7 @@ function openAddSessionModal(bottleId) {
 
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="closeModal()">
-      <div class="modal-card" style="max-width:390px; text-align:left; max-height:85vh; overflow-y:auto;" onclick="event.stopPropagation()">
+      <div class="modal-card" style="max-width:390px; text-align:left; max-height:calc(var(--vvh, 100dvh) - 40px); overflow-y:auto; -webkit-overflow-scrolling:touch;" onclick="event.stopPropagation()">
         <div style="font-family:var(--serif); font-size:19px; font-weight:700; margin-bottom:12px; color:var(--gold);">
           ${t('btn_add_log')}
         </div>
@@ -1084,6 +1084,34 @@ function openShareActionSheet(bottleId, sessionId = null) {
   `;
 }
 
+// 探索池記錄 id：一筆品飲記錄只對應一個 id，重複發布只會取代
+function exploreItemId(bottleId, sessionId) {
+  return sessionId ? `${bottleId}_${sessionId}` : String(bottleId);
+}
+
+let _myShareIdCache = null;
+async function getMyShareId() {
+  if (_myShareIdCache) return _myShareIdCache;
+  try {
+    const key = getOrCreateSyncKey();
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('bottlesense-share:' + key));
+    const hex = Array.from(new Uint8Array(buf)).map(x => x.toString(16).padStart(2, '0')).join('');
+    _myShareIdCache = 'S' + hex.slice(0, 20);
+  } catch(e) { _myShareIdCache = ''; }
+  return _myShareIdCache;
+}
+
+async function unpublishFromCommunityPool(bottleId, sessionId) {
+  const ids = [exploreItemId(bottleId, sessionId), String(bottleId)];
+  try {
+    await fetch(`${WORKER_API_URL}/api/explore/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids, syncKey: getOrCreateSyncKey() })
+    });
+  } catch(e) {}
+}
+
 async function publishToCommunityPool(bottleId, sessionId) {
   if (blockIfVisitor()) return;
   const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
@@ -1091,8 +1119,9 @@ async function publishToCommunityPool(bottleId, sessionId) {
   const s = sessionId ? (b.tastings || []).find(t => String(t.id) === String(sessionId)) : null;
 
   const payload = {
-    id: b.id,
-    author: localStorage.getItem('bottlesense_owner_name') || '品飲同好',
+    id: exploreItemId(bottleId, sessionId),
+    syncKey: getOrCreateSyncKey(),
+    author: localStorage.getItem('bottlesense_profile_name') || localStorage.getItem('bottlesense_owner_name') || '品飲同好',
     identification: b.identification,
     image: b.image,
     personalRating: s ? s.rating : (b.personalRating || 5),
@@ -1534,6 +1563,7 @@ async function renderRealWorldPinsAndFeed() {
 
     const myProfileName = localStorage.getItem('bottlesense_profile_name') || '';
     const myBoundEmail = localStorage.getItem('bottlesense_account_bound') || '';
+    const myShareId = await getMyShareId();
 
     // 世界地圖上的所有 Pin 點（嚴格依產區坐標定點）
     if (pinsLayer) {
@@ -1553,7 +1583,7 @@ async function renderRealWorldPinsAndFeed() {
     feedEl.innerHTML = publicFeed.map(b => {
       const c = bottleCountry(b);
       const r = bottleRegion(b);
-      const isMine = b.isMine || (myProfileName && b.author === myProfileName) || (myBoundEmail && b.author === myBoundEmail);
+      const isMine = b.isMine || (myShareId && b.ownerShareId === myShareId) || (myProfileName && b.author === myProfileName) || (myBoundEmail && b.author === myBoundEmail);
 
       return `
         <div class="bottle-card feed-clickable" id="feed-card-${esc(b.id)}" onclick="flyToBottleRegion('${esc(b.id)}')" style="margin-bottom:12px; cursor:pointer;">
@@ -1648,9 +1678,20 @@ function flyToBottleRegion(bottleId) {
 }
 
 // 8. 社群分享管理按鈕操作
-async function deleteMyExploreShare(bottleId) {
+async function deleteMyExploreShare(itemId) {
   if (!confirm(currentLang==='zh'?'確定要從酒友探索池收回並刪除此筆分享嗎？':'Remove this tasting share from explore feed?')) return;
-  currentExploreFeed = currentExploreFeed.filter(x => String(x.id) !== String(bottleId));
+  await fetch(`${WORKER_API_URL}/api/explore/delete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: [String(itemId)], syncKey: getOrCreateSyncKey() })
+  }).catch(() => {});
+  // 同步取消本機該筆品飲記錄的「已發布」狀態
+  for (const b of (window.cellar || [])) {
+    for (const t of (b.tastings || [])) {
+      if (exploreItemId(b.id, t.id) === String(itemId) && t.isPublic) { t.isPublic = false; await saveBottleToDB(b); }
+    }
+  }
+  currentExploreFeed = currentExploreFeed.filter(x => String(x.id) !== String(itemId));
   renderRealWorldPinsAndFeed();
   showToast(currentLang==='zh'?'✓ 已成功收回分享':'✓ Tasting share removed');
 }
@@ -2822,7 +2863,26 @@ async function togglePublishSession(bottleId, sessionId) {
     await publishToCommunityPool(bottleId, sessionId);
     showToast(currentLang==='zh'?'✓ 已成功發布至酒友探索池！':'✓ Published to Community Feed!');
   } else {
+    await unpublishFromCommunityPool(bottleId, sessionId);
     showToast(currentLang==='zh'?'✓ 已收回該筆公開品飲手記':'✓ Withdrawn from Community Feed');
   }
   renderBottleDetail(bottleId);
 }
+
+
+/* ---- 手機鍵盤彈出時，彈窗跟隨可視範圍並自動捲到輸入框 ---- */
+(function setupKeyboardSafeModals() {
+  const vv = window.visualViewport;
+  const apply = () => {
+    if (!vv) return;
+    document.documentElement.style.setProperty('--vvh', vv.height + 'px');
+    document.documentElement.style.setProperty('--vvt', vv.offsetTop + 'px');
+  };
+  if (vv) { vv.addEventListener('resize', apply); vv.addEventListener('scroll', apply); apply(); }
+  document.addEventListener('focusin', (e) => {
+    const el = e.target;
+    if (!el || !el.closest || !el.closest('.modal-card')) return;
+    if (!/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
+    setTimeout(() => { try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch(e) {} }, 320);
+  });
+})();

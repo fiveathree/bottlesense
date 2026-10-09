@@ -998,7 +998,19 @@ select.text-input {
   z-index: 999;
   padding: 20px;
 }
+/* keep modals inside the visible area when the mobile keyboard is open */
+@supports (height: 1dvh) {
+  .modal-overlay {
+    inset: auto;
+    top: var(--vvt, 0px);
+    left: 0;
+    right: 0;
+    height: var(--vvh, 100dvh);
+  }
+}
 .modal-card {
+  max-height: calc(var(--vvh, 100dvh) - 40px);
+  overflow-y: auto;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 20px;
