@@ -120,7 +120,11 @@ const I18N = {
     explore_title: "世界名釀・金線地圖",
     explore_hint: "地圖已釘選各款名釀產地與同好分享地點，可上下左右拖曳與縮放！",
     confirm_delete: "確定要從酒庫移除這瓶酒？",
-    no_random_bottle: "酒窖目前暫無藏酒，無法隨機抽選！"
+    no_random_bottle: "酒窖目前暫無藏酒，無法隨機抽選！",
+    btn_cancel: "取消",
+    btn_full_scan: "📷 全圖辨識",
+    btn_focus_scan: "🎯 對焦辨識",
+    btn_install_guide: "安裝教學"
   },
   en: {
     nav_scan: "Scan",
@@ -169,6 +173,14 @@ const I18N = {
     btn_close: "Close",
     copied_toast: "✓ Link copied to clipboard!",
     published_toast: "✓ Published to Community Feed!",
+    confirm_delete: "Are you sure you want to remove this bottle from cellar?",
+    no_random_bottle: "No bottles in cellar to pick randomly!",
+    explore_title: "World Map & Tasting Feed",
+    explore_hint: "Pinch or drag to explore world wine regions and member tasting posts!",
+    btn_cancel: "Cancel",
+    btn_full_scan: "📷 Full Scan",
+    btn_focus_scan: "🎯 Focus Scan",
+    btn_install_guide: "Install Guide",
     explore_title: "World Terroir & Golden Map",
     explore_hint: "Origins & pours are pinned. Pan and pinch to zoom around the globe!",
     confirm_delete: "Are you sure you want to remove this bottle?",
@@ -181,16 +193,22 @@ function t(k) { return I18N[currentLang]?.[k] || I18N['zh'][k] || k; }
 function toggleLanguage() {
   currentLang = currentLang === 'zh' ? 'en' : 'zh';
   localStorage.setItem('bottlesense_lang', currentLang);
-  document.getElementById('langSwitchBtn').textContent = currentLang === 'zh' ? 'EN' : '繁';
+  const langBtn = document.getElementById('langSwitchBtn');
+  if (langBtn) langBtn.textContent = currentLang === 'zh' ? 'EN' : '繁';
   updateHeaderGreeting();
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     if (key) el.innerHTML = t(key);
-    updateTopbarLoginStatus();
-});
+  });
   if (currentView === 'home') renderHome();
   else if (currentView === 'cellar') renderCellar();
   else if (currentView === 'explore') renderExplore();
+
+  // 若當前設定彈窗開啟，同步刷新繁英文字
+  const settingsModal = document.querySelector('.modal-card');
+  if (settingsModal && (settingsModal.innerHTML.includes('auth-email') || settingsModal.innerHTML.includes('edit-profile-name') || settingsModal.innerHTML.includes('login-otp'))) {
+    renderSettings();
+  }
 }
 
 function showToast(msg) {
@@ -352,7 +370,7 @@ function pickRandomBottle() {
 function recentBottleHTML() {
   const list = (window.cellar || []).slice(0, 3);
   if (!list.length) {
-    return `<div class="empty-shelf">${t('empty_cellar')}<div style="margin-top:10px;"><button class="btn btn-ghost btn-sm" onclick="openLoginModal()" style="font-size:12px; color:var(--gold); border-color:var(--gold-dim);">🔑 ${currentLang==='zh'?'已有專屬碼？點此登入還原':'Have a Sync Key? Login'}</button></div></div>`;
+    return `<div class="empty-shelf">${t('empty_cellar')}<div style="margin-top:10px;"><button class="btn btn-ghost btn-sm" onclick="openLoginModal()" style="font-size:12px; color:var(--gold); border-color:var(--gold-dim);">🔑 ${currentLang==='zh'?'已有帳號？點此電郵登入還原':'Have an account? Log in via Email'}</button></div></div>`;
   }
   return list.map(bottleCardHTML).join('');
 }
@@ -882,8 +900,8 @@ function openAddSessionModal(bottleId) {
   selectedSessionCity = '';
   selectedSessionScene = '';
 
-  const cities = ['中環', '尖沙咀', '銅鑼灣', '旺角', '台中', '高雄', '台北', '東京', '大阪', '澳門'];
-  const scenes = ['屋企陽台', '酒吧', '居酒屋', '露營星空下', '海邊', '朋友聚會', '餐廳'];
+  const cities = currentLang === 'zh' ? ['中環', '尖沙咀', '銅鑼灣', '旺角', '台中', '高雄', '台北', '東京', '大阪', '澳門'] : ['Central', 'Tsim Sha Tsui', 'Causeway Bay', 'Mong Kok', 'Taichung', 'Kaohsiung', 'Taipei', 'Tokyo', 'Osaka', 'Macau'];
+  const scenes = currentLang === 'zh' ? ['屋企陽台', '酒吧', '居酒屋', '露營星空下', '海邊', '朋友聚會', '餐廳'] : ['Home Balcony', 'Bar', 'Izakaya', 'Camping', 'Beach', 'Gathering', 'Restaurant'];
 
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="closeModal()">
@@ -1509,7 +1527,7 @@ async function renderRealWorldPinsAndFeed() {
           <div class="bottle-info" style="flex:1; min-width:0;">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:4px;">
               <div class="bottle-name">${esc(bottleName(b))}</div>
-              ${isMine ? `<span style="font-size:10px; font-family:var(--mono); color:#D4AF37; background:rgba(212,175,55,0.15); border:1px solid rgba(212,175,55,0.3); padding:1px 6px; border-radius:4px; white-space:nowrap;">★ 我的分享</span>` : ''}
+              ${isMine ? `<span style="font-size:10px; font-family:var(--mono); color:#D4AF37; background:rgba(212,175,55,0.15); border:1px solid rgba(212,175,55,0.3); padding:1px 6px; border-radius:4px; white-space:nowrap;">${currentLang==='zh'?'★ 我的分享':'★ My Share'}</span>` : ''}
             </div>
             
             <div style="font-size:12.5px; color:var(--gold); margin-top:2px;">★ ${b.personalRating||5}/5 ・ ${esc(b.author||'品飲同好')}</div>
@@ -1521,16 +1539,16 @@ async function renderRealWorldPinsAndFeed() {
               <div style="display:flex; gap:6px; align-items:center;" onclick="event.stopPropagation();">
                 ${isMine ? `
                   <button class="btn btn-ghost btn-sm" style="color:#f87171; border-color:rgba(239,68,68,0.3); font-size:11px; padding:2px 7px;" onclick="deleteMyExploreShare('${esc(b.id)}')">
-                    🗑️ 刪除分享
+                    🗑️ ${currentLang==='zh'?'刪除分享':'Delete'}
                   </button>
                 ` : `
                   <button class="btn btn-ghost btn-sm" style="color:var(--gold); border-color:var(--gold-dim); font-size:11px; padding:2px 7px;" onclick="addExploreItemToWishlist('${esc(b.id)}')">
-                    🏷️ 加入想買清單
+                    🏷️ ${currentLang==='zh'?'加入想買清單':'Add to Wishlist'}
                   </button>
                 `}
                 
                 <button class="feed-detail-link" onclick="openSharedTastingModal('${esc(b.id)}')" title="查看分享內容">
-                  <span>詳細</span><span style="font-family:monospace; font-size:12px; margin-left:1px;">&gt;</span>
+                  <span>${currentLang==='zh'?'詳細':'Detail'}</span><span style="font-family:monospace; font-size:12px; margin-left:1px;">&gt;</span>
                 </button>
               </div>
             </div>
@@ -1540,7 +1558,7 @@ async function renderRealWorldPinsAndFeed() {
     }).join('');
   } catch(e) {
     const feedEl = document.getElementById('explore-feed');
-    if (feedEl) feedEl.innerHTML = `<div class="empty-shelf">暫時無法載入酒友動態。</div>`;
+    if (feedEl) feedEl.innerHTML = `<div class="empty-shelf">${currentLang==='zh'?'暫時無法載入酒友動態。':'Unable to load public feed.'}</div>`;
   }
 }
 
@@ -2118,9 +2136,7 @@ function renderSettings() {
             ${currentLang === 'zh' ? `目前已安全備份 <strong style="color:var(--gold);">${cellarCount}</strong> 支藏酒與手記。` : `Safely backed up <strong style="color:var(--gold);">${cellarCount}</strong> bottles & notes.`}
           </div>
 
-          <button class="btn btn-ghost btn-block" style="padding:9px; font-size:12.5px; margin-bottom:8px; border-color:var(--gold-dim); color:var(--gold);" onclick="showPwaInstallModal()">
-            📲 ${currentLang === 'zh' ? '安裝 BottleSense 到手機主畫面' : 'Add to Home Screen'}
-          </button>
+
 
           <button class="btn btn-wine btn-block" style="padding:10px; font-size:13px;" onclick="executeAccountLogout()">
             ${currentLang === 'zh' ? '登出帳號 Logout' : 'Logout'}
@@ -2156,19 +2172,7 @@ function renderSettings() {
             ${currentLang === 'zh' ? '輸入你的電郵地址即可快速登入或註冊酒窖：' : 'Enter your email address to sign in or register:'}
           </div>
 
-          <div style="background:rgba(212,175,55,0.08); border:1px solid rgba(212,175,55,0.3); border-radius:12px; padding:12px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-            <div>
-              <div style="font-size:13px; font-weight:700; color:var(--gold); margin-bottom:2px;">
-                📲 ${currentLang === 'zh' ? '安裝 BottleSense 到手機主畫面' : 'Install to Home Screen'}
-              </div>
-              <div style="font-size:11.5px; color:var(--text-muted);">
-                ${currentLang === 'zh' ? '全螢幕開啟、獨立酒窖體驗與秒速啟動' : 'Full-screen app experience & fast launch'}
-              </div>
-            </div>
-            <button class="btn btn-primary btn-sm" style="padding:6px 12px; font-size:12px; white-space:nowrap;" onclick="showPwaInstallModal()">
-              ${currentLang === 'zh' ? '查看教學' : 'Guide'}
-            </button>
-          </div>
+
 
           <div style="font-size:11.5px; font-family:var(--mono); color:var(--text-faint); margin-bottom:4px;">
             ${currentLang === 'zh' ? '電郵地址 (Email)' : 'Email Address'}
@@ -2274,6 +2278,11 @@ function renderSettings() {
           ${t('settings_title')}
         </h2>
         ${contentHTML}
+        <div style="text-align:center; margin-top:14px; margin-bottom:6px;">
+          <a href="javascript:void(0)" onclick="showPwaInstallModal()" style="display:inline-block; font-size:12.5px; color:var(--gold); text-decoration:none; font-weight:600; padding:6px 14px; border:1px solid var(--gold-dim); border-radius:8px; background:rgba(212,175,55,0.06);">
+            📲 ${currentLang === 'zh' ? '安裝教學' : 'Install Guide'}
+          </a>
+        </div>
         <button class="btn btn-ghost btn-block" style="padding:9px; font-size:13px; color:var(--text-faint); border-color:transparent;" onclick="closeModal()">
           ${t('btn_close')}
         </button>
@@ -2371,10 +2380,20 @@ async function handleStartLogin(overrideEmail) {
       body: JSON.stringify({ email })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '發送失敗');
+    if (!res.ok) throw new Error(data.error || (currentLang === 'zh' ? '發送失敗' : 'Failed to send'));
     authFlowState.step = 'login_otp';
     renderSettings();
-    showToast(currentLang === 'zh' ? '✓ 驗證碼已發送至你的電郵信箱！' : '✓ Code sent to your inbox!');
+    if (data.devOtp) {
+      setTimeout(() => {
+        const otpEl = document.getElementById('login-otp');
+        if (otpEl) {
+          otpEl.value = data.devOtp;
+        }
+      }, 100);
+      showToast(currentLang === 'zh' ? `⚠️ 測試驗證碼已自動填入：${data.devOtp}` : `⚠️ Test code auto-filled: ${data.devOtp}`);
+    } else {
+      showToast(currentLang === 'zh' ? '✓ 驗證碼已發送至你的電郵信箱！' : '✓ Code sent to your inbox!');
+    }
     startLoginOtpCountdown();
   } catch (err) {
     showToast('發送失敗: ' + err.message);
@@ -2439,11 +2458,21 @@ async function executeSendVerificationLink() {
       body: JSON.stringify({ email: authFlowState.email, name, gender, birthday, type: 'register' })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '發送失敗');
+    if (!res.ok) throw new Error(data.error || (currentLang === 'zh' ? '發送失敗' : 'Failed to send'));
 
     authFlowState.step = 'login_otp';
     renderSettings();
-    showToast(currentLang === 'zh' ? '✓ 驗證碼已發送至你的信箱，請輸入完成註冊！' : '✓ Verification code sent to email!');
+    if (data.devOtp) {
+      setTimeout(() => {
+        const otpEl = document.getElementById('login-otp');
+        if (otpEl) {
+          otpEl.value = data.devOtp;
+        }
+      }, 100);
+      showToast(currentLang === 'zh' ? `⚠️ 測試驗證碼已自動填入：${data.devOtp}` : `⚠️ Test code auto-filled: ${data.devOtp}`);
+    } else {
+      showToast(currentLang === 'zh' ? '✓ 驗證碼已發送至你的信箱，請輸入完成註冊！' : '✓ Verification code sent to email!');
+    }
     startLoginOtpCountdown();
   } catch (err) {
     showToast('發送失敗: ' + err.message);
@@ -2604,17 +2633,17 @@ function showPwaInstallModal() {
         <div style="display:flex; flex-direction:column; gap:12px; font-size:13px; color:var(--text); line-height:1.6;">
           <div style="background:var(--surface-2); padding:12px 14px; border-radius:12px; border:1px solid var(--line);">
             <div style="font-weight:700; color:var(--gold); margin-bottom:4px;">🍎 iOS (Safari)</div>
-            <div>點擊下方「<strong style="color:var(--text);">分享</strong>」圖示 <span style="font-size:14px;">⎋</span> ➔ 往下滑選擇「<strong style="color:var(--text);">加入主畫面</strong>」即完成。</div>
+            <div>${currentLang==='zh'?'點擊下方「<strong style="color:var(--text);">分享</strong>」圖示 <span style="font-size:14px;">⎋</span> ➔ 往下滑選擇「<strong style="color:var(--text);">加入主畫面</strong>」即完成。':'Tap bottom <strong style="color:var(--text);">Share</strong> <span style="font-size:14px;">⎋</span> ➔ Scroll and select <strong style="color:var(--text);">Add to Home Screen</strong>.'}</div>
           </div>
 
           <div style="background:var(--surface-2); padding:12px 14px; border-radius:12px; border:1px solid var(--line);">
             <div style="font-weight:700; color:var(--gold); margin-bottom:4px;">🤖 Android (Chrome)</div>
-            <div>點擊右上角「<strong style="color:var(--text);">⋮</strong>」選單 ➔ 選擇「<strong style="color:var(--text);">安裝應用程式</strong>」或「新增至主螢幕」。</div>
+            <div>${currentLang==='zh'?'點擊右上角「<strong style="color:var(--text);">⋮</strong>」選單 ➔ 選擇「<strong style="color:var(--text);">安裝應用程式</strong>」或「新增至主螢幕」。':'Tap top-right <strong style="color:var(--text);">⋮</strong> menu ➔ Select <strong style="color:var(--text);">Install App</strong> or Add to Home Screen.'}</div>
           </div>
 
           <div style="background:var(--surface-2); padding:12px 14px; border-radius:12px; border:1px solid var(--line);">
-            <div style="font-weight:700; color:var(--gold); margin-bottom:4px;">💻 電腦版 (Chrome / Edge / Safari)</div>
-            <div>點擊網址列右側出現的「<strong style="color:var(--text);">⊕ 安裝</strong>」圖示即可擁有原生桌面體驗。</div>
+            <div style="font-weight:700; color:var(--gold); margin-bottom:4px;">💻 ${currentLang==='zh'?'電腦版':'Desktop'} (Chrome / Edge / Safari)</div>
+            <div>${currentLang==='zh'?'點擊網址列右側出現的「<strong style="color:var(--text);">⊕ 安裝</strong>」圖示即可擁有原生桌面體驗。':'Click the <strong style="color:var(--text);">⊕ Install</strong> icon in the browser address bar for desktop app.'}</div>
           </div>
         </div>
 
