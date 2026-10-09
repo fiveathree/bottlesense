@@ -17,6 +17,7 @@
   <link rel="preconnect" href="https://gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Serif+TC:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   
+  <link rel="preload" as="image" href="Glowing%20Gold%20World%20Map.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -58,28 +59,60 @@
   <div id="toast-container"></div>
   
   <!-- 拍照對位校準 HUD 模態框 -->
+    <!-- 拍照對位校準 HUD 模態框 (全面升級酒瓶 Silhouette 邊框與無折行排版) -->
   <div id="crop-modal" class="crop-modal" style="display: none;">
     <div class="crop-header">
       <button class="btn btn-ghost btn-sm" onclick="closeCropModal()">取消</button>
-      <span class="crop-title" data-i18n="crop_hint">雙指縮放拖曳對準酒瓶</span>
-      <div style="display:flex; gap:6px;">
+      <div style="display:flex; gap:8px;">
         <button class="btn btn-ghost btn-sm" style="border-color:var(--gold-dim); color:var(--gold);" onclick="confirmFullScan()" title="不裁剪，直接發送整張照片辨識">全圖辨識</button>
         <button class="btn btn-primary btn-sm" onclick="confirmCropAndScan()">對焦辨識</button>
       </div>
     </div>
+    
     <div class="crop-viewport" id="cropViewport">
       <div class="crop-image-wrap" id="cropImageWrap">
         <img id="cropTargetImage" src="" alt="target" />
       </div>
-      <!-- 酒瓶中央對齊 HUD 輔助外框 -->
-      <div class="bottle-guide-frame">
-        <div class="bottle-neck-line"></div>
-        <div class="bottle-shoulder-curve"></div>
-        <div class="bottle-body-box">
-          <span class="guide-tag" data-i18n="guide_label_tag">請將酒標置於框內</span>
-        </div>
-      </div>
+
+      <!-- 真實發光金色酒瓶 Silhouette HUD 對位框 -->
+      <svg class="bottle-hud-svg" viewBox="0 0 280 500" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <mask id="hudBottleMask">
+            <rect width="100%" height="100%" fill="white"/>
+            <!-- 瓶身透空路徑：頂部瓶口 -> 細長瓶頸 -> 優雅弧線瓶肩 -> 圓柱瓶身 -> 瓶底微弧 -->
+            <path d="M 115,22 C 115,12 125,10 140,10 C 155,10 165,12 165,22 L 165,100 C 165,135 250,150 250,195 L 250,465 C 250,482 238,488 220,488 L 60,488 C 42,488 30,482 30,465 L 30,195 C 30,150 115,135 115,100 Z" fill="black"/>
+          </mask>
+        </defs>
+
+        <!-- 周圍暗色半透明遮罩，只有酒瓶內部通透 -->
+        <rect width="100%" height="100%" fill="rgba(0,0,0,0.72)" mask="url(#hudBottleMask)"/>
+
+        <!-- 金色發光完整酒瓶邊框線 -->
+        <path id="bottleCutoutPath" d="M 115,22 C 115,12 125,10 140,10 C 155,10 165,12 165,22 L 165,100 C 165,135 250,150 250,195 L 250,465 C 250,482 238,488 220,488 L 60,488 C 42,488 30,482 30,465 L 30,195 C 30,150 115,135 115,100 Z"
+              fill="none" stroke="#D4AF37" stroke-width="2.5" stroke-linejoin="round"
+              style="filter: drop-shadow(0 0 10px rgba(212,175,55,0.7));"/>
+
+        <!-- 瓶身中央酒標對齊輔助虛線框 -->
+        <rect id="bottleLabelGuide" x="48" y="215" width="184" height="235" rx="10"
+              fill="none" stroke="rgba(212,175,55,0.55)" stroke-width="1.5" stroke-dasharray="6,4"/>
+
+        <!-- 四個金色對準角標 (HUD Corner Marks) -->
+        <path d="M 48,232 L 48,215 L 65,215" fill="none" stroke="#D4AF37" stroke-width="2.8"/>
+        <path d="M 232,232 L 232,215 L 215,215" fill="none" stroke="#D4AF37" stroke-width="2.8"/>
+        <path d="M 48,433 L 48,450 L 65,450" fill="none" stroke="#D4AF37" stroke-width="2.8"/>
+        <path d="M 232,433 L 232,450 L 215,450" fill="none" stroke="#D4AF37" stroke-width="2.8"/>
+
+        <!-- 中央對準提示標籤 -->
+        <g transform="translate(140, 332)">
+          <rect x="-65" y="-12" width="130" height="24" rx="12" fill="rgba(0,0,0,0.8)" stroke="rgba(212,175,55,0.6)" stroke-width="1"/>
+          <text text-anchor="middle" y="4.5" fill="#D4AF37" font-size="11" font-family="monospace">請將酒標置於框內</text>
+        </g>
+      </svg>
+
+      <!-- 頂部懸浮不折行提示膠囊 -->
+      <div class="crop-hud-hint">👆 雙指縮放或拖曳對準酒瓶</div>
     </div>
+
     <div class="crop-footer">
       <span class="zoom-text">縮放:</span>
       <input type="range" id="zoomSlider" min="0.5" max="3" step="0.05" value="1" oninput="onSliderZoom(this.value)">
