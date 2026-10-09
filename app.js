@@ -1303,14 +1303,173 @@ let mapZoom = 1;
 let mapPanX = 0, mapPanY = 0;
 let currentExploreFeed = [];
 
+let isRegionalMapActive = false;
+let currentRegionalMapKey = 'map_world';
+let regionalZoom = 1;
+let regionalPanX = 0, regionalPanY = 0;
+let regionalFlyToken = 0;
+
+// 地區地圖 (GitHub 上的 map_*.webp)：圖片比例與各產區 Pin 座標
+// 座標 = 圖片本身的百分比位置 [名稱, left%, top%, 關鍵字(用 | 分隔；以 / 開頭為正則)]
+const REGIONAL_MAPS = [
+  { key: 'map_hk', name: '香港', nameEn: 'Hong Kong', ratio: 1.5, pins: [
+    ['中環', 58, 64, '中環|上環|金鐘|蘭桂坊|灣仔|銅鑼灣|causeway bay|wan chai|/\\bcentral\\b'],
+    ['尖沙咀', 57, 57, '尖沙咀|tsim sha tsui'],
+    ['旺角・九龍', 59, 54, '旺角|mong kok|九龍|kowloon|觀塘|大角咀'],
+    ['沙田', 62, 46, '沙田|火炭|少爺|young master|大圍|sha tin'],
+    ['新界', 50, 36, '新界|元朗|屯門|天水圍|大埔|tuen mun|yuen long'],
+    ['黃竹坑', 58, 69, '黃竹坑|白蘭樹下|perfume trees|wong chuk hang|香港仔|赤柱'],
+    ['西貢', 76, 50, '西貢|sai kung'],
+    ['大嶼山', 22, 70, '大嶼山|lantau|東涌|赤鱲角']
+  ], fallback: [['香港', 58, 58, '香港|hong kong']] },
+  { key: 'map_taiwan', name: '台灣', nameEn: 'Taiwan', ratio: 1.5, pins: [
+    ['台北', 62, 12, '台北|taipei|新北|基隆|酉鬼|掌門'],
+    ['桃園', 54, 17, '桃園|taoyuan'],
+    ['新竹', 52, 23, '新竹|hsinchu'],
+    ['宜蘭・噶瑪蘭', 64, 21, '宜蘭|yilan|噶瑪蘭|kavalan|員山|金車'],
+    ['台中', 43, 40, '台中|taichung|彰化'],
+    ['南投・Omar', 52, 44, '南投|nantou|omar|歐瑪|埔里'],
+    ['花蓮', 61, 41, '花蓮|hualien'],
+    ['嘉義', 41, 57, '嘉義|chiayi'],
+    ['台南', 39, 66, '台南|tainan'],
+    ['高雄', 42, 74, '高雄|kaohsiung'],
+    ['屏東', 46, 80, '屏東|pingtung|墾丁|kenting'],
+    ['台東', 56, 68, '台東|taitung'],
+    ['澎湖', 25, 40, '澎湖|penghu'],
+    ['金門', 21, 45, '金門|kinmen|馬祖|高粱']
+  ], fallback: [['台灣', 52, 48, '台灣|臺灣|taiwan']] },
+  { key: 'map_japan', name: '日本', nameEn: 'Japan', ratio: 1.5, pins: [
+    ['沖繩', 20.6, 91, '沖繩|沖縄|okinawa|泡盛|awamori|琉球|那霸|naha|殘波|菊之露'],
+    ['鹿兒島', 28, 80, '鹿兒島|鹿児島|kagoshima|薩摩|森伊藏|魔王|村尾'],
+    ['九州', 29, 70, '九州|kyushu|熊本|宮崎|長崎|大分'],
+    ['福岡', 30, 63, '福岡|fukuoka'],
+    ['山口', 35, 57, '山口|獺祭|dassai|旭酒造'],
+    ['廣島', 40, 57, '廣島|hiroshima|賀茂鶴'],
+    ['山崎蒸餾所', 48, 59, '山崎|yamazaki|suntory|三得利|hibiki'],
+    ['兵庫・灘五鄉', 47, 59, '兵庫|神戶|kobe|灘五鄉|黑松白扇|山田錦'],
+    ['大阪', 49, 60, '大阪|osaka'],
+    ['京都', 49, 57, '京都|kyoto|伏見|月桂冠'],
+    ['山梨・白州', 57, 57, '山梨|白州|hakushu|勝沼|甲州'],
+    ['長野', 56, 52, '長野|nagano|信州|駒之岳|真澄'],
+    ['東京', 59, 59, '東京|tokyo|關東|埼玉|秩父|chichibu|橫濱|yokohama'],
+    ['新潟', 59, 44, '新潟|niigata|越後|久保田|八海山|越乃寒梅'],
+    ['東北', 64, 38, '東北|宮城|仙台|sendai|十四代|新政|青森|山形|秋田'],
+    ['北海道・余市', 66, 14, '北海道|hokkaido|余市|yoichi|nikka|札幌|sapporo']
+  ], fallback: [['日本', 52, 58, '日本|japan|清酒|sake|燒酎']] },
+  { key: 'map_china', name: '中國', nameEn: 'China', ratio: 1.5, pins: [
+    ['貴州・茅台', 50, 70, '茅台|maotai|moutai|貴州|醬香'],
+    ['四川', 46, 64, '四川|sichuan|五糧液|瀘州|劍南春|宜賓'],
+    ['寧夏', 48, 43, '寧夏|ningxia|賀蘭山'],
+    ['山西', 58, 45, '山西|汾酒'],
+    ['山東', 72, 45, '山東|青島|tsingtao'],
+    ['紹興', 70, 61, '紹興|浙江|古越龍山|黃酒|shaoxing'],
+    ['北京', 65, 35, '北京|beijing|二鍋頭']
+  ], fallback: [['中國', 55, 55, '中國|china']] },
+  { key: 'map_russia', name: '俄羅斯', nameEn: 'Russia', ratio: 2.0, pins: [
+    ['莫斯科', 16, 51, '莫斯科|moscow'],
+    ['聖彼得堡', 14, 40, '聖彼得堡|petersburg'],
+    ['西伯利亞', 50, 65, '西伯利亞|siberia|beluga|白鯨']
+  ], fallback: [['俄羅斯', 45, 55, '俄羅斯|russia|伏特加|vodka']] },
+  { key: 'map_europe', name: '歐洲', nameEn: 'Europe', ratio: 1.5, pins: [
+    ['蘇格蘭・斯貝賽', 28, 38, '斯貝賽|speyside|macallan|麥卡倫|glenfiddich|glenlivet'],
+    ['蘇格蘭・艾雷島', 24, 43, '艾雷島|islay|ardbeg|laphroaig|lagavulin'],
+    ['蘇格蘭', 27, 40, '蘇格蘭|scotland|高地|highland|低地|lowland'],
+    ['愛爾蘭', 20, 48, '愛爾蘭|ireland|dublin'],
+    ['波爾多', 27, 66, '波爾多|bordeaux|左岸|右岸|medoc|margaux|pauillac|latour|lafite'],
+    ['盧瓦爾河', 29, 62, '盧瓦爾|loire'],
+    ['香檳', 34, 59, '香檳|champagne|reims|dom perignon'],
+    ['勃艮第', 35, 63, '勃艮第|bourgogne|burgundy|chablis'],
+    ['羅納河', 35, 69, '羅納河|隆河|rhone'],
+    ['杜羅河・波特', 13, 77, 'douro|波特|porto'],
+    ['里奧哈', 23, 75, '里奧哈|rioja'],
+    ['杜埃羅河岸', 20, 77, '杜埃羅河岸|ribera del duero|vega sicilia'],
+    ['赫雷斯', 17, 88, '赫雷斯|jerez|雪莉|sherry'],
+    ['皮埃蒙特', 36, 69, '皮埃蒙特|piedmont|barolo|巴羅洛'],
+    ['托斯卡納', 39, 73, '托斯卡納|tuscany|chianti|sassicaia'],
+    ['西西里', 44, 90, '西西里|sicily'],
+    ['摩澤爾', 35, 57, '摩澤爾|mosel|rheingau|萊茵']
+  ], fallback: [
+    ['法國', 31, 63, '法國|france'], ['西班牙', 22, 80, '西班牙|spain|españa'], ['葡萄牙', 12.5, 81, '葡萄牙|portugal'],
+    ['義大利', 41, 76, '義大利|意大利|italy'], ['德國', 40, 55, '德國|germany'], ['英國', 29, 51, '英國|england|london|倫敦|united kingdom'],
+    ['歐洲', 45, 58, '歐洲|europe']
+  ] },
+  { key: 'map_america', name: '美洲', nameEn: 'Americas', ratio: 0.6667, pins: [
+    ['納帕', 28, 31, '納帕|napa|opus one|作品一號|screaming eagle'],
+    ['加州', 28, 34.3, '加州|california|sonoma|索諾瑪'],
+    ['肯塔基', 55, 33, '肯塔基|kentucky|波本|bourbon|jim beam'],
+    ['田納西', 53.5, 35.5, '田納西|tennessee|jack daniel'],
+    ['智利', 59.5, 73, '智利|chile|almaviva|活靈魂'],
+    ['門多薩', 62, 72, '門多薩|mendoza|馬爾貝克|malbec']
+  ], fallback: [
+    ['阿根廷', 64, 76, '阿根廷|argentina'], ['美國', 45, 32, '美國|usa|united states'], ['墨西哥', 36, 42, '墨西哥|mexico|龍舌蘭|tequila'],
+    ['加拿大', 50, 20, '加拿大|canada'], ['美洲', 50, 50, '美洲|america']
+  ] },
+  { key: 'map_africa', name: '非洲', nameEn: 'Africa', ratio: 0.9139, pins: [
+    ['開普敦・Stellenbosch', 47, 88, '開普敦|cape town|stellenbosch|皮諾塔吉|pinotage']
+  ], fallback: [['南非', 55, 85, '南非|south africa'], ['非洲', 50, 55, '非洲|africa']] }
+];
+
+function regionalKwMatch(text, kwString) {
+  for (const k of String(kwString).split('|')) {
+    if (!k) continue;
+    if (k[0] === '/') { try { if (new RegExp(k.slice(1), 'i').test(text)) return true; } catch(e) {} }
+    else if (text.includes(k.toLowerCase())) return true;
+  }
+  return false;
+}
+
+function matchRegionalPin(text, useFallback) {
+  for (const m of REGIONAL_MAPS) {
+    const list = useFallback ? (m.fallback || []) : (m.pins || []);
+    for (const p of list) {
+      if (regionalKwMatch(text, p[3])) return { map: m, pin: { name: p[0], left: p[1], top: p[2] } };
+    }
+  }
+  return null;
+}
+
+// 酒款對應的地區地圖與 Pin：先看「品飲地點」，再看酒款產區；找不到 → null (只留在世界地圖)
+function resolveRegionalTarget(b) {
+  if (!b) return null;
+  const loc = String(b.location || b.diary?.location || '').toLowerCase();
+  const origin = `${bottleRegion(b) || ''} ${bottleCountry(b) || ''} ${bottleName(b) || ''} ${b.identification?.producer || ''}`.toLowerCase();
+  for (const text of [loc, origin]) {
+    if (!text.trim()) continue;
+    const hit = matchRegionalPin(text, false) || matchRegionalPin(text, true);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function loadMapImageWithFallback(imgEl, mapKey) {
+  if (!imgEl) return;
+  const candidates = [`${mapKey}.webp`, `${mapKey}`, `${mapKey}.png`, `maps/${mapKey}.webp`, `maps/${mapKey}`, `maps/${mapKey}.png`];
+  let idx = 0;
+  imgEl.onerror = () => {
+    idx++;
+    if (idx < candidates.length) imgEl.src = candidates[idx];
+    else imgEl.onerror = null;
+  };
+  imgEl.src = candidates[0];
+}
+
 // 2. 解析酒款在世界地圖上的經緯坐標（優先精確匹配特定產區與品牌）
 function resolveRealImagePinPos(country, region, b = null) {
   const bName = b ? bottleName(b) : '';
   const bCat = b ? (b.category || b.identification?.category || '') : '';
   const bProd = b ? (b.identification?.producer || '') : '';
   const bLoc = b ? (b.location || b.diary?.location || '') : '';
-  const fullText = `${region || ''} ${country || ''} ${bName} ${bCat} ${bProd} ${bLoc}`.toLowerCase();
 
+  // 1. 優先以「品飲地點」定位 (例如在沖繩飲 → 釘在沖繩)
+  const locText = String(bLoc || '').toLowerCase();
+  if (locText.trim()) {
+    for (const k in REAL_IMAGE_GEO_POINTS) {
+      if (k.length > 1 && locText.includes(k.toLowerCase())) return REAL_IMAGE_GEO_POINTS[k];
+    }
+  }
+
+  // 2. 其次以酒款產區/品名定位
+  const fullText = `${region || ''} ${country || ''} ${bName} ${bCat} ${bProd} ${bLoc}`.toLowerCase();
   for (const k in REAL_IMAGE_GEO_POINTS) {
     if (k.length > 1 && fullText.includes(k.toLowerCase())) {
       return REAL_IMAGE_GEO_POINTS[k];
@@ -1323,10 +1482,24 @@ function resolveRealImagePinPos(country, region, b = null) {
   return { top: 32.0, left: 47.2 };
 }
 
+// 判斷探索池項目是否為自己的分享 (擁有者 ID、署名，或對應到自己酒窖內的酒款/品飲記錄)
+function isMyExploreItem(b, myShareId, myProfileName, myBoundEmail) {
+  if (!b) return false;
+  if (b.isMine) return true;
+  if (myShareId && b.ownerShareId && b.ownerShareId === myShareId) return true;
+  if (myProfileName && b.author === myProfileName) return true;
+  if (myBoundEmail && b.author === myBoundEmail) return true;
+  const id = String(b.id);
+  return (window.cellar || []).some(x => String(x.id) === id || (x.tastings || []).some(t => exploreItemId(x.id, t.id) === id));
+}
+
 // 3. 探索頁面渲染（純粹單一世界地圖容器，零圖層切換）
 async function renderExplore() {
   currentView = 'explore';
   setActiveNav('nav-explore');
+  isRegionalMapActive = false;
+  currentRegionalMapKey = 'map_world';
+  regionalFlyToken++;
 
   const worldMapImgHTML = `
     <img id="worldMapMainImg" src="map_world.webp" onerror="this.onerror=null; this.src='map_world'; this.onerror=()=>this.src='map_world.png'; this.onerror=()=>this.src='maps/map_world.webp';" class="real-gold-map-img" alt="World Map" draggable="false">
@@ -1343,6 +1516,22 @@ async function renderExplore() {
         <div class="world-map-canvas-wrap" id="worldMapCanvasWrap">
           ${worldMapImgHTML}
           <div id="geoPinsContainer" style="position:absolute; inset:0; pointer-events:none;"></div>
+        </div>
+
+        <!-- 地區特寫地圖層：世界地圖飛向地區後切入，Pin 住品飲位置 -->
+        <div class="regional-map-wrap" id="regionalMapView" style="display:none; opacity:0; pointer-events:none;">
+          <div class="regional-canvas-wrap" id="regionalCanvasWrap">
+            <div class="regional-stage" id="regionalStage">
+              <img id="regionalMapImg" src="" class="regional-map-img" alt="Regional Map" draggable="false">
+              <div id="regionalPinContainer" style="position:absolute; inset:0; pointer-events:none;"></div>
+            </div>
+          </div>
+          <button class="btn-back-world" onclick="exitRegionalMap()">
+            <span>&larr;</span>
+            <span>${currentLang==='zh'?'世界地圖':'World'}</span>
+          </button>
+          <div class="region-header-badge" id="regionalBadge"></div>
+          <div class="region-bottle-pill" id="regionalBottlePill"></div>
         </div>
 
         <!-- 縮放與重設 HUD 控制項 -->
@@ -1372,7 +1561,10 @@ async function renderExplore() {
   renderRealWorldPinsAndFeed();
 }
 
-// 4. 世界地圖互動手勢管理（自由平滑縮放與拖曳，絕無跳圖誤判）
+// 4. 地圖互動手勢：世界地圖與地區地圖各自縮放/平移；地區地圖雙指縮小到底自動返回世界
+let _mapWindowListenersBound = false;
+let _mapDragging = false, _mapStartX = 0, _mapStartY = 0;
+
 function initRealMapInteractions() {
   const container = document.getElementById('worldRadarBox');
   if (!container) return;
@@ -1380,94 +1572,118 @@ function initRealMapInteractions() {
   container.onwheel = (e) => {
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.15 : 0.85;
-    mapZoom = Math.min(Math.max(mapZoom * factor, 0.7), 4.5);
-    updateRealMapTransform();
+    if (isRegionalMapActive) {
+      regionalZoom = Math.max(0.7, Math.min(4.5, regionalZoom * factor));
+      updateRegionalMapTransform();
+      if (regionalZoom < 0.8) exitRegionalMap();
+    } else {
+      mapZoom = Math.min(Math.max(mapZoom * factor, 0.7), 4.5);
+      updateRealMapTransform();
+    }
   };
 
-  let isDragging = false;
-  let startX, startY;
+  const noDrag = (e) => e.target.closest && (e.target.closest('.map-hud-btn') || e.target.closest('.btn-back-world'));
 
   container.onmousedown = (e) => {
-    if (e.target.closest('.map-hud-btn')) return;
-    isDragging = true;
-    startX = e.clientX - mapPanX;
-    startY = e.clientY - mapPanY;
+    if (noDrag(e)) return;
+    _mapDragging = true;
+    _mapStartX = e.clientX - (isRegionalMapActive ? regionalPanX : mapPanX);
+    _mapStartY = e.clientY - (isRegionalMapActive ? regionalPanY : mapPanY);
   };
 
-  window.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-    mapPanX = e.clientX - startX;
-    mapPanY = e.clientY - startY;
-    updateRealMapTransform();
-  });
+  if (!_mapWindowListenersBound) {
+    _mapWindowListenersBound = true;
+    window.addEventListener('mousemove', (e) => {
+      if (!_mapDragging) return;
+      if (isRegionalMapActive) { regionalPanX = e.clientX - _mapStartX; regionalPanY = e.clientY - _mapStartY; updateRegionalMapTransform(); }
+      else { mapPanX = e.clientX - _mapStartX; mapPanY = e.clientY - _mapStartY; updateRealMapTransform(); }
+    });
+    window.addEventListener('mouseup', () => { _mapDragging = false; });
+  }
 
-  window.addEventListener('mouseup', () => { isDragging = false; });
-
-  let initialPinchDist = null;
-  let initialPinchZoom = 1;
+  let pinchDist = null, pinchZoom = 1;
 
   container.ontouchstart = (e) => {
-    if (e.target.closest('.map-hud-btn')) return;
+    if (noDrag(e)) return;
+    const wrap = document.getElementById(isRegionalMapActive ? 'regionalCanvasWrap' : 'worldMapCanvasWrap');
+    if (wrap) wrap.style.transition = 'none';
     if (e.touches.length === 1) {
-      isDragging = true;
-      startX = e.touches[0].clientX - mapPanX;
-      startY = e.touches[0].clientY - mapPanY;
+      _mapDragging = true;
+      _mapStartX = e.touches[0].clientX - (isRegionalMapActive ? regionalPanX : mapPanX);
+      _mapStartY = e.touches[0].clientY - (isRegionalMapActive ? regionalPanY : mapPanY);
     } else if (e.touches.length === 2) {
-      isDragging = false;
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      initialPinchDist = Math.hypot(dx, dy);
-      initialPinchZoom = mapZoom;
+      _mapDragging = false;
+      pinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      pinchZoom = isRegionalMapActive ? regionalZoom : mapZoom;
     }
   };
 
   container.ontouchmove = (e) => {
-    if (e.touches.length === 1 && isDragging) {
+    if (e.touches.length === 1 && _mapDragging) {
       e.preventDefault();
-      mapPanX = e.touches[0].clientX - startX;
-      mapPanY = e.touches[0].clientY - startY;
-      updateRealMapTransform();
-    } else if (e.touches.length === 2 && initialPinchDist) {
+      if (isRegionalMapActive) { regionalPanX = e.touches[0].clientX - _mapStartX; regionalPanY = e.touches[0].clientY - _mapStartY; updateRegionalMapTransform(); }
+      else { mapPanX = e.touches[0].clientX - _mapStartX; mapPanY = e.touches[0].clientY - _mapStartY; updateRealMapTransform(); }
+    } else if (e.touches.length === 2 && pinchDist) {
       e.preventDefault();
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const currentDist = Math.hypot(dx, dy);
-      const scaleFactor = currentDist / initialPinchDist;
-      mapZoom = Math.min(Math.max(initialPinchZoom * scaleFactor, 0.7), 4.5);
-      updateRealMapTransform();
+      const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      if (isRegionalMapActive) {
+        regionalZoom = Math.min(Math.max(pinchZoom * d / pinchDist, 0.6), 4.5);
+        updateRegionalMapTransform();
+        if (regionalZoom < 0.8) { exitRegionalMap(); pinchDist = null; }
+      } else {
+        mapZoom = Math.min(Math.max(pinchZoom * d / pinchDist, 0.7), 4.5);
+        updateRealMapTransform();
+      }
     }
   };
 
   container.ontouchend = (e) => {
-    if (e.touches.length < 2) initialPinchDist = null;
-    if (e.touches.length === 0) isDragging = false;
+    if (e.touches.length < 2) pinchDist = null;
+    if (e.touches.length === 0) _mapDragging = false;
   };
 }
 
 function handleMapZoomIn() {
-  mapZoom = Math.min(mapZoom * 1.25, 4.5);
-  updateRealMapTransform();
+  if (isRegionalMapActive) { regionalZoom = Math.min(regionalZoom * 1.25, 4.5); updateRegionalMapTransform(); }
+  else { mapZoom = Math.min(mapZoom * 1.25, 4.5); updateRealMapTransform(); }
 }
 
 function handleMapZoomOut() {
-  mapZoom = Math.max(mapZoom * 0.8, 0.7);
-  updateRealMapTransform();
+  if (isRegionalMapActive) {
+    regionalZoom = regionalZoom * 0.8;
+    updateRegionalMapTransform();
+    if (regionalZoom < 0.8) exitRegionalMap();
+  } else { mapZoom = Math.max(mapZoom * 0.8, 0.7); updateRealMapTransform(); }
 }
 
 function handleMapReset() {
-  mapZoom = 1;
-  mapPanX = 0;
-  mapPanY = 0;
+  if (isRegionalMapActive) {
+    regionalZoom = 1; regionalPanX = 0; regionalPanY = 0;
+    const wrap = document.getElementById('regionalCanvasWrap');
+    if (wrap) wrap.style.transition = 'transform 0.35s ease';
+    updateRegionalMapTransform();
+  } else {
+    resetWorldMap();
+  }
+}
+
+function resetWorldMap() {
+  mapZoom = 1; mapPanX = 0; mapPanY = 0;
   const wrap = document.getElementById('worldMapCanvasWrap');
-  if (wrap) wrap.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)';
-  updateRealMapTransform();
+  if (wrap) {
+    wrap.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)';
+    wrap.style.transform = 'translate(0px, 0px) scale(1)';
+  }
 }
 
 function updateRealMapTransform() {
   const wrap = document.getElementById('worldMapCanvasWrap');
-  if (wrap) {
-    wrap.style.transform = `translate(${mapPanX}px, ${mapPanY}px) scale(${mapZoom})`;
-  }
+  if (wrap) wrap.style.transform = `translate(${mapPanX}px, ${mapPanY}px) scale(${mapZoom})`;
+}
+
+function updateRegionalMapTransform() {
+  const wrap = document.getElementById('regionalCanvasWrap');
+  if (wrap) wrap.style.transform = `translate(${regionalPanX}px, ${regionalPanY}px) scale(${regionalZoom})`;
 }
 
 // 5. 渲染世界地圖 Pin 點與品飲動態列表（含自身動態管理與一鍵加想買清單）
@@ -1583,7 +1799,7 @@ async function renderRealWorldPinsAndFeed() {
     feedEl.innerHTML = publicFeed.map(b => {
       const c = bottleCountry(b);
       const r = bottleRegion(b);
-      const isMine = b.isMine || (myShareId && b.ownerShareId === myShareId) || (myProfileName && b.author === myProfileName) || (myBoundEmail && b.author === myBoundEmail);
+      const isMine = isMyExploreItem(b, myShareId, myProfileName, myBoundEmail);
 
       return `
         <div class="bottle-card feed-clickable" id="feed-card-${esc(b.id)}" onclick="flyToBottleRegion('${esc(b.id)}')" style="margin-bottom:12px; cursor:pointer;">
@@ -1645,36 +1861,151 @@ function highlightFeedItem(id) {
   }
 }
 
-// 7. 點擊品飲卡片：世界地圖平滑飛航並放大聚焦至該產區（西班牙飛往西班牙、沖繩飛往沖繩！）
+// 7. 點擊品飲卡片 / Pin：世界地圖先飛向該地區，再切入該地區專屬地圖並 Pin 住位置
 function flyToBottleRegion(bottleId) {
   const b = currentExploreFeed.find(x => String(x.id) === String(bottleId)) ||
             (window.cellar || []).find(x => String(x.id) === String(bottleId));
   if (!b) return;
 
-  const country = bottleCountry(b);
-  const region = bottleRegion(b);
-  const pos = resolveRealImagePinPos(country, region, b);
-
+  highlightFeedItem(b.id);
   const box = document.getElementById('worldRadarBox');
   if (box) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-  highlightFeedItem(b.id);
+  const target = resolveRegionalTarget(b);
+  const token = ++regionalFlyToken;
+
+  // 已在地區地圖：同一張圖 → 直接移動焦點；不同圖 → 直接換圖
+  if (isRegionalMapActive) {
+    if (target) showRegionalMap(target, b, false);
+    else exitRegionalMap();
+    return;
+  }
 
   const wrap = document.getElementById('worldMapCanvasWrap');
   if (!wrap || !box) return;
 
-  // 世界地圖平滑飛向該酒款產區 (放大至 2.6 倍並置中聚焦)
-  const targetZoom = 2.6;
+  const pos = resolveRealImagePinPos(bottleCountry(b), bottleRegion(b), b);
+  const targetZoom = target ? 3.4 : 2.6;
   const w = box.clientWidth || 580;
   const h = box.clientHeight || 290;
-  const targetPanX = ((50 - pos.left) / 100) * w * targetZoom;
-  const targetPanY = ((50 - pos.top) / 100) * h * targetZoom;
 
-  wrap.style.transition = 'transform 0.60s cubic-bezier(0.22, 1, 0.36, 1)';
+  wrap.style.transition = 'transform 0.7s cubic-bezier(0.22, 1, 0.36, 1)';
   mapZoom = targetZoom;
-  mapPanX = targetPanX;
-  mapPanY = targetPanY;
+  mapPanX = ((50 - pos.left) / 100) * w * targetZoom;
+  mapPanY = ((50 - pos.top) / 100) * h * targetZoom;
   updateRealMapTransform();
+
+  if (target) {
+    setTimeout(() => {
+      if (token !== regionalFlyToken || currentView !== 'explore') return;
+      showRegionalMap(target, b, true);
+    }, 720);
+  }
+}
+
+// 切入地區地圖，Pin 住品飲位置
+function showRegionalMap(target, targetBottle, fromWorld) {
+  const m = target.map;
+  const worldWrap = document.getElementById('worldMapCanvasWrap');
+  const regView = document.getElementById('regionalMapView');
+  const regCanvas = document.getElementById('regionalCanvasWrap');
+  const regImg = document.getElementById('regionalMapImg');
+  const stage = document.getElementById('regionalStage');
+  const pinLayer = document.getElementById('regionalPinContainer');
+  const badgeEl = document.getElementById('regionalBadge');
+  const pillEl = document.getElementById('regionalBottlePill');
+  if (!worldWrap || !regView || !regCanvas || !regImg || !stage || !pinLayer) return;
+
+  const sameMap = isRegionalMapActive && currentRegionalMapKey === m.key;
+  isRegionalMapActive = true;
+  currentRegionalMapKey = m.key;
+
+  if (!sameMap) {
+    stage.style.aspectRatio = String(m.ratio);
+    loadMapImageWithFallback(regImg, m.key);
+    regionalZoom = 1; regionalPanX = 0; regionalPanY = 0;
+    regCanvas.style.transition = 'none';
+    regCanvas.style.transform = 'translate(0px, 0px) scale(1.25)';
+  }
+  if (badgeEl) badgeEl.textContent = currentLang === 'zh' ? m.name : m.nameEn;
+
+  // 同一張地圖上所有公開品飲的 Pin；目前焦點以脈動圓圈 + 名稱標示
+  const sameMapItems = currentExploreFeed.map(x => ({ x, t: resolveRegionalTarget(x) })).filter(o => o.t && o.t.map.key === m.key);
+  if (!sameMapItems.some(o => String(o.x.id) === String(targetBottle.id))) sameMapItems.push({ x: targetBottle, t: target });
+
+  const seen = {};
+  pinLayer.innerHTML = sameMapItems.map(o => {
+    const p = o.t.pin;
+    const k = p.left + ',' + p.top;
+    const n = (seen[k] = (seen[k] || 0) + 1) - 1;
+    const left = p.left + (n % 3) * 1.6 - (n ? 1.6 : 0);
+    const top = p.top + Math.floor(n / 3) * 1.6;
+    const isCurrent = String(o.x.id) === String(targetBottle.id);
+    if (isCurrent) {
+      return `
+        <div class="regional-focus-pin" style="top:${top}%; left:${left}%; z-index:30; pointer-events:auto;" onclick="focusRegionalBottle('${esc(o.x.id)}')">
+          <div class="pin-radar-ring"></div>
+          <div class="pin-core">📍</div>
+          <div class="pin-callout-bubble">${esc(p.name)}</div>
+        </div>`;
+    }
+    return `
+      <div class="geo-pin-node" style="top:${top}%; left:${left}%; pointer-events:auto;" onclick="focusRegionalBottle('${esc(o.x.id)}')" title="${esc(bottleName(o.x))}">🍷</div>`;
+  }).join('');
+
+  if (pillEl) {
+    pillEl.style.display = 'block';
+    pillEl.innerHTML = `🍷 ${esc(bottleName(targetBottle))} ・ ${esc(target.pin.name)}`;
+  }
+
+  if (!sameMap) {
+    // 世界地圖淡出並略為放大穿透，地區地圖由 1.25 倍縮回 1 倍淡入
+    worldWrap.style.transition = 'opacity 0.4s ease';
+    worldWrap.style.opacity = '0';
+    worldWrap.style.pointerEvents = 'none';
+    regView.style.display = 'flex';
+    regView.style.pointerEvents = 'auto';
+    void regView.offsetWidth;
+    regView.style.opacity = '1';
+    requestAnimationFrame(() => {
+      regCanvas.style.transition = 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1)';
+      regCanvas.style.transform = 'translate(0px, 0px) scale(1)';
+    });
+  }
+}
+
+// 點地區地圖上的 Pin：聚焦該酒款
+function focusRegionalBottle(bottleId) {
+  const b = currentExploreFeed.find(x => String(x.id) === String(bottleId));
+  if (!b) return;
+  highlightFeedItem(b.id);
+  const target = resolveRegionalTarget(b);
+  if (target) showRegionalMap(target, b, false);
+}
+
+// 返回世界地圖
+function exitRegionalMap() {
+  if (!isRegionalMapActive) return;
+  isRegionalMapActive = false;
+  currentRegionalMapKey = 'map_world';
+  regionalFlyToken++;
+
+  const worldWrap = document.getElementById('worldMapCanvasWrap');
+  const regView = document.getElementById('regionalMapView');
+  if (!worldWrap || !regView) return;
+
+  regView.style.transition = 'opacity 0.35s ease';
+  regView.style.opacity = '0';
+  regView.style.pointerEvents = 'none';
+
+  setTimeout(() => {
+    if (isRegionalMapActive) return;
+    regView.style.display = 'none';
+    worldWrap.style.transition = 'opacity 0.35s ease';
+    worldWrap.style.opacity = '1';
+    worldWrap.style.pointerEvents = 'auto';
+    resetWorldMap();
+  }, 250);
 }
 
 // 8. 社群分享管理按鈕操作
@@ -1700,6 +2031,10 @@ async function addExploreItemToWishlist(bottleId) {
   if (blockIfVisitor()) return;
   const b = currentExploreFeed.find(x => String(x.id) === String(bottleId));
   if (!b) return;
+  if (isMyExploreItem(b, await getMyShareId(), localStorage.getItem('bottlesense_profile_name') || '', localStorage.getItem('bottlesense_account_bound') || '')) {
+    showToast(currentLang==='zh'?'這是你自己的分享':'This is your own share');
+    return;
+  }
 
   const newBottle = normalizeBottle({
     id: uid(),
@@ -1770,10 +2105,10 @@ function openSharedTastingModal(bottleId) {
           ${b.diary?.date ? `<span>📅 ${esc(b.diary.date)}</span>` : ''}
         </div>
 
-        <div style="display:flex; gap:10px;">
-          <button class="btn btn-ghost" style="flex:1;" onclick="closeModal()">${t('btn_close')}</button>
-          <button class="btn btn-primary" style="flex:1;" onclick="closeModal(); flyToBottleRegion('${esc(b.id)}');">
-            🗺️ ${currentLang==='zh'?'在地圖上聚焦':'Focus on Map'}
+        <div class="modal-btn-row">
+          <button class="btn btn-ghost modal-btn-close" onclick="closeModal()">${t('btn_close')}</button>
+          <button class="btn btn-primary modal-btn-focus" onclick="closeModal(); flyToBottleRegion('${esc(b.id)}');">
+            <span class="modal-btn-icon">🗺️</span><span>${currentLang==='zh'?'在地圖上定位':'Show on Map'}</span>
           </button>
         </div>
       </div>

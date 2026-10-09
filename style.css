@@ -946,7 +946,8 @@ select.text-input {
   background: rgba(17, 18, 13, 0.96);
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--line);
-  padding: 11px 20px calc(11px + env(safe-area-inset-bottom));
+  /* lift the labels above the iPhone home indicator / Siri swipe area */
+  padding: 10px 20px calc(24px + env(safe-area-inset-bottom));
   z-index: 100;
   transition: max-width 0.3s ease;
 }
@@ -1677,4 +1678,43 @@ select.text-input {
   border: 0.5px solid rgba(212, 175, 55, 0.4);
   pointer-events: none;
   margin-top: 3px;
+}
+
+/* Regional map stage: pins use percentages of the map image itself */
+.regional-stage {
+  position: relative;
+  height: 100%;
+  max-width: 100%;
+  aspect-ratio: 1.5;
+  flex-shrink: 0;
+}
+
+/* Detail modal buttons: never wrap the label */
+.modal-btn-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+.modal-btn-row .btn {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 10px 16px;
+  font-size: 15px;
+  line-height: 1.2;
+}
+.modal-btn-close {
+  flex: 0 0 auto;
+  min-width: 92px;
+}
+.modal-btn-focus {
+  flex: 1 1 auto;
+  font-weight: 700;
+}
+.modal-btn-icon {
+  font-size: 16px;
+  line-height: 1;
 }
