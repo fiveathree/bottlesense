@@ -24,9 +24,14 @@
     <header class="topbar">
       <div>
         <div class="wordmark">BOTTLE<span>.</span></div>
-        <div class="tagline">know what to do with it</div>
+        <div class="tagline" id="appTagline">know what to do with it</div>
       </div>
       <div class="top-actions">
+        <!-- 繁英轉換按鈕 -->
+        <!-- 登入按鈕 -->
+        <button class="login-topbar-btn" id="topbarLoginBtn" onclick="openLoginModal()" aria-label="Login">
+          <span id="topbarLoginText">登入</span>
+        </button>
         <!-- 繁英轉換按鈕 -->
         <button class="lang-switch-btn" id="langSwitchBtn" onclick="toggleLanguage()">EN</button>
         <!-- 設定按鈕 -->
@@ -59,22 +64,32 @@
   
   <!-- 拍照對位校準 HUD 模態框 -->
   <div id="crop-modal" class="crop-modal" style="display: none;">
-    <div class="crop-header">
+    <div class="crop-header" style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px;">
       <button class="btn btn-ghost btn-sm" onclick="closeCropModal()">取消</button>
-      <span class="crop-title" data-i18n="crop_hint">雙指縮放拖曳對準酒瓶</span>
-      <button class="btn btn-primary btn-sm" onclick="confirmCropAndScan()">確認辨識</button>
+      <div style="display:flex; gap:6px;">
+        <button class="btn btn-ghost btn-sm" style="color:var(--text); border-color:var(--line); padding:6px 10px; font-size:12px;" onclick="confirmCropAndScan(true)">📷 全圖辨識</button>
+        <button class="btn btn-primary btn-sm" style="padding:6px 12px; font-size:12px; font-weight:700;" onclick="confirmCropAndScan(false)">🎯 對焦辨識</button>
+      </div>
     </div>
-    <div class="crop-viewport" id="cropViewport">
+    <div class="crop-viewport" id="cropViewport" style="position:relative; display:flex; align-items:center; justify-content:center; overflow:hidden;">
       <div class="crop-image-wrap" id="cropImageWrap">
         <img id="cropTargetImage" src="" alt="target" />
       </div>
-      <!-- 酒瓶中央對齊 HUD 輔助外框 -->
-      <div class="bottle-guide-frame">
-        <div class="bottle-neck-line"></div>
-        <div class="bottle-shoulder-curve"></div>
-        <div class="bottle-body-box">
-          <span class="guide-tag" data-i18n="guide_label_tag">請將酒標置於框內</span>
-        </div>
+      <!-- 向量酒瓶發光輪廓 (SVG Cutout) -->
+      <div class="bottle-guide-frame" style="position:absolute; inset:0; pointer-events:none; display:flex; align-items:center; justify-content:center;">
+        <svg class="bottle-silhouette-svg" viewBox="0 0 260 420" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:230px; height:370px; filter:drop-shadow(0 0 8px rgba(212,175,55,0.4));">
+          <!-- 瓶塞口 -->
+          <rect x="115" y="10" width="30" height="18" rx="3" stroke="#D4AF37" stroke-width="2" fill="none"/>
+          <!-- 細長瓶頸 -->
+          <path d="M118 28 L118 100 L142 100 L142 28 Z" stroke="#D4AF37" stroke-width="2" fill="none"/>
+          <!-- 波爾多瓶肩與圓柱瓶身與微弧瓶底 -->
+          <path d="M118 100 C118 135 60 145 60 185 L60 380 C60 395 75 400 130 400 C185 400 200 395 200 380 L200 185 C200 145 142 135 142 100" stroke="#D4AF37" stroke-width="2" fill="none"/>
+          <!-- 瓶身正中金色對焦直角標記 -->
+          <path d="M95 235 L85 235 L85 245" stroke="#D4AF37" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M165 235 L175 235 L175 245" stroke="#D4AF37" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M95 325 L85 325 L85 315" stroke="#D4AF37" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M165 325 L175 325 L175 315" stroke="#D4AF37" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
       </div>
     </div>
     <div class="crop-footer">
