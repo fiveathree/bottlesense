@@ -1424,3 +1424,13 @@ main {
   word-break: keep-all;
   line-break: strict;
 }
+
+/* 地圖 Pin 點擊後高亮發光放大動畫 */
+.geo-pin-node.active-pin-glow {
+  transform: translate(-50%, -50%) scale(1.6) !important;
+  background: rgba(212, 175, 55, 0.85) !important;
+  border-color: #FFF !important;
+  box-shadow: 0 0 20px #D4AF37, 0 0 45px rgba(212, 175, 55, 0.8) !important;
+  z-index: 50 !important;
+  transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1), box-shadow 0.3s ease !important;
+}
