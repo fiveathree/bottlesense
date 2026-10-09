@@ -2704,7 +2704,7 @@ function renderSettings() {
           </div>
 
           <div style="margin-bottom:14px;">
-            <input type="text" id="login-otp" class="text-input" placeholder="------" maxlength="6" style="letter-spacing:8px; font-size:24px; font-weight:800; text-align:center; font-family:var(--mono); padding:10px; color:var(--gold);">
+            <input type="text" id="login-otp" class="text-input" placeholder="------" maxlength="6" inputmode="numeric" autocomplete="one-time-code" oninput="handleOtpInput(this)" onpaste="handleOtpPaste(event)" style="letter-spacing:8px; font-size:24px; font-weight:800; text-align:center; font-family:var(--mono); padding:10px; color:var(--gold);">
           </div>
 
           <button class="btn btn-primary btn-block" style="padding:10px; font-size:14px; font-weight:700;" onclick="executeLoginWithOtp()">
@@ -2741,7 +2741,33 @@ function renderSettings() {
   `;
 }
 
-function handleStartRegister() {
+
+// 自動偵測 6 位數 OTP 輸入與貼上 (Paste 即直接登入，毋需撳確認)
+function handleOtpInput(inputEl) {
+  if (!inputEl) return;
+  const val = (inputEl.value || '').replace(/\D/g, '').slice(0, 6);
+  inputEl.value = val;
+  if (val.length === 6) {
+    executeLoginWithOtp();
+  }
+}
+
+function handleOtpPaste(e) {
+  const pasteData = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+  const match = pasteData.match(/\d{6}/);
+  if (match) {
+    e.preventDefault();
+    const inputEl = document.getElementById('login-otp');
+    if (inputEl) {
+      inputEl.value = match[0];
+      executeLoginWithOtp();
+    }
+  }
+}
+window.handleOtpInput = handleOtpInput;
+window.handleOtpPaste = handleOtpPaste;
+
+async function handleStartRegister() {
   const emailInput = document.getElementById('auth-email');
   const email = (emailInput?.value || '').trim().toLowerCase();
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -2749,14 +2775,36 @@ function handleStartRegister() {
     showToast(currentLang === 'zh' ? '請輸入有效的電郵地址 (例如 user@gmail.com)' : 'Please enter a valid email address');
     return;
   }
+
+  // 檢查是否已註冊，防止重複註冊
+  try {
+    const checkRes = await fetch(`${WORKER_API_URL}/api/auth/check-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const checkData = await checkRes.json();
+    if (checkData.exists) {
+      showToast(currentLang === 'zh' ? '⚠️ 此電郵已經註冊過！已自動為你切換至「登入模式」' : '⚠️ This email is already registered! Switched to login mode.');
+      authFlowState.email = email;
+      handleStartLogin(email);
+      return;
+    }
+  } catch (e) {
+    console.warn('Check email error:', e);
+  }
+
   authFlowState.email = email;
   authFlowState.step = 'register_form';
   renderSettings();
 }
 
-async function handleStartLogin() {
-  const emailInput = document.getElementById('auth-email');
-  const email = (emailInput?.value || '').trim().toLowerCase();
+async function handleStartLogin(overrideEmail) {
+  let email = overrideEmail;
+  if (!email) {
+    const emailInput = document.getElementById('auth-email');
+    email = (emailInput?.value || '').trim().toLowerCase();
+  }
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!email || !emailRegex.test(email)) {
     showToast(currentLang === 'zh' ? '請輸入有效的電郵地址 (例如 user@gmail.com)' : 'Please enter a valid email address');
@@ -2799,16 +2847,17 @@ function startLoginOtpCountdown() {
   if (loginOtpCountdownTimer) clearInterval(loginOtpCountdownTimer);
   loginOtpCountdownTimer = setInterval(() => {
     count--;
-    const currentBtn = document.getElementById('btn-login-resend');
-    if (currentBtn) {
-      if (count > 0) {
-        currentBtn.textContent = currentLang === 'zh' ? `重新發送 (${count}s)` : `Resend (${count}s)`;
-        currentBtn.disabled = true;
-      } else {
-        clearInterval(loginOtpCountdownTimer);
-        currentBtn.textContent = currentLang === 'zh' ? '重新發送驗證碼' : 'Resend Code';
-        currentBtn.disabled = false;
-      }
+    const b = document.getElementById('btn-login-resend');
+    if (!b) {
+      clearInterval(loginOtpCountdownTimer);
+      return;
+    }
+    if (count <= 0) {
+      clearInterval(loginOtpCountdownTimer);
+      b.disabled = false;
+      b.textContent = currentLang === 'zh' ? '重新發送驗證碼' : 'Resend Code';
+    } else {
+      b.textContent = currentLang === 'zh' ? `重新發送 (${count}s)` : `Resend (${count}s)`;
     }
   }, 1000);
 }
@@ -2823,57 +2872,11 @@ async function resendLoginOtp() {
       body: JSON.stringify({ email: authFlowState.email })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '重新發送失敗');
-    showToast(currentLang === 'zh' ? '✓ 驗證碼已重新寄出！' : '✓ Code resent!');
+    if (!res.ok) throw new Error(data.error || '發送失敗');
+    showToast(currentLang === 'zh' ? '✓ 新驗證碼已發送！' : '✓ New code sent!');
     startLoginOtpCountdown();
   } catch (err) {
     showToast('發送失敗: ' + err.message);
-  }
-}
-
-async function executeLoginWithOtp() {
-  const otpInput = document.getElementById('login-otp');
-  const otp = (otpInput?.value || '').trim();
-  if (!otp || otp.length < 6) {
-    showToast(currentLang === 'zh' ? '請輸入完整的 6 位數驗證碼' : 'Please enter 6-digit code');
-    return;
-  }
-
-  showToast(currentLang === 'zh' ? '正在驗證並載入雲端酒窖…' : 'Verifying and loading cellar...');
-  try {
-    const res = await fetch(`${WORKER_API_URL}/api/auth/verify-otp`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: authFlowState.email,
-        otp: otp,
-        syncKey: localStorage.getItem('bottlesense_sync_key') || ''
-      })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '登入失敗');
-
-    // 成功登入：寫入帳號與資料
-    await restoreCellarToLocal(data.cellar || [], data.syncKey, data.name || data.email);
-    localStorage.setItem('bottlesense_account_bound', data.email);
-    localStorage.setItem('bottlesense_profile_name', data.name || data.email.split('@')[0]);
-    if (data.birthday) localStorage.setItem('bottlesense_profile_birthday', data.birthday);
-    if (data.gender) localStorage.setItem('bottlesense_profile_gender', data.gender);
-    localStorage.setItem('bottlesense_registered', 'true');
-
-    if (loginOtpCountdownTimer) clearInterval(loginOtpCountdownTimer);
-
-    showToast(currentLang === 'zh' ? `✓ 登入成功！已還原 ${(data.cellar || []).length} 支藏酒` : `✓ Logged in! Restored ${(data.cellar || []).length} bottles`);
-
-    updateHeaderGreeting();
-    renderSettings();
-
-    // 重新渲染主畫面（讓用戶立即睇返所有酒的資料）
-    if (currentView === 'cellar') renderCellar();
-    else if (currentView === 'home') renderHome();
-    else if (currentView === 'explore') renderExplore();
-  } catch (err) {
-    showToast('登入失敗: ' + err.message);
   }
 }
 
@@ -2920,6 +2923,14 @@ async function executeSendVerificationLink() {
       })
     });
     const data = await res.json();
+    
+    // 若後端回傳 409 或已經註冊過提示
+    if (res.status === 409 || data.isAlreadyRegistered) {
+      showToast(currentLang === 'zh' ? '⚠️ 此電郵已註冊！已自動為你切換至「登入模式」' : '⚠️ Email already registered! Switched to login mode.');
+      handleStartLogin(authFlowState.email);
+      return;
+    }
+
     if (!res.ok) throw new Error(data.error || '發送失敗');
 
     authFlowState.step = 'register_sent';
