@@ -1407,3 +1407,129 @@ main {
   85% { opacity: 1; transform: translate(-50%, 0); }
   100% { opacity: 0; transform: translate(-50%, -10px); }
 }
+
+/* 產區圖檔與純 CSS 光環樣式 (零 SVG) */
+.regional-map-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+  pointer-events: none;
+}
+
+.regional-focus-pin {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 25;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pin-radar-ring {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.8px solid var(--gold);
+  animation: radarRingPulse 2s infinite ease-out;
+}
+
+.pin-core {
+  font-size: 15px;
+  filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.9));
+}
+
+@keyframes radarRingPulse {
+  0% { transform: scale(0.3); opacity: 1; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+
+/* =======================================================
+   地圖 PC 響應式 Responsive 設計與產區畫布樣式
+======================================================= */
+.regional-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 2 / 1;
+  flex-shrink: 0;
+  transform-origin: center center;
+  will-change: transform;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pin-callout-bubble {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 16, 11, 0.95);
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.7);
+  animation: fadeInDown 0.3s ease;
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translate(-50%, -4px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* PC / 桌面端自適應 Responsive 設計 */
+@media (min-width: 768px) {
+  .world-radar-container {
+    max-height: 380px !important;
+    border-radius: 20px;
+    margin-bottom: 12px;
+  }
+  .map-hud-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 17px;
+  }
+  .btn-back-world {
+    padding: 6px 14px;
+    font-size: 12.5px;
+    top: 12px;
+    left: 12px;
+  }
+  .region-header-badge {
+    padding: 6px 14px;
+    font-size: 12.5px;
+    top: 12px;
+    right: 12px;
+  }
+  .region-bottle-pill {
+    padding: 6px 18px;
+    font-size: 12.5px;
+    bottom: 12px;
+  }
+  #explore-feed {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+    gap: 12px !important;
+    text-align: left !important;
+  }
+  #explore-feed .bottle-card {
+    margin-bottom: 0 !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .world-radar-container {
+    max-height: 440px !important;
+  }
+}
