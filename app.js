@@ -21,6 +21,7 @@ const ACTION_ICONS = { drink:"🥃", pair:"🍽️", share:"👥", gift:"🎁", 
 let currentView = 'home';
 let currentBottleDetailId = null;
 let previousViewBeforeDetail = 'home';
+let timelineExpandedState = {};
 let currentScene = 'cooler';
 let activeFilter = 'all';
 
@@ -704,30 +705,49 @@ function renderBottleDetail(id) {
         </div>
         <div style="font-size:13px; color:var(--text-faint); margin-bottom:14px;">${t('timeline_hint')}</div>
 
-        <div class="timeline-list">
-          ${(b.tastings || []).length ? b.tastings.map((tItem, idx) => `
-            <div class="timeline-card">
-              <div class="timeline-header">
-                <div>
-                  <span class="timeline-time">#${idx+1} ·${esc(tItem.dateStr || tItem.date || '')}</span>
-                  <div style="color:var(--gold); font-size:14px; margin-top:2px;">${'★'.repeat(tItem.rating || 5)}</div>
+        ${(b.tastings || []).length ? `
+          <div class="vertical-timeline-container">
+            <div class="vertical-timeline-spine"></div>
+            ${((timelineExpandedState[String(b.id)] ? b.tastings : b.tastings.slice(0, 3))).map((tItem, idx) => `
+              <div class="timeline-item-wrapper">
+                <div class="timeline-spine-node">
+                  <div class="timeline-spine-dot"></div>
                 </div>
-                <button class="timeline-share-btn" onclick="openShareActionSheet('${esc(b.id)}', '${esc(tItem.id)}')" title="Share this pour">
-                  ${TELEGRAM_PLANE_SVG}
-                </button>
+                <div class="timeline-card">
+                  <div class="timeline-header">
+                    <div>
+                      <span class="timeline-time">#${idx+1} · ${esc(tItem.dateStr || tItem.date || '')}</span>
+                      <div style="color:var(--gold); font-size:14px; margin-top:2px;">${'★'.repeat(tItem.rating || 5)}</div>
+                    </div>
+                    <button class="timeline-share-btn" onclick="openShareActionSheet('${esc(b.id)}', '${esc(tItem.id)}')" title="Share this pour">
+                      ${TELEGRAM_PLANE_SVG}
+                    </button>
+                  </div>
+                  <div class="timeline-meta">
+                    ${tItem.location ? `<span>📍 ${esc(tItem.location)}</span>` : ''}
+                    ${tItem.companions ? `<span>👥 ${esc(tItem.companions)}</span>` : ''}
+                  </div>
+                  ${tItem.notes ? `<div class="timeline-notes">"${esc(tItem.notes)}"</div>` : ''}
+                </div>
               </div>
-              <div class="timeline-meta">
-                ${tItem.location ? `<span>📍 ${esc(tItem.location)}</span>` : ''}
-                ${tItem.companions ? `<span>👥 ${esc(tItem.companions)}</span>` : ''}
-              </div>
-              ${tItem.notes ? `<div class="timeline-notes">"${esc(tItem.notes)}"</div>` : ''}
+            `).join('')}
+          </div>
+          ${(b.tastings.length > 3) ? `
+            <div style="text-align:center; margin-top:14px;">
+              <button class="btn btn-ghost btn-sm timeline-expand-btn" onclick="toggleTimelineExpand('${esc(b.id)}')">
+                ${timelineExpandedState[String(b.id)] 
+                  ? (currentLang === 'zh' ? '▲ 收起記錄' : '▲ Show Less')
+                  : (currentLang === 'zh' ? `▼ 展開更多品飲記錄 (${b.tastings.length - 3} 筆)` : `▼ Load More Tastings (${b.tastings.length - 3})`)}
+              </button>
             </div>
-          `).join('') : `<div class="timeline-empty-card">
-              <div class="empty-icon">🥃</div>
-              <div class="empty-title">${currentLang === 'zh' ? '尚未記錄品飲歷史' : 'No Tasting Notes Yet'}</div>
-              <div class="empty-desc">${currentLang === 'zh' ? '點擊上方「＋ 記錄這次品飲」，寫下開瓶心得、同伴與評分！' : 'Tap "+ Log This Pour" above to capture your first tasting notes and companions!'}</div>
-            </div>`}
-        </div>
+          ` : ''}
+        ` : `
+          <div class="timeline-empty-card">
+            <div class="empty-icon">🥃</div>
+            <div class="empty-title">${currentLang === 'zh' ? '尚未記錄品飲歷史' : 'No Tasting Notes Yet'}</div>
+            <div class="empty-desc">${currentLang === 'zh' ? '點擊上方「＋ 記錄」，寫下開瓶心得、同伴與評分！' : 'Tap "+ Log" above to capture your first tasting notes and companions!'}</div>
+          </div>
+        `}
       </div>
 
       <div style="margin-top:24px;">
@@ -895,17 +915,31 @@ function openAddSessionModal(bottleId) {
         <input type="datetime-local" id="sess-date" class="text-input" value="${defaultIso}">
 
         <div style="font-size:12.5px; font-family:var(--mono); color:var(--text-faint); margin-top:8px; display:flex; justify-content:space-between; align-items:center;">
-          <span>${currentLang==='zh'?'地點 / 酒吧':'Venue / Location'}</span>
-          <span style="font-size:10.5px; color:var(--text-faint);">${currentLang==='zh'?'（可複選標籤）':'(Multi-select)'}</span>
+          <span>${currentLang==='zh'?'地點 / 環境':'Venue & Environment'}</span>
+          <span style="font-size:10.5px; color:var(--text-faint);">${currentLang==='zh'?'地點與環境可組合選取':'Location & Setting'}</span>
         </div>
-        <input type="text" id="sess-loc" class="text-input" placeholder="${currentLang==='zh'?'例如：中環 屋企陽台、台中、高雄、東京居酒屋':'e.g. Central Balcony, Taichung, Kaohsiung, Tokyo'}" oninput="updateSessTagHighlight()">
-        <div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; margin-bottom:4px;">
-          ${(currentLang === 'zh'
-            ? ["中環", "尖沙咀", "銅鑼灣", "旺角", "台中", "高雄", "台北", "東京", "大阪", "屋企陽台", "酒吧", "居酒屋", "露營星空下"]
-            : ["Central", "TST", "Causeway Bay", "Mong Kok", "Taichung", "Kaohsiung", "Taipei", "Tokyo", "Osaka", "Balcony", "Bar", "Izakaya", "Camping"]
-          ).map(t => `
-            <span class="sess-loc-tag" data-tag="${t}" style="font-size:11px; padding:3px 8px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); color:var(--text-muted); cursor:pointer; user-select:none; transition:all 0.15s ease;" onclick="toggleSessLocationTag('${t}')">${t}</span>
-          `).join("")}
+        <input type="text" id="sess-loc" class="text-input" placeholder="${currentLang==='zh'?'例如：中環 屋企陽台、高雄 酒吧、東京 居酒屋':'e.g. Central Balcony, Kaohsiung Bar, Tokyo Izakaya'}" oninput="updateSessTagHighlight()">
+        
+        <!-- 城市 / 地區（單選互斥切換） -->
+        <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); margin-top:6px; margin-bottom:3px;">
+          📍 ${currentLang==='zh'?'城市地區（單選切換）':'City / Region'}
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:6px;">
+          ${LOCATION_CITIES.map(c => {
+            const t = currentLang === 'zh' ? c.zh : c.en;
+            return `<span class="sess-city-tag" data-city="${t}" style="font-size:10.5px; padding:3px 8px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); color:var(--text-muted); cursor:pointer; user-select:none; transition:all 0.15s ease;" onclick="handleSelectCityTag('sess-loc', '${t}')">${t}</span>`;
+          }).join("")}
+        </div>
+
+        <!-- 場合 / 環境（單選互斥切換） -->
+        <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); margin-bottom:3px;">
+          🥂 ${currentLang==='zh'?'場合環境（單選切換）':'Occasion / Setting'}
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px;">
+          ${LOCATION_ENVIRONMENTS.map(e => {
+            const t = currentLang === 'zh' ? e.zh : e.en;
+            return `<span class="sess-env-tag" data-env="${t}" style="font-size:10.5px; padding:3px 8px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); color:var(--text-muted); cursor:pointer; user-select:none; transition:all 0.15s ease;" onclick="handleSelectEnvTag('sess-loc', '${t}')">${t}</span>`;
+          }).join("")}
         </div>
 
         <div style="font-size:12.5px; font-family:var(--mono); color:var(--text-faint); margin-top:8px;">${currentLang==='zh'?'同飲同伴':'Companions'}</div>
@@ -928,40 +962,136 @@ function openAddSessionModal(bottleId) {
   `;
 }
 
-function toggleSessLocationTag(tag) {
-  const input = document.getElementById("sess-loc");
+
+
+function toggleTimelineExpand(bottleId) {
+  timelineExpandedState[String(bottleId)] = !timelineExpandedState[String(bottleId)];
+  renderBottleDetail(bottleId);
+}
+
+const LOCATION_CITIES = [
+  { zh: "中環", en: "Central" },
+  { zh: "尖沙咀", en: "TST" },
+  { zh: "銅鑼灣", en: "Causeway Bay" },
+  { zh: "旺角", en: "Mong Kok" },
+  { zh: "台中", en: "Taichung" },
+  { zh: "高雄", en: "Kaohsiung" },
+  { zh: "台北", en: "Taipei" },
+  { zh: "東京", en: "Tokyo" },
+  { zh: "大阪", en: "Osaka" },
+  { zh: "澳門", en: "Macau" }
+];
+
+const LOCATION_ENVIRONMENTS = [
+  { zh: "屋企陽台", en: "Balcony" },
+  { zh: "酒吧", en: "Bar" },
+  { zh: "居酒屋", en: "Izakaya" },
+  { zh: "露營星空下", en: "Camping" },
+  { zh: "海邊", en: "Beach" },
+  { zh: "朋友聚會", en: "Friends" },
+  { zh: "餐廳", en: "Restaurant" }
+];
+
+const ALL_CITY_NAMES = ["中環", "尖沙咀", "銅鑼灣", "旺角", "台中", "高雄", "台北", "東京", "大阪", "澳門", "Central", "TST", "Causeway Bay", "Mong Kok", "Taichung", "Kaohsiung", "Taipei", "Tokyo", "Osaka", "Macau"];
+const ALL_ENV_NAMES = ["屋企陽台", "酒吧", "居酒屋", "露營星空下", "海邊", "朋友聚會", "餐廳", "Balcony", "Bar", "Izakaya", "Camping", "Beach", "Friends", "Restaurant"];
+
+function handleSelectCityTag(inputId, newCity) {
+  const input = document.getElementById(inputId);
   if (!input) return;
-  let val = (input.value || "").trim();
-  if (!val) {
-    input.value = tag;
-  } else if (val.includes(tag)) {
-    const escTag = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`(^|\\s|·|,)${escTag}(\\s|·|,|$)`, 'g');
-    let newVal = val.replace(regex, ' ').replace(/\\s+/g, ' ').trim();
-    input.value = newVal;
-  } else {
-    input.value = `${val} ${tag}`.trim();
+  let text = (input.value || "").trim();
+
+  let foundCity = null;
+  for (const c of ALL_CITY_NAMES) {
+    if (text.includes(c)) {
+      foundCity = c;
+      break;
+    }
   }
-  updateSessTagHighlight();
+
+  if (foundCity === newCity) {
+    text = text.replace(newCity, "").replace(/\s+/g, " ").trim();
+  } else if (foundCity) {
+    text = text.replace(foundCity, newCity).replace(/\s+/g, " ").trim();
+  } else {
+    text = `${newCity} ${text}`.replace(/\s+/g, " ").trim();
+  }
+
+  input.value = text;
+  if (inputId === "pub-venue-loc") updatePubTagHighlight();
+  else if (inputId === "sess-loc") updateSessTagHighlight();
+}
+
+function handleSelectEnvTag(inputId, newEnv) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  let text = (input.value || "").trim();
+
+  let foundEnv = null;
+  for (const e of ALL_ENV_NAMES) {
+    if (text.includes(e)) {
+      foundEnv = e;
+      break;
+    }
+  }
+
+  if (foundEnv === newEnv) {
+    text = text.replace(newEnv, "").replace(/\s+/g, " ").trim();
+  } else if (foundEnv) {
+    text = text.replace(foundEnv, newEnv).replace(/\s+/g, " ").trim();
+  } else {
+    text = `${text} ${newEnv}`.replace(/\s+/g, " ").trim();
+  }
+
+  input.value = text;
+  if (inputId === "pub-venue-loc") updatePubTagHighlight();
+  else if (inputId === "sess-loc") updateSessTagHighlight();
+}
+
+function updatePubTagHighlight() {
+  const input = document.getElementById("pub-venue-loc");
+  if (!input) return;
+  const val = input.value || "";
+
+  document.querySelectorAll(".pub-city-tag").forEach(el => {
+    const tag = el.getAttribute("data-city");
+    const active = tag && val.includes(tag);
+    el.style.background = active ? "rgba(212, 175, 55, 0.22)" : "var(--surface-2)";
+    el.style.borderColor = active ? "var(--gold)" : "var(--line)";
+    el.style.color = active ? "var(--gold)" : "var(--text-muted)";
+    el.style.fontWeight = active ? "600" : "400";
+  });
+
+  document.querySelectorAll(".pub-env-tag").forEach(el => {
+    const tag = el.getAttribute("data-env");
+    const active = tag && val.includes(tag);
+    el.style.background = active ? "rgba(212, 175, 55, 0.22)" : "var(--surface-2)";
+    el.style.borderColor = active ? "var(--gold)" : "var(--line)";
+    el.style.color = active ? "var(--gold)" : "var(--text-muted)";
+    el.style.fontWeight = active ? "600" : "400";
+  });
 }
 
 function updateSessTagHighlight() {
   const input = document.getElementById("sess-loc");
   if (!input) return;
   const val = input.value || "";
-  document.querySelectorAll(".sess-loc-tag").forEach(tagEl => {
-    const tagText = tagEl.getAttribute("data-tag");
-    if (tagText && val.includes(tagText)) {
-      tagEl.style.background = "rgba(212, 175, 55, 0.22)";
-      tagEl.style.borderColor = "var(--gold)";
-      tagEl.style.color = "var(--gold)";
-      tagEl.style.fontWeight = "600";
-    } else {
-      tagEl.style.background = "var(--surface-2)";
-      tagEl.style.borderColor = "var(--line)";
-      tagEl.style.color = "var(--text-muted)";
-      tagEl.style.fontWeight = "400";
-    }
+
+  document.querySelectorAll(".sess-city-tag").forEach(el => {
+    const tag = el.getAttribute("data-city");
+    const active = tag && val.includes(tag);
+    el.style.background = active ? "rgba(212, 175, 55, 0.22)" : "var(--surface-2)";
+    el.style.borderColor = active ? "var(--gold)" : "var(--line)";
+    el.style.color = active ? "var(--gold)" : "var(--text-muted)";
+    el.style.fontWeight = active ? "600" : "400";
+  });
+
+  document.querySelectorAll(".sess-env-tag").forEach(el => {
+    const tag = el.getAttribute("data-env");
+    const active = tag && val.includes(tag);
+    el.style.background = active ? "rgba(212, 175, 55, 0.22)" : "var(--surface-2)";
+    el.style.borderColor = active ? "var(--gold)" : "var(--line)";
+    el.style.color = active ? "var(--gold)" : "var(--text-muted)";
+    el.style.fontWeight = active ? "600" : "400";
   });
 }
 
@@ -1031,10 +1161,6 @@ function openPublishToCommunityDialog(bottleId, sessionId) {
   const initialNotes = s?.notes || (currentLang === 'zh' ? "這支酒整體表現相當出色，香氣與尾韻平衡。" : "Great overall balance and finish.");
   const initialRating = s?.rating || b.personalRating || 5;
 
-  const locTags = currentLang === 'zh'
-    ? ["中環", "尖沙咀", "銅鑼灣", "旺角", "台中", "高雄", "台北", "東京", "大阪", "澳門", "屋企陽台", "酒吧", "居酒屋", "露營星空下", "海邊"]
-    : ["Central", "TST", "Causeway Bay", "Mong Kok", "Taichung", "Kaohsiung", "Taipei", "Tokyo", "Osaka", "Macau", "Balcony", "Bar", "Izakaya", "Camping", "Beach"];
-
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="closeModal()">
       <div class="modal-card" style="text-align:left; max-width:410px;" onclick="event.stopPropagation()">
@@ -1047,18 +1173,33 @@ function openPublishToCommunityDialog(bottleId, sessionId) {
             : 'Share your tasting footprint! Connoisseurs can spot where you enjoyed this bottle on the world map:'}
         </p>
 
-        <!-- 邊度飲呢支酒 (品飲地點，支援多選組合) -->
+        <!-- 邊度飲呢支酒 (地點與環境條件化複選) -->
         <div style="font-size:12px; font-weight:700; color:var(--gold); margin-bottom:5px; display:flex; justify-content:space-between; align-items:center;">
           <span>🥂 ${currentLang === 'zh' ? '你在哪裡品飲這支酒？' : 'Where did you taste it?'}</span>
-          <span style="font-size:11px; font-weight:normal; color:var(--text-faint);">${currentLang === 'zh' ? '（支援可複選標籤）' : '(Multi-select)'}</span>
+          <span style="font-size:11px; font-weight:normal; color:var(--text-faint);">${currentLang === 'zh' ? '地點與環境可組合' : 'Location & Setting'}</span>
         </div>
-        <input type="text" id="pub-venue-loc" class="text-input" style="margin-top:0; padding:10px; font-size:13.5px;" value="${esc(initialLoc)}" placeholder="${currentLang === 'zh' ? '例如：中環 屋企陽台、台中、高雄、東京居酒屋' : 'e.g. Central Balcony, Taichung, Kaohsiung, Tokyo'}" oninput="updatePubTagHighlight()">
+        <input type="text" id="pub-venue-loc" class="text-input" style="margin-top:0; padding:10px; font-size:13.5px;" value="${esc(initialLoc)}" placeholder="${currentLang === 'zh' ? '例如：中環 屋企陽台、高雄 酒吧、東京 居酒屋' : 'e.g. Central Balcony, Kaohsiung Bar, Tokyo Izakaya'}" oninput="updatePubTagHighlight()">
 
-        <!-- 快捷可複選標籤 -->
-        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; margin-bottom:14px;">
-          ${locTags.map(t => `
-            <span class="pub-loc-tag" data-tag="${t}" style="font-size:11.5px; padding:4px 10px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); color:var(--text-muted); cursor:pointer; user-select:none; transition:all 0.15s ease;" onclick="togglePubLocationTag('${t}')">${t}</span>
-          `).join("")}
+        <!-- 1. 城市 / 地區（單選切換） -->
+        <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); margin-top:8px; margin-bottom:4px;">
+          📍 ${currentLang === 'zh' ? '城市地區（單選切換）' : 'City / Region'}
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px;">
+          ${LOCATION_CITIES.map(c => {
+            const t = currentLang === 'zh' ? c.zh : c.en;
+            return `<span class="pub-city-tag" data-city="${t}" style="font-size:11px; padding:3px 9px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); color:var(--text-muted); cursor:pointer; user-select:none; transition:all 0.15s ease;" onclick="handleSelectCityTag('pub-venue-loc', '${t}')">${t}</span>`;
+          }).join("")}
+        </div>
+
+        <!-- 2. 場合 / 環境（單選切換） -->
+        <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); margin-bottom:4px;">
+          🥂 ${currentLang === 'zh' ? '場合環境（單選切換）' : 'Setting / Occasion'}
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:12px;">
+          ${LOCATION_ENVIRONMENTS.map(e => {
+            const t = currentLang === 'zh' ? e.zh : e.en;
+            return `<span class="pub-env-tag" data-env="${t}" style="font-size:11px; padding:3px 9px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); color:var(--text-muted); cursor:pointer; user-select:none; transition:all 0.15s ease;" onclick="handleSelectEnvTag('pub-venue-loc', '${t}')">${t}</span>`;
+          }).join("")}
         </div>
 
         <!-- 品飲心得手記 -->
@@ -1076,43 +1217,6 @@ function openPublishToCommunityDialog(bottleId, sessionId) {
   `;
 
   updatePubTagHighlight();
-}
-
-function togglePubLocationTag(tag) {
-  const input = document.getElementById("pub-venue-loc");
-  if (!input) return;
-  let val = (input.value || "").trim();
-  if (!val) {
-    input.value = tag;
-  } else if (val.includes(tag)) {
-    const escTag = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`(^|\\s|·|,)${escTag}(\\s|·|,|$)`, 'g');
-    let newVal = val.replace(regex, ' ').replace(/\\s+/g, ' ').trim();
-    input.value = newVal;
-  } else {
-    input.value = `${val} ${tag}`.trim();
-  }
-  updatePubTagHighlight();
-}
-
-function updatePubTagHighlight() {
-  const input = document.getElementById("pub-venue-loc");
-  if (!input) return;
-  const val = input.value || "";
-  document.querySelectorAll(".pub-loc-tag").forEach(tagEl => {
-    const tagText = tagEl.getAttribute("data-tag");
-    if (tagText && val.includes(tagText)) {
-      tagEl.style.background = "rgba(212, 175, 55, 0.22)";
-      tagEl.style.borderColor = "var(--gold)";
-      tagEl.style.color = "var(--gold)";
-      tagEl.style.fontWeight = "600";
-    } else {
-      tagEl.style.background = "var(--surface-2)";
-      tagEl.style.borderColor = "var(--line)";
-      tagEl.style.color = "var(--text-muted)";
-      tagEl.style.fontWeight = "400";
-    }
-  });
 }
 
 async function confirmPublishDrink(bottleId, rating) {
@@ -2331,8 +2435,16 @@ async function executeSettingsAccountAction() {
     showToast('請輸入帳號與密碼！');
     return;
   }
+  if (username.length < 3) {
+    showToast('⚠️ 帳號名稱長度至少需 3 個字元');
+    return;
+  }
+  if (password.length < 6) {
+    showToast('⚠️ 密碼長度至少需 6 個字元');
+    return;
+  }
 
-  showToast('正在綁定雲端帳號…');
+  showToast('正在進行 SHA-256 安全雜湊並綁定雲端…');
   try {
     const res = await fetch(`${WORKER_API_URL}/api/account/bind`, {
       method: 'POST',
@@ -2346,7 +2458,7 @@ async function executeSettingsAccountAction() {
     localStorage.setItem('bottlesense_account_bound', username);
     localStorage.setItem('bottlesense_registered', 'true');
     syncPublishCellarAsync();
-    showToast('✓ 雲端帳號綁定成功！');
+    showToast('✓ 雲端帳號安全綁定成功！');
     renderSettings();
   } catch (err) {
     showToast('綁定失敗: ' + err.message);
@@ -2354,16 +2466,23 @@ async function executeSettingsAccountAction() {
 }
 
 function executeSocialLogin(provider) {
-  showToast(`正在連接 ${provider} 授權…`);
-  setTimeout(() => {
-    const defaultName = provider + '_User_' + Math.random().toString(36).substring(2, 6);
-    localStorage.setItem('bottlesense_owner_name', defaultName);
-    localStorage.setItem('bottlesense_account_bound', `${provider}帳號`);
-    localStorage.setItem('bottlesense_registered', 'true');
-    syncPublishCellarAsync();
-    showToast(`✓ 已透過 ${provider} 成功快速登入綁定！`);
-    renderSettings();
-  }, 600);
+  modalContainer.innerHTML = `
+    <div class="modal-overlay" onclick="closeModal()">
+      <div class="modal-card" style="text-align:left; max-width:390px;" onclick="event.stopPropagation()">
+        <h3 style="font-family:var(--serif); font-size:18px; color:var(--gold); margin-bottom:10px;">
+          🔑 ${provider} 官方授權配置說明
+        </h3>
+        <p style="font-size:13.5px; color:var(--text); line-height:1.6; margin-bottom:12px;">
+          真實的 <strong>${provider} 一鍵登入</strong>需依據各大科技公司安全規範，至 ${provider === 'Google' ? 'Google Cloud Console' : provider === 'Apple' ? 'Apple Developer' : 'Meta for Developers'} 後台配置 <code>OAuth Client ID</code> 與授權回呼網域。
+        </p>
+        <div style="background:rgba(212,175,55,0.1); border:1px solid var(--gold-dim); border-radius:12px; padding:12px; font-size:13px; color:var(--gold); line-height:1.5; margin-bottom:16px;">
+          💡 <strong>現已全面啟用的 100% 真實雲端儲存：</strong><br>
+          請直接在上方設定「<strong>自訂帳號與密碼</strong>」（已配備 SHA-256 加鹽雜湊）或使用「<strong>專屬同步碼 (Sync Key)</strong>」，即可跨手機即時安全登入與完整還原酒窖！
+        </div>
+        <button class="btn btn-primary btn-block" style="padding:10px;" onclick="closeModal()">我知道了</button>
+      </div>
+    </div>
+  `;
 }
 
 function openSyncKeyAndRestoreModal() {
