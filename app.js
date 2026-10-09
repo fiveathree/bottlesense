@@ -2522,8 +2522,20 @@ function renderSettings() {
 
         <!-- OTP 驗證碼輸入區 (發送後平滑展開) -->
         <div id="otp-input-section" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed var(--line);">
+          <div id="otp-banner-box" style="display:none; background:rgba(212,175,55,0.14); border:1px solid var(--gold); border-radius:10px; padding:10px 12px; margin-bottom:10px; text-align:center;">
+            <div style="font-size:11.5px; color:var(--gold); font-weight:600; margin-bottom:4px;">
+              🔑 ${currentLang === 'zh' ? '本次登入驗證碼（已自動為你填入）：' : 'Your OTP Code (Auto-filled):'}
+            </div>
+            <div id="otp-banner-number" style="font-family:var(--mono); font-size:24px; font-weight:800; color:var(--gold); letter-spacing:6px;">
+              ------
+            </div>
+            <div style="font-size:10.5px; color:var(--text-faint); margin-top:3px;">
+              ${currentLang === 'zh' ? '10分鐘內有效 · 直接點擊下方按鈕即可完成' : 'Valid for 10 mins · Tap buttons below to proceed'}
+            </div>
+          </div>
+
           <div style="font-size:11.5px; font-family:var(--mono); color:var(--text-faint); margin-bottom:3px;">
-            ${currentLang === 'zh' ? '輸入 6 位數電郵驗證碼' : 'Enter 6-Digit OTP'}
+            ${currentLang === 'zh' ? '6 位數電郵驗證碼' : '6-Digit OTP'}
           </div>
           <input type="text" id="auth-otp" class="text-input" placeholder="例如：123456" maxlength="6" style="letter-spacing:5px; font-weight:700; font-family:var(--mono); text-align:center; padding:9px; font-size:16px;">
         </div>
@@ -2614,10 +2626,23 @@ async function handleSendEmailOtp() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '發送失敗');
 
-    // 展開 OTP 輸入框並自動聚焦
+    // 展開 OTP 輸入框並自動聚焦與持久顯示
     const sec = document.getElementById('otp-input-section');
     if (sec) sec.style.display = 'block';
+    
+    const bannerBox = document.getElementById('otp-banner-box');
+    const bannerNumber = document.getElementById('otp-banner-number');
     const otpInput = document.getElementById('auth-otp');
+
+    if (data.devOtp) {
+      if (bannerBox && bannerNumber) {
+        bannerBox.style.display = 'block';
+        bannerNumber.textContent = data.devOtp;
+      }
+      if (otpInput) {
+        otpInput.value = data.devOtp; // 自動為用戶填入！
+      }
+    }
     if (otpInput) otpInput.focus();
 
     // 倒數 60 秒冷卻
