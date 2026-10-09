@@ -28,11 +28,6 @@
       </div>
       <div class="top-actions">
         <!-- 繁英轉換按鈕 -->
-        <!-- 登入按鈕 -->
-        <button class="login-topbar-btn" id="topbarLoginBtn" onclick="openLoginModal()" aria-label="Login">
-          <span id="topbarLoginText">登入</span>
-        </button>
-        <!-- 繁英轉換按鈕 -->
         <button class="lang-switch-btn" id="langSwitchBtn" onclick="toggleLanguage()">EN</button>
         <!-- 設定按鈕 -->
         <button class="icon-btn" onclick="renderSettings()" aria-label="Settings">
@@ -65,10 +60,10 @@
   <!-- 拍照對位校準 HUD 模態框 -->
   <div id="crop-modal" class="crop-modal" style="display: none;">
     <div class="crop-header" style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px;">
-      <button class="btn btn-ghost btn-sm" onclick="closeCropModal()">取消</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeCropModal()" data-i18n="btn_cancel">取消</button>
       <div style="display:flex; gap:6px;">
-        <button class="btn btn-ghost btn-sm" style="color:var(--text); border-color:var(--line); padding:6px 10px; font-size:12px;" onclick="confirmCropAndScan(true)">📷 全圖辨識</button>
-        <button class="btn btn-primary btn-sm" style="padding:6px 12px; font-size:12px; font-weight:700;" onclick="confirmCropAndScan(false)">🎯 對焦辨識</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--text); border-color:var(--line); padding:6px 10px; font-size:12px;" onclick="confirmCropAndScan(true)" data-i18n="btn_full_scan">📷 全圖辨識</button>
+        <button class="btn btn-primary btn-sm" style="padding:6px 12px; font-size:12px; font-weight:700;" onclick="confirmCropAndScan(false)" data-i18n="btn_focus_scan">🎯 對焦辨識</button>
       </div>
     </div>
     <div class="crop-viewport" id="cropViewport" style="position:relative; display:flex; align-items:center; justify-content:center; overflow:hidden;">
@@ -93,7 +88,7 @@
       </div>
     </div>
     <div class="crop-footer">
-      <span class="zoom-text">縮放:</span>
+      <span class="zoom-text" data-i18n="zoom_label">縮放:</span>
       <input type="range" id="zoomSlider" min="0.5" max="3" step="0.05" value="1" oninput="onSliderZoom(this.value)">
     </div>
   </div>
