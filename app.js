@@ -2121,7 +2121,7 @@ function renderSettings() {
           </select>
 
           <div style="font-size:11.5px; font-weight:600; color:var(--text); margin-bottom:4px;">
-            ${currentLang === 'zh' ? '生日 (專屬開瓶驚喜)' : 'Birthday'}
+            ${currentLang === 'zh' ? '生日' : 'Birthday'}
           </div>
           <input type="date" id="edit-profile-birthday" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13px; text-align:left;" value="${esc(birthday)}">
 
