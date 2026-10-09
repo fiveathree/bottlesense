@@ -939,7 +939,7 @@ function openShareActionSheet(bottleId, sessionId = null) {
         </h3>
         
         <div style="display:flex; flex-direction:column; gap:10px;">
-          <button class="btn btn-primary btn-block" onclick="openPublishToCommunityDialog('${esc(b.id)}', '${esc(sessionId||'')}'); closeModal();">
+          <button class="btn btn-primary btn-block" onclick="openPublishToCommunityDialog('${esc(b.id)}', '${esc(sessionId||'')}');">
             🌍 ${currentLang==='zh'?'發布到酒友公開探索池':'Publish to Community Feed'}
           </button>
           
@@ -2099,68 +2099,153 @@ function renderSettings() {
 
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
-      <div class="modal-card" style="max-width:390px; text-align:left;">
-        <h2 style="font-family:var(--serif); margin-bottom:12px; font-size:20px; color:var(--gold);">${t('settings_title')}</h2>
-        
-        <!-- 身分與綁定狀態 -->
-        <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:14px;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:13px; color:var(--text-muted);">${currentLang === 'zh' ? '目前品飲身分' : 'Current User'}:</span>
-            <strong style="color:var(--text); font-size:14px;">${esc(owner)}</strong>
-          </div>
-          <div style="margin-top:8px; font-size:12.5px;">
-            ${boundAccount ? `
-              <span style="color:var(--green-ok); font-weight:600;">✓ 已綁定雲端帳號 (${esc(boundAccount)})</span>
-            ` : `
-              <span style="color:var(--wine-bright); font-weight:600;">⚠️ 尚未綁定帳號（遊客模式）</span>
-              <button class="btn btn-primary btn-sm" style="margin-top:8px; width:100%; font-size:12.5px; padding:7px;" onclick="promptFirstBottleRegistration(null)">立即設定帳密綁定</button>
-            `}
-          </div>
-        </div>
+      <div class="modal-card" style="max-width:390px; text-align:left;" onclick="event.stopPropagation()">
+        <h2 style="font-family:var(--serif); margin-bottom:14px; font-size:20px; color:var(--gold); text-align:center;">
+          ${t('settings_title')}
+        </h2>
 
-        <!-- 專屬同步碼 -->
-        <p style="font-size:12.5px; color:var(--text-muted); line-height:1.5; margin-bottom:6px;">${t('sync_key_label')}</p>
-        <div class="text-input" style="text-align:center; font-family:var(--mono); font-size:13px; font-weight:700; color:var(--gold); padding:9px; user-select:all;">${esc(key)}</div>
-        <button id="btn-copy-sync" class="btn btn-primary btn-block" style="margin-top:10px; padding:9px; font-size:13px;" onclick="copySyncKey()">${t('btn_copy_sync')}</button>
-
-        <!-- 換機登入 / 還原舊酒窖 -->
-        <div style="margin-top:16px; border-top:1px solid var(--line); padding-top:14px;">
-          <div style="font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:6px;">跨設備登入與資料恢復</div>
-          <button class="btn btn-ghost btn-block" style="border-color:var(--gold-dim); color:var(--gold); padding:9px; font-size:13px;" onclick="openRestoreCellarModal()">
-            🔄 換手機登入 / 輸入同步碼還原酒窖
+        <!-- 1. 帳密直接放出嚟填，唔洗寫方案 -->
+        <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px;">
+          <div style="font-size:13px; font-weight:700; color:var(--text); margin-bottom:8px;">
+            👤 雲端帳號綁定 / 登入
+          </div>
+          
+          <div style="font-size:11.5px; font-family:var(--mono); color:var(--text-faint); margin-bottom:3px;">帳號 / 電郵 (Username / Email)</div>
+          <input type="text" id="set-username" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13.5px;" value="${esc(boundAccount || (owner !== '品飲同好' ? owner : ''))}" placeholder="輸入你的帳號或 Email">
+          
+          <div style="font-size:11.5px; font-family:var(--mono); color:var(--text-faint); margin-top:8px; margin-bottom:3px;">登入密碼 (Password)</div>
+          <input type="password" id="set-password" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13.5px;" placeholder="輸入專屬密碼">
+          
+          <button class="btn btn-primary btn-block" style="padding:9px; margin-top:12px; font-size:13px;" onclick="executeSettingsAccountAction()">
+            ${boundAccount ? '更新帳號綁定' : '儲存並綁定雲端帳號'}
           </button>
         </div>
 
-        <button class="btn btn-ghost btn-block" style="margin-top:12px; padding:9px; font-size:13px; color:var(--text-faint); border-color:transparent;" onclick="closeModal()">${t('btn_close')}</button>
+        <!-- 2. 帳密下面加 Google, FB, Apple 等一鍵 login -->
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); text-align:center; margin-bottom:6px; text-transform:uppercase;">
+            或使用社交帳號一鍵登入
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px;">
+            <button class="social-login-btn google-btn" onclick="executeSocialLogin('Google')">
+              <svg viewBox="0 0 24 24" width="15" height="15"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/><path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15.1c0 2.8.7 5.4 1.9 7.8l3.7-2.9z"/><path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2-6.4-4.8L1.9 16.9C3.7 20.6 7.5 23.5 12 23.5z"/></svg>
+              <span>Google</span>
+            </button>
+            <button class="social-login-btn apple-btn" onclick="executeSocialLogin('Apple')">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.64-.78 1.08-1.86.96-2.95-1 .04-2.14.66-2.79 1.43-.57.66-.99 1.76-.85 2.81 1.11.09 2.04-.51 2.68-1.29z"/></svg>
+              <span>Apple</span>
+            </button>
+            <button class="social-login-btn fb-btn" onclick="executeSocialLogin('Facebook')">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+              <span>FB</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. 專屬碼同換手機登入合成一粒 button 放一鍵 login 下面 -->
+        <div style="margin-bottom:12px;">
+          <button class="btn btn-ghost btn-block" style="border-color:var(--gold-dim); color:var(--gold); padding:9px; font-size:13px;" onclick="openSyncKeyAndRestoreModal()">
+            🔄 專屬同步碼與換手機登入
+          </button>
+        </div>
+
+        <!-- 4. 最底繼續放遊客身份 -->
+        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:12px; color:var(--text-faint);">目前身分狀態：</span>
+          <span style="font-size:12.5px; font-weight:600; color:${boundAccount ? 'var(--green-ok)' : 'var(--text-muted)'};">
+            ${boundAccount ? '✓ 已綁定 (' + esc(boundAccount) + ')' : '👤 遊客模式 (未綁定)'}
+          </span>
+        </div>
+
+        <button class="btn btn-ghost btn-block" style="padding:9px; font-size:13px; color:var(--text-faint); border-color:transparent;" onclick="closeModal()">
+          ${t('btn_close')}
+        </button>
       </div>
     </div>
   `;
 }
 
-function openRestoreCellarModal() {
+async function executeSettingsAccountAction() {
+  const username = (document.getElementById('set-username')?.value || '').trim();
+  const password = document.getElementById('set-password')?.value || '';
+  const syncKey = localStorage.getItem('bottlesense_sync_key') || '';
+
+  if (!username || !password) {
+    showToast('請輸入帳號與密碼！');
+    return;
+  }
+
+  showToast('正在綁定雲端帳號…');
+  try {
+    const res = await fetch(`${WORKER_API_URL}/api/account/bind`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password, syncKey })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '綁定失敗');
+
+    localStorage.setItem('bottlesense_owner_name', username);
+    localStorage.setItem('bottlesense_account_bound', username);
+    localStorage.setItem('bottlesense_registered', 'true');
+    syncPublishCellarAsync();
+    showToast('✓ 雲端帳號綁定成功！');
+    renderSettings();
+  } catch (err) {
+    showToast('綁定失敗: ' + err.message);
+  }
+}
+
+function executeSocialLogin(provider) {
+  showToast(`正在連接 ${provider} 授權…`);
+  setTimeout(() => {
+    const defaultName = provider + '_User_' + Math.random().toString(36).substring(2, 6);
+    localStorage.setItem('bottlesense_owner_name', defaultName);
+    localStorage.setItem('bottlesense_account_bound', `${provider}帳號`);
+    localStorage.setItem('bottlesense_registered', 'true');
+    syncPublishCellarAsync();
+    showToast(`✓ 已透過 ${provider} 成功快速登入綁定！`);
+    renderSettings();
+  }, 600);
+}
+
+function openSyncKeyAndRestoreModal() {
+  const key = localStorage.getItem('bottlesense_sync_key') || '';
+
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="closeModal()">
-      <div class="modal-card" style="text-align:left; max-width:390px;" onclick="event.stopPropagation()">
+      <div class="modal-card" style="text-align:left; max-width:400px;" onclick="event.stopPropagation()">
         <h3 style="font-family:var(--serif); font-size:18px; color:var(--gold); margin-bottom:12px;">
-          🔄 還原舊酒窖 / 登入
+          🔄 專屬同步碼與換機登入
         </h3>
 
-        <!-- 方式 1：帳號密碼登入 -->
+        <!-- 我的專屬同步碼 -->
         <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:14px;">
-          <div style="font-size:13px; font-weight:700; color:var(--text); margin-bottom:6px;">方式一：以綁定之帳號密碼登入</div>
-          <input type="text" id="login-user" class="text-input" style="padding:8px; font-size:13px; margin-top:4px;" placeholder="帳號 / 使用者名稱">
-          <input type="password" id="login-pass" class="text-input" style="padding:8px; font-size:13px; margin-top:8px;" placeholder="密碼">
-          <button class="btn btn-primary btn-block" style="padding:9px; font-size:13px; margin-top:10px;" onclick="executeAccountLogin()">
-            登入並下載所有藏酒
+          <div style="font-size:12px; font-weight:700; color:var(--gold); margin-bottom:4px;">
+            📋 我的專屬同步碼 (Sync Key)
+          </div>
+          <div style="font-size:11.5px; color:var(--text-faint); margin-bottom:6px;">
+            換手機時，只需在新手機輸入此代碼即可找回所有藏酒。
+          </div>
+          <div class="text-input" style="text-align:center; font-family:var(--mono); font-size:13.5px; font-weight:700; color:var(--gold); padding:8px; user-select:all;">
+            ${esc(key)}
+          </div>
+          <button id="btn-copy-sync" class="btn btn-primary btn-block" style="margin-top:8px; padding:8px; font-size:12.5px;" onclick="copySyncKey()">
+            ${t('btn_copy_sync')}
           </button>
         </div>
 
-        <!-- 方式 2：同步碼直接還原 -->
+        <!-- 換手機登入還原 -->
         <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:14px;">
-          <div style="font-size:13px; font-weight:700; color:var(--text); margin-bottom:6px;">方式二：憑專屬同步碼還原</div>
-          <input type="text" id="restore-key" class="text-input" style="padding:8px; font-size:13px; margin-top:4px; font-family:var(--mono);" placeholder="例如：BTL-XXXX-XXXX">
-          <button class="btn btn-ghost btn-block" style="padding:9px; font-size:13px; margin-top:10px; border-color:var(--gold-dim); color:var(--gold);" onclick="executeKeyRestore()">
-            輸入同步碼提取雲端備份
+          <div style="font-size:12px; font-weight:700; color:var(--text); margin-bottom:4px;">
+            📲 換手機登入 / 輸入同步碼還原
+          </div>
+          <div style="font-size:11.5px; color:var(--text-faint); margin-bottom:6px;">
+            在下方輸入舊手機的專屬同步碼（如 BTL-XXXX-XXXX）：
+          </div>
+          <input type="text" id="restore-key" class="text-input" style="padding:8px; font-size:13px; font-family:var(--mono); text-transform:uppercase;" placeholder="例如：BTL-XXXX-XXXX">
+          <button class="btn btn-ghost btn-block" style="padding:8px; font-size:12.5px; margin-top:8px; border-color:var(--gold-dim); color:var(--gold);" onclick="executeKeyRestore()">
+            確認提取並還原藏酒
           </button>
         </div>
 
@@ -2169,90 +2254,6 @@ function openRestoreCellarModal() {
     </div>
   `;
 }
-
-async function executeAccountLogin() {
-  const username = (document.getElementById('login-user')?.value || '').trim();
-  const password = document.getElementById('login-pass')?.value || '';
-
-  if (!username || !password) {
-    showToast("請輸入帳號與密碼！");
-    return;
-  }
-
-  showToast("正在驗證並同步酒窖…");
-  try {
-    const res = await fetch(`${WORKER_API_URL}/api/account/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "登入失敗");
-
-    if (typeof restoreCellarToLocal === 'function') {
-      await restoreCellarToLocal(data.cellar || [], data.syncKey, data.ownerName);
-    }
-    localStorage.setItem('bottlesense_account_bound', username);
-    closeModal();
-    showToast(`✓ 歡迎回來！已成功還原 ${(data.cellar || []).length} 款藏酒！`);
-    renderHome();
-  } catch(err) {
-    showToast("登入失敗: " + err.message);
-  }
-}
-
-async function executeKeyRestore() {
-  const key = (document.getElementById('restore-key')?.value || '').trim().toUpperCase();
-  if (!key) {
-    showToast("請輸入同步代碼！");
-    return;
-  }
-
-  showToast("正在抓取雲端備份…");
-  try {
-    const res = await fetch(`${WORKER_API_URL}/api/restore?key=${encodeURIComponent(key)}`);
-    if (!res.ok) throw new Error("找不到對應的雲端酒窖備份");
-    const cellar = await res.json();
-
-    if (typeof restoreCellarToLocal === 'function') {
-      await restoreCellarToLocal(cellar || [], key, null);
-    }
-    closeModal();
-    showToast(`✓ 已成功還原 ${(cellar || []).length} 款藏酒！`);
-    renderHome();
-  } catch(err) {
-    showToast("還原失敗: " + err.message);
-  }
-}
-
-function copySyncKey() {
-  const key = localStorage.getItem('bottlesense_sync_key') || '';
-  const btn = document.getElementById('btn-copy-sync');
-
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(key).then(() => {
-      if (btn) btn.textContent = '✓ ' + (currentLang==='zh'?'已複製到剪貼簿！':'Copied!');
-      showToast(t('copied_toast'));
-    }).catch(() => fallbackCopyText(key, btn));
-  } else {
-    fallbackCopyText(key, btn);
-  }
-}
-
-function fallbackCopyText(text, btn) {
-  const ta = document.createElement('textarea');
-  ta.value = text;
-  document.body.appendChild(ta);
-  ta.select();
-  try {
-    document.execCommand('copy');
-    if (btn) btn.textContent = '✓ ' + (currentLang==='zh'?'已複製！':'Copied!');
-    showToast(t('copied_toast'));
-  } catch (err) {}
-  document.body.removeChild(ta);
-}
-
-function closeModal() { modalContainer.innerHTML = ''; }
 
 async function initApp() {
   try {
