@@ -896,18 +896,32 @@ main {
 
 .text-input {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  display: block;
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 12px;
+  padding: 11px 12px;
   color: var(--text);
-  font-size: 15px;
+  font-size: 14.5px;
   outline: none;
-  margin-top: 8px;
+  margin-top: 6px;
   font-family: var(--sans);
 }
 .text-input:focus {
   border-color: var(--gold-dim);
+}
+
+input[type="datetime-local"].text-input {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  display: block !important;
+  padding: 11px 12px !important;
+  color-scheme: dark;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .bottomnav {
@@ -1433,4 +1447,55 @@ main {
   box-shadow: 0 0 20px #D4AF37, 0 0 45px rgba(212, 175, 55, 0.8) !important;
   z-index: 50 !important;
   transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1), box-shadow 0.3s ease !important;
+}
+
+/* =======================================================
+   探索酒友卡片與右下角詳情按鈕 (一行過，不折行)
+======================================================= */
+.explore-feed-card {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  background: #171812;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 14px 14px 44px 14px;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  user-select: none;
+  margin-bottom: 14px;
+}
+.explore-feed-card:hover {
+  border-color: rgba(212, 175, 55, 0.4);
+}
+.explore-feed-card:active {
+  transform: scale(0.99);
+}
+
+.explore-card-detail-btn {
+  position: absolute;
+  bottom: 11px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(212, 175, 55, 0.12);
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  color: var(--gold);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 13px;
+  white-space: nowrap !important;
+  cursor: pointer;
+  z-index: 5;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.explore-card-detail-btn:hover {
+  background: rgba(212, 175, 55, 0.25);
+}
+.explore-card-detail-btn:active {
+  transform: scale(0.94);
 }
