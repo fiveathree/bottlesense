@@ -11,80 +11,27 @@
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#11120D">
   
   <!-- Google Fonts 免費字體組 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Serif+TC:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   
-  <link rel="manifest" href="manifest.json">
-  <link rel="preload" as="image" href="map_world.webp">
-
-  <!-- 100% 防白畫面 / 防走樣內聯暗黑基底樣式 (即便外部 CSS 暫存或延遲亦絕不反白) -->
-  <style>
-    :root, html, body {
-      --bg: #0F100B;
-      --surface: #181912;
-      --surface-2: #232519;
-      --surface-hover: #2E3120;
-      --line: #303324;
-      --gold: #D4AF37;
-      --gold-dim: #9E8230;
-      --wine: #8C2A3A;
-      --wine-bright: #B8394D;
-      --green-ok: #6E9265;
-      --cyan-glow: #38bdf8;
-      --purple-glow: #c084fc;
-      --rose-glow: #fb7185;
-      --text: #F3EFE6;
-      --text-muted: #A3A290;
-      --text-faint: #676554;
-      --radius: 16px;
-      --serif: 'Noto Serif TC', serif;
-      --sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      --mono: 'JetBrains Mono', monospace;
-      background-color: #0F100B !important;
-      color: #F3EFE6 !important;
-    }
-    html, body {
-      margin: 0;
-      padding: 0;
-      background: #0F100B radial-gradient(120% 140% at 50% -10%, #1A1D13 0%, #0F100B 60%) !important;
-      color: #F3EFE6 !important;
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      min-height: 100vh;
-      min-height: 100dvh;
-    }
-    #app {
-      background-color: #0F100B;
-      color: #F3EFE6;
-      width: 100%;
-      max-width: 500px;
-      margin: 0 auto;
-    }
-    @media (min-width: 860px) {
-      #app { max-width: 920px; }
-    }
-  </style>
-
-  <!-- 外部樣式表帶版本號，強制瀏覽器與 CDN 刷新避免舊版快取 -->
-  <link rel="stylesheet" href="style.css?v=2.4">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="app">
     <header class="topbar">
       <div>
         <div class="wordmark">BOTTLE<span>.</span></div>
-        <div class="tagline" id="appTagline">know what to do with it</div>
+        <div class="tagline">know what to do with it</div>
       </div>
       <div class="top-actions">
-        
         <!-- 繁英轉換按鈕 -->
         <button class="lang-switch-btn" id="langSwitchBtn" onclick="toggleLanguage()">EN</button>
         <!-- 設定按鈕 -->
         <button class="icon-btn" onclick="renderSettings()" aria-label="Settings">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1 2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
         </button>
       </div>
     </header>
@@ -114,56 +61,22 @@
   <div id="crop-modal" class="crop-modal" style="display: none;">
     <div class="crop-header">
       <button class="btn btn-ghost btn-sm" onclick="closeCropModal()">取消</button>
-      <div style="display:flex; gap:8px;">
-        <button class="btn btn-ghost btn-sm" style="border-color:var(--gold-dim); color:var(--gold);" onclick="confirmFullScan()" title="不裁剪，直接發送整張照片辨識">全圖辨識</button>
-        <button class="btn btn-primary btn-sm" onclick="confirmCropAndScan()">對焦辨識</button>
-      </div>
+      <span class="crop-title" data-i18n="crop_hint">雙指縮放拖曳對準酒瓶</span>
+      <button class="btn btn-primary btn-sm" onclick="confirmCropAndScan()">確認辨識</button>
     </div>
-    
     <div class="crop-viewport" id="cropViewport">
       <div class="crop-image-wrap" id="cropImageWrap">
         <img id="cropTargetImage" src="" alt="target" />
       </div>
-
-      <!-- 真實發光金色酒瓶 Silhouette HUD 對位框 -->
-      <svg class="bottle-hud-svg" viewBox="0 0 280 500" preserveAspectRatio="xMidYMid meet">
-        <defs>
-          <mask id="hudBottleMask">
-            <rect width="100%" height="100%" fill="white"/>
-            <!-- 緊湊精緻酒瓶透空路徑 -->
-            <path d="M 122,65 C 122,55 130,52 140,52 C 150,52 158,55 158,65 L 158,135 C 158,165 225,175 225,210 L 225,438 C 225,452 215,456 200,456 L 80,456 C 65,456 55,452 55,438 L 55,210 C 55,175 122,165 122,135 Z" fill="black"/>
-          </mask>
-        </defs>
-
-        <!-- 周圍暗色半透明遮罩，只有酒瓶內部通透 -->
-        <rect width="100%" height="100%" fill="rgba(0,0,0,0.72)" mask="url(#hudBottleMask)"/>
-
-        <!-- 金色發光精巧酒瓶邊框線 -->
-        <path id="bottleCutoutPath" d="M 122,65 C 122,55 130,52 140,52 C 150,52 158,55 158,65 L 158,135 C 158,165 225,175 225,210 L 225,438 C 225,452 215,456 200,456 L 80,456 C 65,456 55,452 55,438 L 55,210 C 55,175 122,165 122,135 Z"
-              fill="none" stroke="#D4AF37" stroke-width="2.2" stroke-linejoin="round"
-              style="filter: drop-shadow(0 0 10px rgba(212,175,55,0.7));"/>
-
-        <!-- 瓶身中央酒標對齊輔助虛線框 -->
-        <rect id="bottleLabelGuide" x="68" y="228" width="144" height="190" rx="8"
-              fill="none" stroke="rgba(212,175,55,0.55)" stroke-width="1.4" stroke-dasharray="5,4"/>
-
-        <!-- 四個金色對準角標 (HUD Corner Marks) -->
-        <path d="M 68,242 L 68,228 L 82,228" fill="none" stroke="#D4AF37" stroke-width="2.5"/>
-        <path d="M 212,242 L 212,228 L 198,228" fill="none" stroke="#D4AF37" stroke-width="2.5"/>
-        <path d="M 68,404 L 68,418 L 82,418" fill="none" stroke="#D4AF37" stroke-width="2.5"/>
-        <path d="M 212,404 L 212,418 L 198,418" fill="none" stroke="#D4AF37" stroke-width="2.5"/>
-
-        <!-- 中央對準提示標籤 -->
-        <g transform="translate(140, 323)">
-          <rect x="-60" y="-11" width="120" height="22" rx="11" fill="rgba(0,0,0,0.85)" stroke="rgba(212,175,55,0.6)" stroke-width="1"/>
-          <text text-anchor="middle" y="4" fill="#D4AF37" font-size="10.5" font-family="monospace">請將酒標置於框內</text>
-        </g>
-      </svg>
-
-      <!-- 頂部懸浮不折行提示膠囊 -->
-      <div class="crop-hud-hint">👆 雙指縮放或拖曳對準酒瓶</div>
+      <!-- 酒瓶中央對齊 HUD 輔助外框 -->
+      <div class="bottle-guide-frame">
+        <div class="bottle-neck-line"></div>
+        <div class="bottle-shoulder-curve"></div>
+        <div class="bottle-body-box">
+          <span class="guide-tag" data-i18n="guide_label_tag">請將酒標置於框內</span>
+        </div>
+      </div>
     </div>
-
     <div class="crop-footer">
       <span class="zoom-text">縮放:</span>
       <input type="range" id="zoomSlider" min="0.5" max="3" step="0.05" value="1" oninput="onSliderZoom(this.value)">
