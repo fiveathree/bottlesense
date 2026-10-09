@@ -1434,7 +1434,7 @@ function getRegionalHeaderLabel(country, region) {
     return '🇫🇷 法國・' + (r || '波爾多產區');
   }
   if (c.includes('英') || c.includes('蘇格蘭') || r.includes('斯貝賽') || r.includes('艾雷') || c.toLowerCase().includes('scotland')) {
-    return '🏴󠁧󠁢󠁳󠁣󠁴󠁿 蘇格蘭・' + (r || '斯貝賽產區');
+    return '🇬🇧 蘇格蘭・' + (r || '斯貝賽產區');
   }
   if (c.includes('日') || r.includes('山崎') || r.includes('余市') || c.toLowerCase().includes('japan')) {
     return '🇯🇵 日本・' + (r || '關西與北海道');
