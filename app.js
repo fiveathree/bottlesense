@@ -898,6 +898,12 @@ let currentSessionRating = 5;
 let selectedSessionCity = '';
 let selectedSessionScene = '';
 
+function defaultNowStr() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16).replace('T', ' ');
+}
+
 function openAddSessionModal(bottleId) {
   const now = new Date();
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -1021,7 +1027,7 @@ async function saveNewSession(bottleId) {
   const rawDate = document.getElementById('sess-date').value;
   const newSession = {
     id: 't_' + Date.now(),
-    dateStr: rawDate ? rawDate.replace('T', ' ') : new Date().toLocaleString(),
+    dateStr: rawDate ? rawDate.replace('T', ' ') : defaultNowStr(),
     location: document.getElementById('sess-loc').value.trim(),
     companions: document.getElementById('sess-comp').value.trim(),
     rating: currentSessionRating,
