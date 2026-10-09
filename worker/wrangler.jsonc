@@ -1,0 +1,11 @@
+{
+  "name": "bottlesense-api",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  // keep GAS_URL / DEV_MODE and other variables you set in the dashboard
+  "keep_vars": true,
+  "kv_namespaces": [
+    { "binding": "CELLAR_KV", "id": "2156c87518404b7d9bda22982f2ad518" }
+  ]
+}
