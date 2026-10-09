@@ -635,7 +635,7 @@ function renderBottleDetail(id) {
         ${confidence ? `
           <div class="confidence-seal ${confidence >= 80 ? 'seal-high' : confidence >= 55 ? 'seal-medium' : 'seal-low'}">
             <div class="seal-pct">${Math.round(confidence)}%</div>
-            <div class="seal-label">CONF</div>
+            <div class="seal-label">=='zh'?'辨識度':'CONF'</div>
           </div>
         ` : ''}
 
@@ -2253,6 +2253,12 @@ function openSyncKeyAndRestoreModal() {
       </div>
     </div>
   `;
+}
+
+function closeModal() {
+  if (modalContainer) {
+    modalContainer.innerHTML = '';
+  }
 }
 
 async function initApp() {
