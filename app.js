@@ -2190,18 +2190,49 @@ if (galleryInput) galleryInput.addEventListener('change', e => onImageSelected(e
 function onImageSelected(file) {
   if (!file) return;
   currentRawFile = file;
+  
+  // 建立暫存 Image 進行前端快速預縮放 (防手機 4800萬/1200萬像素巨圖卡死記憶體)
   const reader = new FileReader();
   reader.onload = (e) => {
-    const cropImg = document.getElementById('cropTargetImage');
-    cropImg.onload = () => {
-      openCropModal();
+    const tempImg = new Image();
+    tempImg.onload = () => {
+      const maxPreDim = 1920; // 前端最大寬高上限
+      let w = tempImg.naturalWidth || tempImg.width;
+      let h = tempImg.naturalHeight || tempImg.height;
+
+      if (w > maxPreDim || h > maxPreDim) {
+        if (w > h) {
+          h = Math.round((h * maxPreDim) / w);
+          w = maxPreDim;
+        } else {
+          w = Math.round((w * maxPreDim) / h);
+          h = maxPreDim;
+        }
+        const preCanvas = document.createElement('canvas');
+        preCanvas.width = w;
+        preCanvas.height = h;
+        const pCtx = preCanvas.getContext('2d');
+        pCtx.drawImage(tempImg, 0, 0, w, h);
+        const resizedDataUrl = preCanvas.toDataURL('image/jpeg', 0.90);
+        loadIntoCropModal(resizedDataUrl);
+      } else {
+        loadIntoCropModal(e.target.result);
+      }
     };
-    cropImg.src = e.target.result;
-    if (cropImg.complete && cropImg.naturalWidth) {
-      openCropModal();
-    }
+    tempImg.src = e.target.result;
   };
   reader.readAsDataURL(file);
+}
+
+function loadIntoCropModal(src) {
+  const cropImg = document.getElementById('cropTargetImage');
+  cropImg.onload = () => {
+    openCropModal();
+  };
+  cropImg.src = src;
+  if (cropImg.complete && cropImg.naturalWidth) {
+    openCropModal();
+  }
 }
 
 function openCropModal() {
@@ -2730,6 +2761,10 @@ function renderSettings() {
           <div style="font-size:12.5px; color:var(--text); line-height:1.5; margin-bottom:12px;">
             ${currentLang === 'zh' ? `目前已安全備份 <strong style="color:var(--gold);">${cellarCount}</strong> 支藏酒與手記。` : `Safely backed up <strong style="color:var(--gold);">${cellarCount}</strong> bottles & notes.`}
           </div>
+
+          <button class="btn btn-ghost btn-block" style="padding:9px; font-size:12.5px; margin-bottom:8px; border-color:var(--gold-dim); color:var(--gold);" onclick="showPwaInstallModal()">
+            📲 ${currentLang === 'zh' ? '安裝 BottleSense 到手機主畫面' : 'Add to Home Screen'}
+          </button>
 
           <!-- 登出按鈕：依指定精簡為「登出帳號 Logout」 -->
           <button class="btn btn-wine btn-block" style="padding:10px; font-size:13px;" onclick="executeAccountLogout()">
@@ -3406,6 +3441,75 @@ function closeModal() {
     modalContainer.innerHTML = '';
   }
 }
+
+// ==========================================
+// PWA 一鍵安裝 (Add to Home Screen)
+// ==========================================
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById('pwaInstallBtn');
+  if (btn) btn.style.display = 'inline-flex';
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  const btn = document.getElementById('pwaInstallBtn');
+  if (btn) btn.style.display = 'none';
+  showToast(currentLang === 'zh' ? '✓ BottleSense 已成功安裝到主畫面！' : '✓ BottleSense installed to home screen!');
+});
+
+function showPwaInstallModal() {
+  // 如果是 Android / Chrome 且已觸發原生安裝提示
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.then((choiceResult) => {
+      if (choiceResult.outcome === 'accepted') {
+        showToast(currentLang === 'zh' ? '正在安裝 BottleSense…' : 'Installing BottleSense...');
+      }
+      deferredInstallPrompt = null;
+    });
+    return;
+  }
+
+  // 判斷是否為 iOS Safari
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  
+  modalContainer.innerHTML = `
+    <div class="modal-overlay" onclick="closeModal()">
+      <div class="modal-card" style="text-align:left; max-width:390px;" onclick="event.stopPropagation()">
+        <div style="text-align:center; font-size:42px; margin-bottom:8px;">📲</div>
+        <h3 style="font-family:var(--serif); font-size:19px; color:var(--gold); text-align:center; margin-bottom:8px;">
+          ${currentLang === 'zh' ? '安裝 BottleSense 到手機主畫面' : 'Install BottleSense to Home Screen'}
+        </h3>
+        <p style="font-size:13px; color:var(--text-muted); text-align:center; line-height:1.5; margin-bottom:16px;">
+          ${currentLang === 'zh' ? '安裝為獨立 App 後，即可享有全螢幕沉浸體驗、隱藏瀏覽器網址列、以及秒開離線酒窖！' : 'Install as a standalone App for full-screen immersive view and fast offline access!'}
+        </p>
+
+        <div style="background:var(--surface-2); border:1px solid var(--gold-dim); border-radius:12px; padding:14px; font-size:13px; color:var(--text); line-height:1.6; margin-bottom:16px;">
+          ${isIOS ? `
+            <strong>🍎 iOS (iPhone / iPad) 安裝步驟：</strong><br>
+            1. 點擊 Safari 瀏覽器底部的 <strong>「分享」圖示</strong>（帶有箭頭的方框 ⎋）<br>
+            2. 在彈出的選單中往下滑動，點擊 <strong>「加入主畫面」(Add to Home Screen)</strong><br>
+            3. 點擊右上角的 <strong>「新增」</strong> 即可像真實 App 一樣使用！
+          ` : `
+            <strong>🤖 Android / 電腦瀏覽器安裝步驟：</strong><br>
+            1. 點擊瀏覽器右上角選單（三個點點 <strong>⋮</strong>）<br>
+            2. 選擇 <strong>「安裝應用程式」</strong> 或 <strong>「加至主畫面」</strong><br>
+            3. 確認後即可在桌面秒速開啟 BottleSense！
+          `}
+        </div>
+
+        <button class="btn btn-primary btn-block" style="padding:10px;" onclick="closeModal()">
+          ${currentLang === 'zh' ? '我知道了' : 'Got it'}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
 
 async function initApp() {
   try {
