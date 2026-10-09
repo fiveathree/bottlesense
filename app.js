@@ -82,6 +82,7 @@ const I18N = {
     recent_title: "最近加入",
     view_all: "查看全部 →",
     empty_cellar: "酒櫃目前是空的<br>先拍一瓶酒標開始吧。",
+    empty_recent_loggedin: "尚未有最近加入的酒款<br>拍一瓶酒標，開始建立你的酒窖。",
     space_cooler: "⚡ 未飲",
     space_wood: "🪵 已飲",
     space_bar: "🥃 飲完",
@@ -138,6 +139,7 @@ const I18N = {
     recent_title: "Recently Added",
     view_all: "View All →",
     empty_cellar: "Your cellar is empty.<br>Snap a bottle label to begin.",
+    empty_recent_loggedin: "No recent bottles yet.<br>Snap a label to start building your cellar.",
     space_cooler: "⚡ Unopened",
     space_wood: "🪵 Opened",
     space_bar: "🥃 Finished",
@@ -370,6 +372,10 @@ function pickRandomBottle() {
 function recentBottleHTML() {
   const list = (window.cellar || []).slice(0, 3);
   if (!list.length) {
+    // 已登入：唔再顯示「已有帳號？登入」按鈕
+    if (localStorage.getItem('bottlesense_account_bound')) {
+      return `<div class="empty-shelf">${t('empty_recent_loggedin')}</div>`;
+    }
     return `<div class="empty-shelf">${t('empty_cellar')}<div style="margin-top:10px;"><button class="btn btn-ghost btn-sm" onclick="openLoginModal()" style="font-size:12px; color:var(--gold); border-color:var(--gold-dim);">🔑 ${currentLang==='zh'?'已有帳號？點此電郵登入還原':'Have an account? Log in via Email'}</button></div></div>`;
   }
   return list.map(bottleCardHTML).join('');
