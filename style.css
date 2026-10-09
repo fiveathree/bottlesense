@@ -37,10 +37,15 @@ html, body {
   margin: 0;
   padding: 0;
   overflow: hidden;
+  overflow-x: hidden !important;
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
   display: flex;
   justify-content: center;
   -webkit-font-smoothing: antialiased;
   font-size: 16px;
+  touch-action: pan-y pinch-zoom;
 }
 
 #app {
@@ -52,6 +57,8 @@ html, body {
   flex-direction: column;
   position: relative;
   overflow: hidden;
+  overflow-x: hidden !important;
+  box-sizing: border-box;
   transition: max-width 0.3s ease;
 }
 
@@ -141,11 +148,21 @@ main {
   flex: 1;
   padding: 4px 18px calc(135px + env(safe-area-inset-bottom, 20px));
   overflow-y: auto;
+  overflow-x: hidden !important;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
 }
 
 .view {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden !important;
   animation: fadeIn 0.3s ease;
 }
 @keyframes fadeIn {
@@ -651,24 +668,29 @@ main {
   margin-top: 10px;
   overflow-x: auto;
   scrollbar-width: none;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
 }
 .destination-strip::-webkit-scrollbar {
   display: none;
 }
 .dest-pill {
-  flex: 1;
-  min-width: 72px;
+  flex: 1 0 auto;
+  min-width: 68px;
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 8px 6px;
   text-align: center;
   cursor: pointer;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-muted);
   white-space: nowrap;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 .dest-pill.active {
   background: rgba(212, 175, 55, 0.15);
@@ -712,6 +734,10 @@ main {
   background: linear-gradient(180deg, var(--surface) 0%, #161810 100%);
   padding: 24px 20px;
   position: relative;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 .confidence-seal {
   position: absolute;
@@ -726,6 +752,8 @@ main {
   justify-content: center;
   font-family: var(--mono);
   border: 2px solid currentColor;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 .seal-high { color: var(--green-ok); }
 .seal-medium { color: var(--gold); }
@@ -739,6 +767,9 @@ main {
   font-size: 8.5px;
   text-transform: uppercase;
   margin-top: 2px;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+  font-weight: 600;
 }
 .label-eyebrow {
   font-family: var(--mono);
@@ -755,19 +786,25 @@ main {
   line-height: 1.25;
   max-width: 76%;
   margin-bottom: 6px;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 .label-sub {
   font-size: 15px;
   color: var(--text-muted);
   max-width: 76%;
   margin-bottom: 16px;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 .label-facts {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px 16px;
   padding-top: 16px;
   border-top: 1px dashed var(--line);
+  width: 100%;
+  box-sizing: border-box;
 }
 .fact-label {
   font-family: var(--mono);
@@ -781,6 +818,8 @@ main {
   margin-top: 3px;
   color: var(--text);
   font-weight: 500;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .radar-wrap {
@@ -792,6 +831,14 @@ main {
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.radar-wrap svg {
+  max-width: 100%;
+  height: auto;
 }
 .radar-wrap h3 {
   font-family: var(--serif);
@@ -867,6 +914,10 @@ main {
   border: 1px solid var(--line);
   border-radius: 18px;
   padding: 20px 18px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 .info-block h3 {
   font-family: var(--serif);
