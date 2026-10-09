@@ -2469,39 +2469,29 @@ async function deleteBottle(id) {
 
 function renderSettings() {
   const key = localStorage.getItem('bottlesense_sync_key') || '';
-  const owner = localStorage.getItem('bottlesense_owner_name') || '品飲同好';
   const boundAccount = localStorage.getItem('bottlesense_account_bound');
   const cellarCount = (window.cellar || []).length;
 
   let accountSectionHTML = '';
 
   if (boundAccount) {
-    // 1. 已登入狀態：不顯示登入輸入框，顯示帳號資訊與登出機制 (Logout = 清空本機資料)
+    // 1. 已登入狀態：不顯示登入輸入框，顯示電郵帳號與登出機制 (Logout = 清空本機資料)
     accountSectionHTML = `
       <div style="background:linear-gradient(180deg, var(--surface-2) 0%, #161810 100%); border:1px solid var(--gold-dim); border-radius:14px; padding:16px; margin-bottom:14px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
           <div style="font-size:12px; font-family:var(--mono); color:var(--gold); font-weight:700;">
-            ✓ ${currentLang === 'zh' ? '已登入雲端帳號' : 'Logged In Account'}
+            ✓ ${currentLang === 'zh' ? '已綁定電郵帳號' : 'Bound Email Account'}
           </div>
           <span style="font-size:11px; background:rgba(34,197,94,0.15); color:var(--green-ok); border:1px solid rgba(34,197,94,0.3); padding:2px 8px; border-radius:999px;">
             ● ${currentLang === 'zh' ? '雲端即時同步' : 'Cloud Synced'}
           </span>
         </div>
 
-        <div style="font-family:var(--serif); font-size:20px; font-weight:700; color:var(--text); margin-bottom:4px; word-break:break-all;">
-          👤 ${esc(boundAccount)}
+        <div style="font-family:var(--serif); font-size:19px; font-weight:700; color:var(--text); margin-bottom:4px; word-break:break-all;">
+          ✉️ ${esc(boundAccount)}
         </div>
-        <div style="font-size:12.5px; color:var(--text-muted); margin-bottom:12px;">
-          ${currentLang === 'zh' ? `雲端目前妥善備份 ${cellarCount} 支藏酒` : `${cellarCount} bottles safely backed up in cloud`}
-        </div>
-
-        <div style="background:rgba(0,0,0,0.3); border:1px solid var(--line); border-radius:10px; padding:10px; margin-bottom:14px;">
-          <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); margin-bottom:4px;">
-            ${currentLang === 'zh' ? '帳號綁定專屬同步碼 (Sync Key)' : 'Account Sync Key'}
-          </div>
-          <div style="font-family:var(--mono); font-size:13px; color:var(--gold); font-weight:700; letter-spacing:0.5px; user-select:all;">
-            ${esc(key)}
-          </div>
+        <div style="font-size:12.5px; color:var(--text-muted); margin-bottom:14px;">
+          ${currentLang === 'zh' ? `雲端目前已安全備份 ${cellarCount} 支藏酒與手記` : `${cellarCount} bottles & tasting notes safely backed up`}
         </div>
 
         <!-- 登出按鈕：清空本機暫存 -->
@@ -2511,34 +2501,45 @@ function renderSettings() {
       </div>
     `;
   } else {
-    // 2. 未登入狀態：顯示帳密輸入、登入按鈕（Login = 睇返酒啲資料）、註冊綁定、社交授權說明與同步碼還原
+    // 2. 未登入狀態：純 Email 免密碼 OTP 登入/註冊 (註冊在左、登入在右換位)
     accountSectionHTML = `
       <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px;">
-        <div style="font-size:13px; font-weight:700; color:var(--text); margin-bottom:8px;">
-          👤 ${currentLang === 'zh' ? '雲端帳號登入 / 註冊綁定' : 'Login / Register'}
+        <div style="font-size:13px; font-weight:700; color:var(--gold); margin-bottom:6px;">
+          ✉️ ${currentLang === 'zh' ? '純電郵免密碼登入 / 註冊 (OTP)' : 'Email OTP Login / Register'}
         </div>
-        
+        <div style="font-size:11.5px; color:var(--text-faint); margin-bottom:8px; line-height:1.4;">
+          ${currentLang === 'zh' ? '直接輸入 Email 收一次性驗證碼，無須記住密碼，換手機隨時原裝還原！' : 'Passwordless login via Email OTP. Restore your cellar on any device anytime!'}
+        </div>
+
         <div style="font-size:11.5px; font-family:var(--mono); color:var(--text-faint); margin-bottom:3px;">
-          ${currentLang === 'zh' ? '帳號 / 電郵 (Username / Email)' : 'Username / Email'}
+          ${currentLang === 'zh' ? '電郵地址 (Email)' : 'Email Address'}
         </div>
-        <input type="text" id="set-username" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13.5px;" placeholder="${currentLang === 'zh' ? '輸入帳號或 Email' : 'Enter username or email'}">
-        
-        <div style="font-size:11.5px; font-family:var(--mono); color:var(--text-faint); margin-top:8px; margin-bottom:3px;">
-          ${currentLang === 'zh' ? '登入密碼 (Password)' : 'Password'}
+        <input type="email" id="auth-email" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13.5px;" placeholder="${currentLang === 'zh' ? '輸入你的電郵 (例如 user@gmail.com)' : 'Enter email (e.g. user@gmail.com)'}">
+
+        <button class="btn btn-ghost btn-block" id="btn-get-otp" style="border-color:var(--gold-dim); color:var(--gold); padding:9px; font-size:13px; margin-top:8px;" onclick="handleSendEmailOtp()">
+          ${currentLang === 'zh' ? '📨 獲取 6 位數電郵驗證碼' : '📨 Get 6-Digit Email OTP'}
+        </button>
+
+        <!-- OTP 驗證碼輸入區 (發送後平滑展開) -->
+        <div id="otp-input-section" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed var(--line);">
+          <div style="font-size:11.5px; font-family:var(--mono); color:var(--text-faint); margin-bottom:3px;">
+            ${currentLang === 'zh' ? '輸入 6 位數電郵驗證碼' : 'Enter 6-Digit OTP'}
+          </div>
+          <input type="text" id="auth-otp" class="text-input" placeholder="例如：123456" maxlength="6" style="letter-spacing:5px; font-weight:700; font-family:var(--mono); text-align:center; padding:9px; font-size:16px;">
         </div>
-        <input type="password" id="set-password" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13.5px;" placeholder="${currentLang === 'zh' ? '輸入密碼 (至少 6 位)' : 'Enter password (min 6 chars)'}">
-        
-        <div style="display:flex; gap:8px; margin-top:12px;">
-          <button class="btn btn-primary btn-block" style="padding:9px; font-size:13px;" onclick="executeAccountLogin()">
-            ${currentLang === 'zh' ? '登入 (載入酒窖)' : 'Login (Load Cellar)'}
+
+        <!-- 依指定：登入、註冊兩個 Button 換位（註冊在左、登入在右） -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:12px;">
+          <button class="btn btn-ghost btn-block" style="padding:9px; font-size:13px;" onclick="handleVerifyOtp('register')">
+            ${currentLang === 'zh' ? '註冊帳號' : 'Register'}
           </button>
-          <button class="btn btn-ghost btn-block" style="padding:9px; font-size:13px;" onclick="executeSettingsAccountBind()">
-            ${currentLang === 'zh' ? '註冊並綁定' : 'Register & Bind'}
+          <button class="btn btn-primary btn-block" style="padding:9px; font-size:13px;" onclick="handleVerifyOtp('login')">
+            ${currentLang === 'zh' ? '登入酒窖' : 'Login'}
           </button>
         </div>
       </div>
 
-      <!-- 社交帳號一鍵登入說明 -->
+      <!-- 社交帳號一鍵登入 -->
       <div style="margin-bottom:12px;">
         <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); text-align:center; margin-bottom:6px; text-transform:uppercase;">
           ${currentLang === 'zh' ? '或使用社交帳號登入' : 'Or via Social Account'}
@@ -2559,18 +2560,11 @@ function renderSettings() {
         </div>
       </div>
 
-      <!-- 專屬碼換機登入 -->
-      <div style="margin-bottom:12px;">
-        <button class="btn btn-ghost btn-block" style="border-color:var(--gold-dim); color:var(--gold); padding:9px; font-size:13px;" onclick="openSyncKeyAndRestoreModal()">
-          🔄 ${currentLang === 'zh' ? '使用專屬同步碼換機登入' : 'Restore via Sync Key'}
-        </button>
-      </div>
-
       <!-- 最底遊客身分狀態 -->
       <div style="background:rgba(255,255,255,0.02); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
         <span style="font-size:12px; color:var(--text-faint);">${currentLang === 'zh' ? '目前身分狀態：' : 'Status:'}</span>
         <span style="font-size:12.5px; font-weight:600; color:var(--text-muted);">
-          👤 ${currentLang === 'zh' ? '遊客模式 (未登入)' : 'Guest Mode'}
+          👤 ${currentLang === 'zh' ? '遊客模式 (未綁定電郵)' : 'Guest Mode'}
         </span>
       </div>
     `;
@@ -2593,11 +2587,134 @@ function renderSettings() {
   `;
 }
 
+// 發送電郵 OTP 驗證碼
+let otpCountdownTimer = null;
+async function handleSendEmailOtp() {
+  const emailInput = document.getElementById('auth-email');
+  const email = (emailInput?.value || '').trim().toLowerCase();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!email || !emailRegex.test(email)) {
+    showToast(currentLang === 'zh' ? '請輸入有效的電郵地址 (例如 user@gmail.com)' : 'Please enter a valid email address');
+    return;
+  }
+
+  const btn = document.getElementById('btn-get-otp');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = currentLang === 'zh' ? '正在發送驗證碼…' : 'Sending code...';
+  }
+
+  try {
+    const res = await fetch(`${WORKER_API_URL}/api/auth/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '發送失敗');
+
+    // 展開 OTP 輸入框並自動聚焦
+    const sec = document.getElementById('otp-input-section');
+    if (sec) sec.style.display = 'block';
+    const otpInput = document.getElementById('auth-otp');
+    if (otpInput) otpInput.focus();
+
+    // 倒數 60 秒冷卻
+    let countdown = 60;
+    if (otpCountdownTimer) clearInterval(otpCountdownTimer);
+    otpCountdownTimer = setInterval(() => {
+      countdown--;
+      if (btn) {
+        if (countdown > 0) {
+          btn.textContent = currentLang === 'zh' ? `重新發送 (${countdown}s)` : `Resend (${countdown}s)`;
+          btn.disabled = true;
+        } else {
+          clearInterval(otpCountdownTimer);
+          btn.textContent = currentLang === 'zh' ? '重新獲取驗證碼' : 'Resend OTP';
+          btn.disabled = false;
+        }
+      }
+    }, 1000);
+
+    const toastMsg = data.devOtp 
+      ? `✓ 驗證碼已發送至電郵！[測試驗證碼: ${data.devOtp}]`
+      : '✓ 驗證碼已發送至你的電郵，請查收！';
+    showToast(toastMsg);
+  } catch (err) {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = currentLang === 'zh' ? '獲取電郵驗證碼' : 'Get Email OTP';
+    }
+    showToast('發送失敗: ' + err.message);
+  }
+}
+
+// 驗證 OTP 並執行登入或註冊
+async function handleVerifyOtp(actionType) {
+  const emailInput = document.getElementById('auth-email');
+  const otpInput = document.getElementById('auth-otp');
+  const email = (emailInput?.value || '').trim().toLowerCase();
+  const otp = (otpInput?.value || '').trim();
+  const syncKey = localStorage.getItem('bottlesense_sync_key') || '';
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email || !emailRegex.test(email)) {
+    showToast(currentLang === 'zh' ? '請先填寫正確的電郵地址' : 'Please enter valid email');
+    return;
+  }
+  if (!otp || otp.length < 6) {
+    showToast(currentLang === 'zh' ? '請填寫完整的 6 位數驗證碼' : 'Please enter 6-digit OTP');
+    return;
+  }
+
+  showToast(currentLang === 'zh' ? '正在驗證並載入酒窖…' : 'Verifying and syncing cellar...');
+
+  try {
+    const res = await fetch(`${WORKER_API_URL}/api/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        otp,
+        syncKey,
+        actionType,
+        cellar: window.cellar || []
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '驗證失敗');
+
+    // 還原雲端藏酒到本地 IndexedDB
+    await restoreCellarToLocal(data.cellar || [], data.syncKey, data.email);
+    localStorage.setItem('bottlesense_account_bound', data.email);
+    localStorage.setItem('bottlesense_owner_name', data.email.split('@')[0]);
+    localStorage.setItem('bottlesense_registered', 'true');
+
+    if (otpCountdownTimer) clearInterval(otpCountdownTimer);
+
+    const successMsg = actionType === 'register'
+      ? (currentLang === 'zh' ? '✓ 註冊成功！現已綁定電郵雲端' : '✓ Registered successfully!')
+      : (currentLang === 'zh' ? `✓ 登入成功！已還原 ${(data.cellar || []).length} 支藏酒` : `✓ Logged in! Restored ${(data.cellar || []).length} bottles`);
+    showToast(successMsg);
+
+    // 重新渲染設定頁 (轉為已登入狀態)
+    renderSettings();
+
+    // 重新渲染主畫面（讓用戶立刻睇返所有酒的資料）
+    if (currentView === 'cellar') renderCellar();
+    else if (currentView === 'home') renderHome();
+    else if (currentView === 'explore') renderExplore();
+  } catch (err) {
+    showToast('驗證失敗: ' + err.message);
+  }
+}
+
 // 登出機制：清空本地 IndexedDB 藏酒、清除登入標記、重設遊客碼 (Logout = 清空資料)
 async function executeAccountLogout() {
   const confirmMsg = currentLang === 'zh'
-    ? '確定要登出帳號？登出後將會清空本機暫存藏酒。雲端酒窖資料已安全儲存，重新登入即可再次載入查看。'
-    : 'Are you sure you want to log out? Local data on this device will be cleared. Cloud data is safely backed up and can be restored anytime by logging in again.';
+    ? '確定要登出帳號？登出後將會清空本機暫存藏酒。雲端酒窖資料已安全備份，重新輸入電郵驗證即可再次載入查看。'
+    : 'Are you sure you want to log out? Local data on this device will be cleared. Cloud data is safely backed up and can be restored anytime by verifying your email again.';
 
   if (!confirm(confirmMsg)) return;
 
@@ -2633,92 +2750,6 @@ async function executeAccountLogout() {
   renderSettings();
 }
 
-// 登入機制：透過帳密抓回雲端備份之完整酒窖 (Login = 睇返酒啲資料)
-async function executeAccountLogin() {
-  const username = (document.getElementById('set-username')?.value || '').trim().toLowerCase();
-  const password = document.getElementById('set-password')?.value || '';
-
-  if (!username || !password) {
-    showToast(currentLang === 'zh' ? '請輸入帳號與密碼！' : 'Please enter username and password!');
-    return;
-  }
-
-  showToast(currentLang === 'zh' ? '正在驗證並載入雲端酒窖…' : 'Logging in and fetching cellar...');
-
-  try {
-    const res = await fetch(`${WORKER_API_URL}/api/account/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '登入失敗');
-
-    // 還原雲端藏酒到本地 IndexedDB
-    await restoreCellarToLocal(data.cellar || [], data.syncKey, data.ownerName || username);
-    localStorage.setItem('bottlesense_account_bound', data.ownerName || username);
-    localStorage.setItem('bottlesense_registered', 'true');
-
-    showToast(currentLang === 'zh' ? `✓ 登入成功！已還原 ${(data.cellar || []).length} 支藏酒` : `✓ Logged in! Restored ${(data.cellar || []).length} bottles`);
-
-    // 重新渲染設定頁 (轉為「已登入」模式，不再顯示輸入框)
-    renderSettings();
-
-    // 重新渲染主視圖，讓用戶即刻睇返酒啲資料！
-    if (currentView === 'cellar') renderCellar();
-    else if (currentView === 'home') renderHome();
-    else if (currentView === 'explore') renderExplore();
-  } catch(err) {
-    showToast(currentLang === 'zh' ? ('登入失敗: ' + err.message) : ('Login failed: ' + err.message));
-  }
-}
-
-// 註冊綁定現有酒窖
-async function executeSettingsAccountBind() {
-  const username = (document.getElementById('set-username')?.value || '').trim().toLowerCase();
-  const password = document.getElementById('set-password')?.value || '';
-  const syncKey = localStorage.getItem('bottlesense_sync_key') || '';
-
-  if (!username || !password) {
-    showToast(currentLang === 'zh' ? '請輸入帳號與密碼！' : 'Please enter username and password!');
-    return;
-  }
-  if (username.length < 3) {
-    showToast(currentLang === 'zh' ? '⚠️ 帳號名稱長度至少需 3 個字元' : '⚠️ Username must be at least 3 characters');
-    return;
-  }
-  if (password.length < 6) {
-    showToast(currentLang === 'zh' ? '⚠️ 密碼長度至少需 6 個字元' : '⚠️ Password must be at least 6 characters');
-    return;
-  }
-
-  showToast(currentLang === 'zh' ? '正在建立雲端帳號並綁定酒窖…' : 'Registering and binding cellar...');
-
-  try {
-    // 確保當前本地酒窖已同步至雲端
-    await syncCellarToCloud(window.cellar || []);
-
-    const res = await fetch(`${WORKER_API_URL}/api/account/bind`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, syncKey })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '註冊綁定失敗');
-
-    localStorage.setItem('bottlesense_owner_name', username);
-    localStorage.setItem('bottlesense_account_bound', username);
-    localStorage.setItem('bottlesense_registered', 'true');
-
-    showToast(currentLang === 'zh' ? '✓ 雲端帳號建立並綁定成功！' : '✓ Account registered and bound successfully!');
-
-    // 重新渲染設定頁 (轉為已登入狀態，不再顯示輸入框)
-    renderSettings();
-  } catch(err) {
-    showToast(currentLang === 'zh' ? ('綁定失敗: ' + err.message) : ('Binding failed: ' + err.message));
-  }
-}
-
 function executeSocialLogin(provider) {
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="closeModal()">
@@ -2730,8 +2761,8 @@ function executeSocialLogin(provider) {
           真實的 <strong>${provider} 一鍵登入</strong>需依據各大科技公司安全規範，至 ${provider === 'Google' ? 'Google Cloud Console' : provider === 'Apple' ? 'Apple Developer' : 'Meta for Developers'} 後台配置 <code>OAuth Client ID</code> 與授權回呼網域。
         </p>
         <div style="background:rgba(212,175,55,0.1); border:1px solid var(--gold-dim); border-radius:12px; padding:12px; font-size:13px; color:var(--gold); line-height:1.5; margin-bottom:16px;">
-          💡 <strong>現已全面啟用的 100% 真實雲端儲存：</strong><br>
-          請直接在上方設定「<strong>自訂帳號與密碼</strong>」（已配備 SHA-256 加鹽雜湊）或使用「<strong>專屬同步碼 (Sync Key)</strong>」，即可跨手機即時安全登入與完整還原酒窖！
+          💡 <strong>現已全面啟用的 100% 真實免密碼雲端儲存：</strong><br>
+          請直接在上方使用「<strong>純電郵免密碼登入 (OTP)</strong>」，輸入 Email 收取 6 位數驗證碼，即可跨手機即時登入與完整還原酒窖！
         </div>
         <button class="btn btn-primary btn-block" style="padding:10px;" onclick="closeModal()">我知道了</button>
       </div>
