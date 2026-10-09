@@ -759,50 +759,164 @@ function renderBottleDetail(id) {
 
 function renderRadar(vm) {
   const dimKeys = ['mv','ql','dv','pv','sv','gv','cv','sto'];
-  const dimZh = { mv:"市場價值", ql:"品質", dv:"飲用價值", pv:"配餐價值", sv:"社交話題", gv:"送禮價值", cv:"收藏價值", sto:"保存價值" };
-  const dimEn = { mv:"Market", ql:"Quality", dv:"Drinking", pv:"Pairing", sv:"Social", gv:"Gifting", cv:"Collection", sto:"Storage" };
+  const dimZh = { 
+    mv: "市場價值", 
+    ql: "品質工藝", 
+    dv: "飲用價值", 
+    pv: "配餐價值", 
+    sv: "社交話題", 
+    gv: "送禮價值", 
+    cv: "收藏價值", 
+    sto: "保存潛力" 
+  };
+  const dimEn = { 
+    mv: "Market", 
+    ql: "Quality", 
+    dv: "Drinking", 
+    pv: "Pairing", 
+    sv: "Social", 
+    gv: "Gifting", 
+    cv: "Collection", 
+    sto: "Storage" 
+  };
+  const dimIcons = { 
+    mv: "📈", 
+    ql: "🏆", 
+    dv: "🍷", 
+    pv: "🍽️", 
+    sv: "💬", 
+    gv: "🎁", 
+    cv: "💎", 
+    sto: "⏳" 
+  };
   const labels = currentLang === 'zh' ? dimZh : dimEn;
 
   const vals = dimKeys.map(k => Number(vm?.[k] || 0));
   if (!vals.some(v => v > 0)) return '';
 
-  const cx = 130, cy = 130, R = 95;
+  const cx = 190, cy = 185, R = 100;
   const n = dimKeys.length;
+
   const points = dimKeys.map((k,i)=>{
     const angle = (Math.PI*2*i/n) - Math.PI/2;
-    const val = Math.max(0, Math.min(100, vm[k] || 75));
+    const val = Math.max(0, Math.min(100, Number(vm[k] || 75)));
     const r = (val/100) * R;
     return [cx + r*Math.cos(angle), cy + r*Math.sin(angle)];
   });
+
   const axisPoints = dimKeys.map((k,i)=>{
     const angle = (Math.PI*2*i/n) - Math.PI/2;
     return [cx + R*Math.cos(angle), cy + R*Math.sin(angle)];
   });
 
-  const polygon = points.map(p=>p.join(',')).join(' ');
-  const rings = [0.25,0.5,0.75,1].map(f=>{
+  const polygon = points.map(p=>p.map(coord => coord.toFixed(1)).join(',')).join(' ');
+
+  // 1. 同心多邊形網格環 (25%, 50%, 75%, 100%)
+  const rings = [0.25, 0.5, 0.75, 1.0].map(f => {
     const ringPts = dimKeys.map((k,i)=>{
       const angle = (Math.PI*2*i/n) - Math.PI/2;
-      return [cx + R*f*Math.cos(angle), cy + R*f*Math.sin(angle)].join(',');
+      return [cx + R*f*Math.cos(angle), cy + R*f*Math.sin(angle)].map(c => c.toFixed(1)).join(',');
     }).join(' ');
-    return `<polygon points="${ringPts}" fill="none" stroke="#333722" stroke-width="1"/>`;
+    const isOuter = f === 1.0;
+    return `<polygon points="${ringPts}" fill="${isOuter ? 'rgba(26,29,19,0.5)' : 'none'}" stroke="${isOuter ? 'rgba(212,175,55,0.4)' : '#333722'}" stroke-width="${isOuter ? '1.5' : '1'}"/>`;
   }).join('');
-  const axes = axisPoints.map(p=>`<line x1="${cx}" y1="${cy}" x2="${p[0]}" y2="${p[1]}" stroke="#333722" stroke-width="1"/>`).join('');
 
-  const legend = dimKeys.map(k=>`
-    <div class="legend-row"><span class="dim">${labels[k]}</span><span class="val">${vm[k] ?? '75'}</span></div>
-  `).join('');
+  // 2. 刻度放射軸線
+  const axes = axisPoints.map(p=>`<line x1="${cx}" y1="${cy}" x2="${p[0].toFixed(1)}" y2="${p[1].toFixed(1)}" stroke="rgba(212,175,55,0.22)" stroke-width="1" stroke-dasharray="2,2"/>`).join('');
+
+  // 3. 刻度標籤 (50, 100)
+  const scaleMarkers = `
+    <text x="${cx + 4}" y="${cy - R * 0.5 + 3}" font-size="8" fill="rgba(255,255,255,0.35)" font-family="var(--mono)">50</text>
+    <text x="${cx + 4}" y="${cy - R + 3}" font-size="8" fill="rgba(212,175,55,0.7)" font-family="var(--mono)" font-weight="700">100</text>
+  `;
+
+  // 4. 八個軸端外側清晰標註（維度名稱 + 金色分數）
+  const axisLabels = dimKeys.map((k, i) => {
+    const angle = (Math.PI*2*i/n) - Math.PI/2;
+    const cosA = Math.cos(angle);
+    const sinA = Math.sin(angle);
+    const lx = cx + (R + 25) * cosA;
+    const ly = cy + (R + 22) * sinA;
+    const val = Number(vm[k] || 75);
+
+    let anchor = "middle";
+    let baseline = "central";
+    if (Math.abs(cosA) < 0.25) {
+      anchor = "middle";
+      baseline = sinA < 0 ? "text-after-edge" : "text-before-edge";
+    } else if (cosA > 0) {
+      anchor = "start";
+      baseline = "central";
+    } else {
+      anchor = "end";
+      baseline = "central";
+    }
+
+    return `
+      <text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anchor}" dominant-baseline="${baseline}" font-size="11.5" font-family="var(--sans)" fill="#EDEDED">
+        ${labels[k]} <tspan fill="#D4AF37" font-weight="700" font-family="var(--mono)">${val}</tspan>
+      </text>
+    `;
+  }).join('');
+
+  // 5. 下方八維圖例卡片網格
+  const legendCards = dimKeys.map(k => {
+    const val = Math.max(0, Math.min(100, Number(vm[k] || 75)));
+    return `
+      <div class="radar-dim-card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:12px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            ${dimIcons[k]} ${labels[k]}
+          </span>
+          <span style="font-family:var(--mono); font-size:13px; font-weight:700; color:var(--gold); margin-left:6px;">
+            ${val}<span style="font-size:9.5px; color:var(--text-faint); font-weight:normal;">/100</span>
+          </span>
+        </div>
+        <div class="dim-bar-track">
+          <div class="dim-bar-fill" style="width:${val}%;"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
 
   return `
     <div class="radar-wrap">
-      <h3>${currentLang === 'zh' ? '八維價值地圖' : 'Value Profile Map'}</h3>
-      <svg width="260" height="260" viewBox="0 0 260 260">
+      <div style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h3 style="margin-bottom:0; font-family:var(--serif); font-size:18px;">
+          ${currentLang === 'zh' ? '八維價值地圖' : 'Value Profile Map'}
+        </h3>
+        <span style="font-size:11px; font-family:var(--mono); color:var(--gold); border:1px solid var(--gold-dim); padding:2px 8px; border-radius:999px;">
+          8-DIM RADAR
+        </span>
+      </div>
+
+      <svg width="100%" height="auto" viewBox="0 0 380 370" style="max-width:380px; display:block; margin:0 auto; overflow:visible;">
+        <defs>
+          <radialGradient id="radarFillGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="rgba(212,175,55,0.42)"/>
+            <stop offset="100%" stop-color="rgba(212,175,55,0.12)"/>
+          </radialGradient>
+          <filter id="goldGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+          </filter>
+        </defs>
         ${rings}
         ${axes}
-        <polygon points="${polygon}" fill="rgba(212,175,55,0.25)" stroke="#D4AF37" stroke-width="2"/>
-        ${points.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="#D4AF37"/>`).join('')}
+        ${scaleMarkers}
+        <!-- 數值多邊形 -->
+        <polygon points="${polygon}" fill="url(#radarFillGrad)" stroke="#D4AF37" stroke-width="2.5" filter="url(#goldGlow)"/>
+        <!-- 頂點光圈 -->
+        ${points.map(p => `
+          <circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="7" fill="rgba(212,175,55,0.3)"/>
+          <circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#D4AF37" stroke="#161810" stroke-width="1.5"/>
+        `).join('')}
+        <!-- 8 個軸尖端標註 (名稱 + 分數) -->
+        ${axisLabels}
       </svg>
-      <div class="radar-legend">${legend}</div>
+
+      <!-- 下方八維進度條卡片 -->
+      <div class="radar-legend-grid">${legendCards}</div>
     </div>
   `;
 }
@@ -2357,6 +2471,110 @@ function renderSettings() {
   const key = localStorage.getItem('bottlesense_sync_key') || '';
   const owner = localStorage.getItem('bottlesense_owner_name') || '品飲同好';
   const boundAccount = localStorage.getItem('bottlesense_account_bound');
+  const cellarCount = (window.cellar || []).length;
+
+  let accountSectionHTML = '';
+
+  if (boundAccount) {
+    // 1. 已登入狀態：不顯示登入輸入框，顯示帳號資訊與登出機制 (Logout = 清空本機資料)
+    accountSectionHTML = `
+      <div style="background:linear-gradient(180deg, var(--surface-2) 0%, #161810 100%); border:1px solid var(--gold-dim); border-radius:14px; padding:16px; margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <div style="font-size:12px; font-family:var(--mono); color:var(--gold); font-weight:700;">
+            ✓ ${currentLang === 'zh' ? '已登入雲端帳號' : 'Logged In Account'}
+          </div>
+          <span style="font-size:11px; background:rgba(34,197,94,0.15); color:var(--green-ok); border:1px solid rgba(34,197,94,0.3); padding:2px 8px; border-radius:999px;">
+            ● ${currentLang === 'zh' ? '雲端即時同步' : 'Cloud Synced'}
+          </span>
+        </div>
+
+        <div style="font-family:var(--serif); font-size:20px; font-weight:700; color:var(--text); margin-bottom:4px; word-break:break-all;">
+          👤 ${esc(boundAccount)}
+        </div>
+        <div style="font-size:12.5px; color:var(--text-muted); margin-bottom:12px;">
+          ${currentLang === 'zh' ? `雲端目前妥善備份 ${cellarCount} 支藏酒` : `${cellarCount} bottles safely backed up in cloud`}
+        </div>
+
+        <div style="background:rgba(0,0,0,0.3); border:1px solid var(--line); border-radius:10px; padding:10px; margin-bottom:14px;">
+          <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); margin-bottom:4px;">
+            ${currentLang === 'zh' ? '帳號綁定專屬同步碼 (Sync Key)' : 'Account Sync Key'}
+          </div>
+          <div style="font-family:var(--mono); font-size:13px; color:var(--gold); font-weight:700; letter-spacing:0.5px; user-select:all;">
+            ${esc(key)}
+          </div>
+        </div>
+
+        <!-- 登出按鈕：清空本機暫存 -->
+        <button class="btn btn-wine btn-block" style="padding:10px; font-size:13.5px;" onclick="executeAccountLogout()">
+          ${currentLang === 'zh' ? '登出帳號 (清空本機資料)' : 'Log Out & Clear Device'}
+        </button>
+      </div>
+    `;
+  } else {
+    // 2. 未登入狀態：顯示帳密輸入、登入按鈕（Login = 睇返酒啲資料）、註冊綁定、社交授權說明與同步碼還原
+    accountSectionHTML = `
+      <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px;">
+        <div style="font-size:13px; font-weight:700; color:var(--text); margin-bottom:8px;">
+          👤 ${currentLang === 'zh' ? '雲端帳號登入 / 註冊綁定' : 'Login / Register'}
+        </div>
+        
+        <div style="font-size:11.5px; font-family:var(--mono); color:var(--text-faint); margin-bottom:3px;">
+          ${currentLang === 'zh' ? '帳號 / 電郵 (Username / Email)' : 'Username / Email'}
+        </div>
+        <input type="text" id="set-username" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13.5px;" placeholder="${currentLang === 'zh' ? '輸入帳號或 Email' : 'Enter username or email'}">
+        
+        <div style="font-size:11.5px; font-family:var(--mono); color:var(--text-faint); margin-top:8px; margin-bottom:3px;">
+          ${currentLang === 'zh' ? '登入密碼 (Password)' : 'Password'}
+        </div>
+        <input type="password" id="set-password" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13.5px;" placeholder="${currentLang === 'zh' ? '輸入密碼 (至少 6 位)' : 'Enter password (min 6 chars)'}">
+        
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button class="btn btn-primary btn-block" style="padding:9px; font-size:13px;" onclick="executeAccountLogin()">
+            ${currentLang === 'zh' ? '登入 (載入酒窖)' : 'Login (Load Cellar)'}
+          </button>
+          <button class="btn btn-ghost btn-block" style="padding:9px; font-size:13px;" onclick="executeSettingsAccountBind()">
+            ${currentLang === 'zh' ? '註冊並綁定' : 'Register & Bind'}
+          </button>
+        </div>
+      </div>
+
+      <!-- 社交帳號一鍵登入說明 -->
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); text-align:center; margin-bottom:6px; text-transform:uppercase;">
+          ${currentLang === 'zh' ? '或使用社交帳號登入' : 'Or via Social Account'}
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px;">
+          <button class="social-login-btn google-btn" onclick="executeSocialLogin('Google')">
+            <svg viewBox="0 0 24 24" width="15" height="15"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/><path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15.1c0 2.8.7 5.4 1.9 7.8l3.7-2.9z"/><path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2-6.4-4.8L1.9 16.9C3.7 20.6 7.5 23.5 12 23.5z"/></svg>
+            <span>Google</span>
+          </button>
+          <button class="social-login-btn apple-btn" onclick="executeSocialLogin('Apple')">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.64-.78 1.08-1.86.96-2.95-1 .04-2.14.66-2.79 1.43-.57.66-.99 1.76-.85 2.81 1.11.09 2.04-.51 2.68-1.29z"/></svg>
+            <span>Apple</span>
+          </button>
+          <button class="social-login-btn fb-btn" onclick="executeSocialLogin('Facebook')">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+            <span>FB</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 專屬碼換機登入 -->
+      <div style="margin-bottom:12px;">
+        <button class="btn btn-ghost btn-block" style="border-color:var(--gold-dim); color:var(--gold); padding:9px; font-size:13px;" onclick="openSyncKeyAndRestoreModal()">
+          🔄 ${currentLang === 'zh' ? '使用專屬同步碼換機登入' : 'Restore via Sync Key'}
+        </button>
+      </div>
+
+      <!-- 最底遊客身分狀態 -->
+      <div style="background:rgba(255,255,255,0.02); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:12px; color:var(--text-faint);">${currentLang === 'zh' ? '目前身分狀態：' : 'Status:'}</span>
+        <span style="font-size:12.5px; font-weight:600; color:var(--text-muted);">
+          👤 ${currentLang === 'zh' ? '遊客模式 (未登入)' : 'Guest Mode'}
+        </span>
+      </div>
+    `;
+  }
 
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
@@ -2365,58 +2583,7 @@ function renderSettings() {
           ${t('settings_title')}
         </h2>
 
-        <!-- 1. 帳密直接放出嚟填，唔洗寫方案 -->
-        <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px;">
-          <div style="font-size:13px; font-weight:700; color:var(--text); margin-bottom:8px;">
-            👤 雲端帳號綁定 / 登入
-          </div>
-          
-          <div style="font-size:11.5px; font-family:var(--mono); color:var(--text-faint); margin-bottom:3px;">帳號 / 電郵 (Username / Email)</div>
-          <input type="text" id="set-username" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13.5px;" value="${esc(boundAccount || (owner !== '品飲同好' ? owner : ''))}" placeholder="輸入你的帳號或 Email">
-          
-          <div style="font-size:11.5px; font-family:var(--mono); color:var(--text-faint); margin-top:8px; margin-bottom:3px;">登入密碼 (Password)</div>
-          <input type="password" id="set-password" class="text-input" style="margin-top:0; padding:9px 12px; font-size:13.5px;" placeholder="輸入專屬密碼">
-          
-          <button class="btn btn-primary btn-block" style="padding:9px; margin-top:12px; font-size:13px;" onclick="executeSettingsAccountAction()">
-            ${boundAccount ? '更新帳號綁定' : '儲存並綁定雲端帳號'}
-          </button>
-        </div>
-
-        <!-- 2. 帳密下面加 Google, FB, Apple 等一鍵 login -->
-        <div style="margin-bottom:12px;">
-          <div style="font-size:11px; font-family:var(--mono); color:var(--text-faint); text-align:center; margin-bottom:6px; text-transform:uppercase;">
-            或使用社交帳號一鍵登入
-          </div>
-          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px;">
-            <button class="social-login-btn google-btn" onclick="executeSocialLogin('Google')">
-              <svg viewBox="0 0 24 24" width="15" height="15"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/><path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15.1c0 2.8.7 5.4 1.9 7.8l3.7-2.9z"/><path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2-6.4-4.8L1.9 16.9C3.7 20.6 7.5 23.5 12 23.5z"/></svg>
-              <span>Google</span>
-            </button>
-            <button class="social-login-btn apple-btn" onclick="executeSocialLogin('Apple')">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.64-.78 1.08-1.86.96-2.95-1 .04-2.14.66-2.79 1.43-.57.66-.99 1.76-.85 2.81 1.11.09 2.04-.51 2.68-1.29z"/></svg>
-              <span>Apple</span>
-            </button>
-            <button class="social-login-btn fb-btn" onclick="executeSocialLogin('Facebook')">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-              <span>FB</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- 3. 專屬碼同換手機登入合成一粒 button 放一鍵 login 下面 -->
-        <div style="margin-bottom:12px;">
-          <button class="btn btn-ghost btn-block" style="border-color:var(--gold-dim); color:var(--gold); padding:9px; font-size:13px;" onclick="openSyncKeyAndRestoreModal()">
-            🔄 專屬同步碼與換手機登入
-          </button>
-        </div>
-
-        <!-- 4. 最底繼續放遊客身份 -->
-        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-          <span style="font-size:12px; color:var(--text-faint);">目前身分狀態：</span>
-          <span style="font-size:12.5px; font-weight:600; color:${boundAccount ? 'var(--green-ok)' : 'var(--text-muted)'};">
-            ${boundAccount ? '✓ 已綁定 (' + esc(boundAccount) + ')' : '👤 遊客模式 (未綁定)'}
-          </span>
-        </div>
+        ${accountSectionHTML}
 
         <button class="btn btn-ghost btn-block" style="padding:9px; font-size:13px; color:var(--text-faint); border-color:transparent;" onclick="closeModal()">
           ${t('btn_close')}
@@ -2426,42 +2593,129 @@ function renderSettings() {
   `;
 }
 
-async function executeSettingsAccountAction() {
-  const username = (document.getElementById('set-username')?.value || '').trim();
+// 登出機制：清空本地 IndexedDB 藏酒、清除登入標記、重設遊客碼 (Logout = 清空資料)
+async function executeAccountLogout() {
+  const confirmMsg = currentLang === 'zh'
+    ? '確定要登出帳號？登出後將會清空本機暫存藏酒。雲端酒窖資料已安全儲存，重新登入即可再次載入查看。'
+    : 'Are you sure you want to log out? Local data on this device will be cleared. Cloud data is safely backed up and can be restored anytime by logging in again.';
+
+  if (!confirm(confirmMsg)) return;
+
+  // 1. 清空本地 IndexedDB
+  if (typeof clearLocalCellar === 'function') {
+    await clearLocalCellar();
+  } else {
+    window.cellar = [];
+  }
+
+  // 2. 清空內存藏酒
+  window.cellar = [];
+
+  // 3. 清除帳號綁定狀態
+  localStorage.removeItem('bottlesense_account_bound');
+  localStorage.removeItem('bottlesense_owner_name');
+  localStorage.removeItem('bottlesense_registered');
+  
+  // 4. 重置為全新乾淨的遊客同步碼
+  const newGuestKey = 'BTL-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+  localStorage.setItem('bottlesense_sync_key', newGuestKey);
+  mySyncKey = newGuestKey;
+
+  showToast(currentLang === 'zh' ? '✓ 已成功登出並清空本機藏酒資料' : '✓ Logged out and cleared local data');
+
+  // 5. 立即重新渲染主畫面（呈現 0 支酒的乾淨空狀態）
+  if (currentView === 'cellar') renderCellar();
+  else if (currentView === 'home') renderHome();
+  else if (currentView === 'explore') renderExplore();
+  else goHome();
+
+  // 6. 重新渲染設定彈窗 (轉回登入介面)
+  renderSettings();
+}
+
+// 登入機制：透過帳密抓回雲端備份之完整酒窖 (Login = 睇返酒啲資料)
+async function executeAccountLogin() {
+  const username = (document.getElementById('set-username')?.value || '').trim().toLowerCase();
+  const password = document.getElementById('set-password')?.value || '';
+
+  if (!username || !password) {
+    showToast(currentLang === 'zh' ? '請輸入帳號與密碼！' : 'Please enter username and password!');
+    return;
+  }
+
+  showToast(currentLang === 'zh' ? '正在驗證並載入雲端酒窖…' : 'Logging in and fetching cellar...');
+
+  try {
+    const res = await fetch(`${WORKER_API_URL}/api/account/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '登入失敗');
+
+    // 還原雲端藏酒到本地 IndexedDB
+    await restoreCellarToLocal(data.cellar || [], data.syncKey, data.ownerName || username);
+    localStorage.setItem('bottlesense_account_bound', data.ownerName || username);
+    localStorage.setItem('bottlesense_registered', 'true');
+
+    showToast(currentLang === 'zh' ? `✓ 登入成功！已還原 ${(data.cellar || []).length} 支藏酒` : `✓ Logged in! Restored ${(data.cellar || []).length} bottles`);
+
+    // 重新渲染設定頁 (轉為「已登入」模式，不再顯示輸入框)
+    renderSettings();
+
+    // 重新渲染主視圖，讓用戶即刻睇返酒啲資料！
+    if (currentView === 'cellar') renderCellar();
+    else if (currentView === 'home') renderHome();
+    else if (currentView === 'explore') renderExplore();
+  } catch(err) {
+    showToast(currentLang === 'zh' ? ('登入失敗: ' + err.message) : ('Login failed: ' + err.message));
+  }
+}
+
+// 註冊綁定現有酒窖
+async function executeSettingsAccountBind() {
+  const username = (document.getElementById('set-username')?.value || '').trim().toLowerCase();
   const password = document.getElementById('set-password')?.value || '';
   const syncKey = localStorage.getItem('bottlesense_sync_key') || '';
 
   if (!username || !password) {
-    showToast('請輸入帳號與密碼！');
+    showToast(currentLang === 'zh' ? '請輸入帳號與密碼！' : 'Please enter username and password!');
     return;
   }
   if (username.length < 3) {
-    showToast('⚠️ 帳號名稱長度至少需 3 個字元');
+    showToast(currentLang === 'zh' ? '⚠️ 帳號名稱長度至少需 3 個字元' : '⚠️ Username must be at least 3 characters');
     return;
   }
   if (password.length < 6) {
-    showToast('⚠️ 密碼長度至少需 6 個字元');
+    showToast(currentLang === 'zh' ? '⚠️ 密碼長度至少需 6 個字元' : '⚠️ Password must be at least 6 characters');
     return;
   }
 
-  showToast('正在進行 SHA-256 安全雜湊並綁定雲端…');
+  showToast(currentLang === 'zh' ? '正在建立雲端帳號並綁定酒窖…' : 'Registering and binding cellar...');
+
   try {
+    // 確保當前本地酒窖已同步至雲端
+    await syncCellarToCloud(window.cellar || []);
+
     const res = await fetch(`${WORKER_API_URL}/api/account/bind`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password, syncKey })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '綁定失敗');
+    if (!res.ok) throw new Error(data.error || '註冊綁定失敗');
 
     localStorage.setItem('bottlesense_owner_name', username);
     localStorage.setItem('bottlesense_account_bound', username);
     localStorage.setItem('bottlesense_registered', 'true');
-    syncPublishCellarAsync();
-    showToast('✓ 雲端帳號安全綁定成功！');
+
+    showToast(currentLang === 'zh' ? '✓ 雲端帳號建立並綁定成功！' : '✓ Account registered and bound successfully!');
+
+    // 重新渲染設定頁 (轉為已登入狀態，不再顯示輸入框)
     renderSettings();
-  } catch (err) {
-    showToast('綁定失敗: ' + err.message);
+  } catch(err) {
+    showToast(currentLang === 'zh' ? ('綁定失敗: ' + err.message) : ('Binding failed: ' + err.message));
   }
 }
 
@@ -2503,7 +2757,7 @@ function openSyncKeyAndRestoreModal() {
           <div style="font-size:11.5px; color:var(--text-faint); margin-bottom:6px;">
             換手機時，只需在新手機輸入此代碼即可找回所有藏酒。
           </div>
-          <div class="text-input" style="text-align:center; font-family:var(--mono); font-size:13.5px; font-weight:700; color:var(--gold); padding:8px; user-select:all;">
+          <div class="text-input" style="text-align:center; font-family:var(--mono); font-size:13px; font-weight:700; color:var(--gold); padding:8px; user-select:all;">
             ${esc(key)}
           </div>
           <button id="btn-copy-sync" class="btn btn-primary btn-block" style="margin-top:8px; padding:8px; font-size:12.5px;" onclick="copySyncKey()">
@@ -2529,6 +2783,31 @@ function openSyncKeyAndRestoreModal() {
       </div>
     </div>
   `;
+}
+
+async function executeKeyRestore() {
+  const inputEl = document.getElementById('restore-key');
+  const key = (inputEl?.value || '').trim().toUpperCase();
+  if (!key) {
+    showToast(currentLang === 'zh' ? '請輸入專屬同步碼' : 'Please enter sync key');
+    return;
+  }
+  showToast(currentLang === 'zh' ? '正在提取雲端酒窖資料…' : 'Restoring cellar from cloud...');
+  try {
+    const res = await fetch(`${WORKER_API_URL}/api/restore?key=${encodeURIComponent(key)}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '提取失敗');
+
+    await restoreCellarToLocal(data.cellar || [], key, data.ownerName || '品飲同好');
+    localStorage.setItem('bottlesense_account_bound', data.ownerName || '同步碼用戶');
+    showToast(currentLang === 'zh' ? `✓ 成功還原 ${(data.cellar || []).length} 支藏酒！` : `✓ Restored ${(data.cellar || []).length} bottles!`);
+    closeModal();
+    if (currentView === 'cellar') renderCellar();
+    else if (currentView === 'home') renderHome();
+    else if (currentView === 'explore') renderExplore();
+  } catch(err) {
+    showToast(currentLang === 'zh' ? ('還原失敗: ' + err.message) : ('Restore failed: ' + err.message));
+  }
 }
 
 function closeModal() {
