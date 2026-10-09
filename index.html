@@ -62,7 +62,10 @@
     <div class="crop-header">
       <button class="btn btn-ghost btn-sm" onclick="closeCropModal()">取消</button>
       <span class="crop-title" data-i18n="crop_hint">雙指縮放拖曳對準酒瓶</span>
-      <button class="btn btn-primary btn-sm" onclick="confirmCropAndScan()">確認辨識</button>
+      <div style="display:flex; gap:6px;">
+        <button class="btn btn-ghost btn-sm" style="border-color:var(--gold-dim); color:var(--gold);" onclick="confirmFullScan()" title="不裁剪，直接發送整張照片辨識">全圖辨識</button>
+        <button class="btn btn-primary btn-sm" onclick="confirmCropAndScan()">對焦辨識</button>
+      </div>
     </div>
     <div class="crop-viewport" id="cropViewport">
       <div class="crop-image-wrap" id="cropImageWrap">
