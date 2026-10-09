@@ -1,102 +1,425 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>BottleSense — Know what to do with it</title>
-  
-  <!-- Favicon 黑金酒瓶內嵌向量圖示 -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='15' fill='%2311120D' stroke='%23D4AF37' stroke-width='2'/><path d='M14 8h4v4l2 3v9h-8v-9l2-3z' fill='%23D4AF37'/></svg>" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%2311120D'/><path d='M14 7h4v4l2.5 3.5v10.5h-9v-10.5l2.5-3.5z' fill='%23D4AF37'/></svg>">
-  
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  
-  <!-- Google Fonts 免費字體組 -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Serif+TC:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <div id="app">
-    <header class="topbar">
-      <div>
-        <div class="wordmark">BOTTLE<span>.</span></div>
-        <div class="tagline" id="appTagline">know what to do with it</div>
-      </div>
-      <div class="top-actions">
-        <!-- 繁英轉換按鈕 -->
-        <button class="lang-switch-btn" id="langSwitchBtn" onclick="toggleLanguage()">EN</button>
-        <!-- 設定按鈕 -->
-        <button class="icon-btn" onclick="renderSettings()" aria-label="Settings">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
-        </button>
-      </div>
-    </header>
+// --- Google Apps Script & 郵件發送安全模組 ---
+async function sendEmailViaGAS(env, { to, code, type, name }) {
+  const recipientName = name || to.split('@')[0];
+  const gasUrl = env.GAS_URL;
 
-    <main id="main"></main>
+  // 1. 若環境變數尚未設定 Google Apps Script Web App URL
+  if (!gasUrl || gasUrl.includes('placeholder')) {
+    console.warn('[BottleSense Auth] GAS_URL is not configured in Cloudflare Worker environment variables.');
+    return { ok: false, error: 'GAS_URL_NOT_CONFIGURED' };
+  }
 
-    <nav class="bottomnav">
-      <button class="navbtn" id="nav-home" onclick="goHome()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9"/></svg>
-        <span data-i18n="nav_scan">辨識</span>
-      </button>
-      <button class="navbtn" id="nav-cellar" onclick="renderCellar()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>
-        <span data-i18n="nav_cellar">酒櫃</span>
-      </button>
-      <button class="navbtn" id="nav-explore" onclick="renderExplore()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="m16.2 7.8-2 6.4-6.4 2 2-6.4z"/></svg>
-        <span data-i18n="nav_explore">探索</span>
-      </button>
-    </nav>
-  </div>
+  // 2. 透過 Google Apps Script 發送真實黑金風格 HTML 郵件
+  try {
+    const res = await fetch(gasUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to, code, type, name: recipientName }),
+      redirect: 'follow'
+    });
+    const resText = await res.text();
+    console.log('[BottleSense Auth] GAS response:', res.status, resText.slice(0, 300));
+    let parsed = null;
+    try { parsed = JSON.parse(resText); } catch (e) {}
+    // 必須係 GAS 回傳 {status:"ok"} 先算成功 (避免 Google 登入頁 200 被誤判)
+    const ok = !!(parsed && parsed.status === 'ok');
+    let error;
+    if (!ok) {
+      if (parsed && parsed.error) error = 'GAS_ERROR: ' + parsed.error;
+      else if (/accounts\.google\.com|<html/i.test(resText)) error = 'GAS_NOT_PUBLIC_OR_WRONG_URL (收到 HTML，請檢查部署權限須為 Anyone / URL 是否最新)';
+      else error = 'GAS_BAD_RESPONSE_' + res.status;
+    }
+    return { ok, status: res.status, error };
+  } catch (e) {
+    console.error('[BottleSense Auth] sendEmailViaGAS fetch error:', e);
+    return { ok: false, error: 'GAS_FETCH_FAILED: ' + e.message };
+  }
+}
 
-  <div id="modal-container"></div>
-  <div id="toast-container"></div>
-  
-  <!-- 拍照對位校準 HUD 模態框 -->
-  <div id="crop-modal" class="crop-modal" style="display: none;">
-    <div class="crop-header" style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px;">
-      <button class="btn btn-ghost btn-sm" onclick="closeCropModal()" data-i18n="btn_cancel">取消</button>
-      <div style="display:flex; gap:6px;">
-        <button class="btn btn-ghost btn-sm" style="color:var(--text); border-color:var(--line); padding:6px 10px; font-size:12px;" onclick="confirmCropAndScan(true)" data-i18n="btn_full_scan">📷 全圖辨識</button>
-        <button class="btn btn-primary btn-sm" style="padding:6px 12px; font-size:12px; font-weight:700;" onclick="confirmCropAndScan(false)" data-i18n="btn_focus_scan">🎯 對焦辨識</button>
-      </div>
-    </div>
-    <div class="crop-viewport" id="cropViewport" style="position:relative; display:flex; align-items:center; justify-content:center; overflow:hidden;">
-      <div class="crop-image-wrap" id="cropImageWrap">
-        <img id="cropTargetImage" src="" alt="target" />
-      </div>
-      <!-- 向量酒瓶發光輪廓 (SVG Cutout) -->
-      <div class="bottle-guide-frame" style="position:absolute; inset:0; pointer-events:none; display:flex; align-items:center; justify-content:center;">
-        <svg class="bottle-silhouette-svg" viewBox="0 0 260 420" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:230px; height:370px; filter:drop-shadow(0 0 8px rgba(212,175,55,0.4));">
-          <!-- 瓶塞口 -->
-          <rect x="115" y="10" width="30" height="18" rx="3" stroke="#D4AF37" stroke-width="2" fill="none"/>
-          <!-- 細長瓶頸 -->
-          <path d="M118 28 L118 100 L142 100 L142 28 Z" stroke="#D4AF37" stroke-width="2" fill="none"/>
-          <!-- 波爾多瓶肩與圓柱瓶身與微弧瓶底 -->
-          <path d="M118 100 C118 135 60 145 60 185 L60 380 C60 395 75 400 130 400 C185 400 200 395 200 380 L200 185 C200 145 142 135 142 100" stroke="#D4AF37" stroke-width="2" fill="none"/>
-          <!-- 瓶身正中金色對焦直角標記 -->
-          <path d="M95 235 L85 235 L85 245" stroke="#D4AF37" stroke-width="2.5" stroke-linecap="round"/>
-          <path d="M165 235 L175 235 L175 245" stroke="#D4AF37" stroke-width="2.5" stroke-linecap="round"/>
-          <path d="M95 325 L85 325 L85 315" stroke="#D4AF37" stroke-width="2.5" stroke-linecap="round"/>
-          <path d="M165 325 L175 325 L175 315" stroke="#D4AF37" stroke-width="2.5" stroke-linecap="round"/>
-        </svg>
-      </div>
-    </div>
-    <div class="crop-footer">
-      <span class="zoom-text" data-i18n="zoom_label">縮放:</span>
-      <input type="range" id="zoomSlider" min="0.5" max="3" step="0.05" value="1" oninput="onSliderZoom(this.value)">
-    </div>
-  </div>
+export default {
+  async fetch(request, env) {
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    };
 
-  <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;">
-  <input type="file" id="galleryInput" accept="image/*" style="display:none;">
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers: corsHeaders });
+    }
 
-  <script src="db.js"></script>
-  <script src="app.js"></script>
-</body>
-</html>
+    const url = new URL(request.url);
+    const path = url.pathname;
+
+      const kv = env.CELLAR_KV || env.BOTTLE_KV;
+      const jsonHeaders = { ...corsHeaders, 'Content-Type': 'application/json' };
+      if (!kv) {
+        return new Response(JSON.stringify({ error: 'KV_NOT_BOUND: 請於 Worker Settings > Bindings 綁定 KV，變數名 CELLAR_KV 或 BOTTLE_KV' }), { status: 500, headers: jsonHeaders });
+      }
+
+      try {
+
+      // --- 純電郵 OTP 免密碼認證端點 (Pure Email Auth) ---
+
+      // 1. 發送 6 位數 OTP 驗證碼 (有效 10 分鐘)
+      if (path === "/api/auth/send-otp" && request.method === "POST") {
+        const { email, name, gender, birthday, type } = await request.json();
+        const normalizedEmail = (email || "").toLowerCase().trim();
+        if (!normalizedEmail) {
+          return new Response(JSON.stringify({ error: "Email is required" }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+
+        // 生成 6 位數安全驗證碼
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        await kv.put(`otp:${normalizedEmail}`, otp, { expirationTtl: 600 });
+
+        // 若帶有註冊預備資料，暫存 10 分鐘
+        if (name || birthday || gender) {
+          await kv.put(`pending_reg:${normalizedEmail}`, JSON.stringify({ name, gender, birthday }), { expirationTtl: 600 });
+        }
+
+        // 透過 Google Apps Script 免費發送 HTML 郵件
+        const mailRes = await sendEmailViaGAS(env, {
+          to: normalizedEmail,
+          code: otp,
+          type: type || "otp",
+          name: name || normalizedEmail.split('@')[0]
+        });
+
+        const isUnconfigured = mailRes.error === 'GAS_URL_NOT_CONFIGURED';
+        const devMode = env.DEV_MODE === '1';
+
+        if (!mailRes.ok && !devMode) {
+          // 正式環境：唔可以將 OTP 傳返畀前端，否則任何人都可冒登入
+          await kv.delete(`otp:${normalizedEmail}`);
+          return new Response(JSON.stringify({ error: 'EMAIL_SEND_FAILED: ' + (mailRes.error || 'unknown') }), { status: 502, headers: jsonHeaders });
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          emailSent: mailRes.ok,
+          warning: isUnconfigured ? 'GAS_URL_NOT_CONFIGURED' : (mailRes.ok ? undefined : 'EMAIL_SEND_FAILED'),
+          detail: mailRes.ok ? undefined : mailRes.error,
+          devOtp: (!mailRes.ok && devMode) ? otp : undefined
+        }), { headers: jsonHeaders });
+      }
+
+      // 2. 檢查電郵是否已存在
+      if (path === "/api/auth/check-email" && request.method === "POST") {
+        const { email } = await request.json();
+        const normalizedEmail = (email || "").toLowerCase().trim();
+        const userKey = await kv.get(`account:${normalizedEmail}`);
+        return new Response(JSON.stringify({ exists: !!userKey }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // 3. 驗證 OTP 並提取／綁定雲端酒窖
+      if (path === "/api/auth/verify-otp" && request.method === "POST") {
+        const { email, otp, syncKey } = await request.json();
+        const normalizedEmail = (email || "").toLowerCase().trim();
+
+        const storedOtp = await kv.get(`otp:${normalizedEmail}`);
+        if (!storedOtp || storedOtp !== otp) {
+          return new Response(JSON.stringify({ error: "驗證碼無效或已過期，請重新發送。" }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // 驗證成功後立即銷毀一次性 OTP，杜絕重放攻擊
+        await kv.delete(`otp:${normalizedEmail}`);
+
+        // 查詢用戶帳號
+        let userKey = await kv.get(`account:${normalizedEmail}`);
+        let profileData = null;
+        let cellar = [];
+
+        // 檢查是否有 pending 註冊資料
+        const pendingRaw = await kv.get(`pending_reg:${normalizedEmail}`);
+        let pendingInfo = {};
+        if (pendingRaw) {
+          try { pendingInfo = JSON.parse(pendingRaw); } catch(e){}
+          await kv.delete(`pending_reg:${normalizedEmail}`);
+        }
+
+        if (userKey) {
+          // 既有用戶：還原雲端酒窖
+          const rawData = await kv.get(`user:${userKey}`);
+          if (rawData) {
+            try {
+              const parsed = JSON.parse(rawData);
+              cellar = Array.isArray(parsed) ? parsed : (parsed.cellar || []);
+              profileData = parsed.profile || {};
+            } catch(e) {}
+          }
+        } else {
+          // 新用戶：自動建立內部 UUID 並綁定
+          userKey = syncKey || "BTL-" + Math.random().toString(36).substring(2, 6).toUpperCase() + "-" + Math.random().toString(36).substring(2, 6).toUpperCase();
+          await kv.put(`account:${normalizedEmail}`, userKey);
+          profileData = {
+            email: normalizedEmail,
+            name: pendingInfo.name || normalizedEmail.split('@')[0],
+            birthday: pendingInfo.birthday || "",
+            gender: pendingInfo.gender || "unspecified"
+          };
+          await kv.put(`user:${userKey}`, JSON.stringify({ profile: profileData, cellar: [] }));
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          email: normalizedEmail,
+          name: profileData?.name || pendingInfo.name || normalizedEmail.split('@')[0],
+          birthday: profileData?.birthday || pendingInfo.birthday || "",
+          gender: profileData?.gender || pendingInfo.gender || "unspecified",
+          syncKey: userKey,
+          cellar: cellar
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // 4. 更新用戶個人資料
+      if (path === "/api/profile/update" && request.method === "POST") {
+        const { email, name, gender, birthday, syncKey } = await request.json();
+        const normalizedEmail = (email || "").toLowerCase().trim();
+        const userKey = await kv.get(`account:${normalizedEmail}`) || syncKey;
+        if (userKey) {
+          let currentData = { profile: {}, cellar: [] };
+          const raw = await kv.get(`user:${userKey}`);
+          if (raw) {
+            try {
+              const p = JSON.parse(raw);
+              if (Array.isArray(p)) currentData.cellar = p;
+              else { currentData.cellar = p.cellar || []; currentData.profile = p.profile || {}; }
+            } catch(e) {}
+          }
+          currentData.profile = {
+            ...currentData.profile,
+            email: normalizedEmail,
+            name: name || currentData.profile.name,
+            gender: gender || currentData.profile.gender,
+            birthday: birthday || currentData.profile.birthday
+          };
+          await kv.put(`user:${userKey}`, JSON.stringify(currentData));
+        }
+        return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // 5. 永久註銷帳號
+      if (path === "/api/account/delete" && request.method === "POST") {
+        const { email, syncKey } = await request.json();
+        const normalizedEmail = (email || "").toLowerCase().trim();
+        const userKey = await kv.get(`account:${normalizedEmail}`) || syncKey;
+        if (userKey) {
+          await kv.delete(`user:${userKey}`);
+          await kv.delete(`public_cellar:${userKey}`);
+        }
+        await kv.delete(`account:${normalizedEmail}`);
+        await kv.delete(`otp:${normalizedEmail}`);
+        return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+
+      } catch (authErr) {
+        console.error('[BottleSense Auth] error:', authErr);
+        return new Response(JSON.stringify({ error: authErr.message }), { status: 500, headers: jsonHeaders });
+      }
+
+    try {
+      // 1. 同步 / 發布完整公開酒窖 (Publish Full Cellar)
+      if (path === '/api/cellar/publish' && request.method === 'POST') {
+        const { syncKey, cellar, ownerName } = await request.json();
+        if (!syncKey || !cellar) {
+          return new Response(JSON.stringify({ error: "Missing syncKey or cellar data" }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const existingData = await kv.get(`public_cellar:${syncKey}`);
+        let likes = 0;
+        let cheers = [];
+        if (existingData) {
+          try {
+            const parsed = JSON.parse(existingData);
+            likes = parsed.likes || 0;
+            cheers = parsed.cheers || [];
+          } catch(e){}
+        }
+
+        const payload = {
+          syncKey,
+          ownerName: ownerName || '品飲家',
+          updatedAt: Date.now(),
+          likes,
+          cheers,
+          cellar
+        };
+
+        await kv.put(`public_cellar:${syncKey}`, JSON.stringify(payload), { expirationTtl: 31536000 });
+        return new Response(JSON.stringify({ success: true, syncKey }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // 2. 訪客打開連結獲取好友的完整酒窖
+      if (path === '/api/cellar/get' && request.method === 'GET') {
+        const key = url.searchParams.get('key');
+        if (!key) {
+          return new Response(JSON.stringify({ error: "Missing key" }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        const data = await kv.get(`public_cellar:${key}`);
+        if (!data) {
+          const userData = await kv.get(`user:${key}`);
+          if (userData) {
+            return new Response(JSON.stringify({ syncKey: key, cellar: JSON.parse(userData), likes: 0 }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+          return new Response(JSON.stringify({ error: "Cellar not found" }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        return new Response(data, {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // 3. 陌生人 / 好友免登入點讚 (Like / Cheers)
+      if (path === '/api/cellar/like' && request.method === 'POST') {
+        const { key } = await request.json();
+        const raw = await kv.get(`public_cellar:${key}`);
+        if (!raw) {
+          return new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers: corsHeaders });
+        }
+        const obj = JSON.parse(raw);
+        obj.likes = (obj.likes || 0) + 1;
+        await kv.put(`public_cellar:${key}`, JSON.stringify(obj), { expirationTtl: 31536000 });
+        return new Response(JSON.stringify({ success: true, likes: obj.likes }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // 4. 同步與備份功能
+      if (path === '/api/sync' && request.method === 'POST') {
+        const { syncKey, cellar } = await request.json();
+        await kv.put(`user:${syncKey}`, JSON.stringify(cellar), { expirationTtl: 31536000 });
+        return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      if (path === '/api/restore' && request.method === 'GET') {
+        const syncKey = url.searchParams.get('key');
+        const data = await kv.get(`user:${syncKey}`);
+        return new Response(data || '[]', { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // 5. 探索池：發布與獲取社群品飲
+      if (path === '/api/explore/publish' && request.method === 'POST') {
+        const item = await request.json();
+        let feed = [];
+        try {
+          const raw = await kv.get('community_explore_feed');
+          if (raw) feed = JSON.parse(raw);
+        } catch(e){}
+
+        // 保留最新 30 筆社群分享
+        feed.unshift(item);
+        feed = feed.slice(0, 30);
+
+        await kv.put('community_explore_feed', JSON.stringify(feed), { expirationTtl: 31536000 });
+        return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      if (path === '/api/explore' && request.method === 'GET') {
+        const raw = await kv.get('community_explore_feed');
+        return new Response(raw || '[]', { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // 6. AI 酒標辨識 (強化 Prompt 與純 JSON 容錯解析)
+      if (path === '/' || path === '/api/scan') {
+        if (request.method !== 'POST') return new Response('POST only', { status: 405, headers: corsHeaders });
+        const { image, mediaType } = await request.json();
+
+        const prompt = `你是一個世界頂級侍酒師與酒類數據庫專家。請辨識相片中的酒標，並以嚴格的純 JSON 格式輸出（不要包含任何 markdown 標籤或額外文字）：
+{
+  "category": "紅酒/白酒/威士忌/清酒/氣泡酒/啤酒/琴酒/蘭姆酒/白蘭地/泡盛/利口酒/其他",
+  "name": "酒款名稱（中英文皆可，精準全名）",
+  "producer": "酒莊/酒廠/品牌名稱",
+  "country": "生產國家",
+  "region": "產區",
+  "vintage": "年份（若無年份寫無年份）",
+  "abv": "酒精度（如 43%）",
+  "vol": "容量（如 700ml）",
+  "conf": 95,
+  "vm": {
+    "mv": 25,
+    "ql": 80,
+    "dv": 85,
+    "pv": 80,
+    "sv": 50,
+    "gv": 30,
+    "cv": 15,
+    "sto": 25
+  },
+  "rec": {
+    "reason": "適飲期與整體風味簡評",
+    "actions": [
+      { "a": "drink", "reason": "風味表現說明" },
+      { "a": "share", "reason": "聚會分享建議" },
+      { "a": "store", "reason": "保存條件" }
+    ]
+  }
+}
+
+【八維價值評估 (vm) 嚴格客觀評分標準（0-100，務必根據酒款等級客觀給分，絕不可千篇一律給高分）】：
+- mv (市場價值)：依零售市場價格評估。平價日常啤酒/低價餐酒打 15-30 分；中高階精品打 50-75 分；拍賣級奢華名酒打 85-98 分。
+- ql (品質)：原料工藝與風味表現 (60-95 分)。
+- dv (飲用價值)：當前適飲期的愉悅感與爽快度 (60-95 分)。
+- pv (配餐價值)：佐餐百搭性 (60-95 分)。
+- sv (社交話題)：知名度、品牌傳奇與討論度 (30-95 分)。
+- gv (送禮價值)：排面、外觀與受禮喜好度。日常啤酒/罐裝打 20-35 分；精裝烈酒/名莊打 75-95 分。
+- cv (收藏價值)：【極其嚴格】只有具備罕見性、拍賣價值或陳年升值空間的名酒(如波爾多特級名莊、高年份單一麥芽威士忌、貴州茅台)才可給 70-98 分；大眾商業量產啤酒、罐裝啤酒、即飲平價酒【嚴禁高分，必須給 5-25 分】！
+- sto (保存價值)：【極其嚴格】指長期陳年潛力。啤酒、生酒必須於數月內飲用，保存價值必須給 10-30 分；具備 10 年以上陳年能力的名莊葡萄酒或烈酒才可給 80-95 分。`;
+
+        const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': env.ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-5-5',
+            max_tokens: 2000,
+            messages: [{
+              role: 'user',
+              content: [
+                { type: 'image', source: { type: 'base64', media_type: mediaType || 'image/jpeg', data: image } },
+                { type: 'text', text: prompt }
+              ]
+            }]
+          })
+        });
+
+        const anthropicData = await anthropicRes.json();
+        let text = anthropicData.content?.[0]?.text || '{}';
+
+        const s = text.indexOf('{'), e = text.lastIndexOf('}');
+        if (s !== -1 && e !== -1) {
+          text = text.substring(s, e + 1);
+        }
+
+        return new Response(text, { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      return new Response("Not Found", { status: 404, headers: corsHeaders });
+    } catch (err) {
+      return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+  }
+};
