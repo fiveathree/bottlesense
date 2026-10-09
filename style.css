@@ -1,4 +1,4 @@
-:root, html, body {
+:root {
   --bg: #0F100B;
   --surface: #181912;
   --surface-2: #232519;
@@ -28,39 +28,24 @@
   padding: 0;
 }
 
-html, body {
-  background-color: #0F100B;
-  background: radial-gradient(120% 140% at 50% -10%, #1A1D13 0%, var(--bg, #0F100B) 60%);
-  color: #F3EFE6;
-  color: var(--text, #F3EFE6);
+body {
+  background: radial-gradient(120% 140% at 50% -10%, #1A1D13 0%, var(--bg) 60%);
+  color: var(--text);
   font-family: var(--sans);
-  height: 100%;
-  height: 100dvh;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  overflow-x: hidden !important;
-  width: 100%;
-  max-width: 100vw;
-  box-sizing: border-box;
+  min-height: 100vh;
   display: flex;
   justify-content: center;
   -webkit-font-smoothing: antialiased;
   font-size: 16px;
-  touch-action: pan-y pinch-zoom;
 }
 
 #app {
   width: 100%;
   max-width: 500px;
-  height: 100%;
-  height: 100dvh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   position: relative;
-  overflow: hidden;
-  overflow-x: hidden !important;
-  box-sizing: border-box;
   transition: max-width 0.3s ease;
 }
 
@@ -85,8 +70,6 @@ html, body {
   padding: 22px 24px 16px;
 }
 .wordmark {
-  color: #F3EFE6;
-  color: var(--text, #F3EFE6);
   font-family: var(--serif);
   font-weight: 700;
   font-size: 25px;
@@ -107,27 +90,6 @@ html, body {
   display: flex;
   gap: 10px;
   align-items: center;
-}
-
-.pwa-install-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 11px;
-  border-radius: 999px;
-  border: 1px solid var(--gold);
-  background: rgba(212, 175, 55, 0.12);
-  color: var(--gold);
-  font-family: var(--mono);
-  font-size: 11.5px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-.pwa-install-btn:hover {
-  background: rgba(212, 175, 55, 0.25);
-  box-shadow: 0 0 12px rgba(212, 175, 55, 0.3);
 }
 
 .lang-switch-btn {
@@ -171,23 +133,12 @@ html, body {
 
 main {
   flex: 1;
-  padding: 4px 18px calc(135px + env(safe-area-inset-bottom, 20px));
+  padding: 4px 18px calc(115px + env(safe-area-inset-bottom));
   overflow-y: auto;
-  overflow-x: hidden !important;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
-  overscroll-behavior-x: none;
-  touch-action: pan-y;
 }
 
 .view {
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  overflow-x: hidden !important;
   animation: fadeIn 0.3s ease;
 }
 @keyframes fadeIn {
@@ -252,10 +203,9 @@ main {
 }
 .scan-hero h1 {
   font-family: var(--serif);
-  font-size: clamp(19px, 4.8vw, 25px);
+  font-size: 26px;
   margin-bottom: 10px;
-  line-height: 1.25;
-  white-space: nowrap;
+  line-height: 1.3;
 }
 .scan-hero p {
   color: var(--text-muted);
@@ -348,9 +298,8 @@ main {
 }
 .section-head h2 {
   font-family: var(--serif);
-  font-size: clamp(16px, 4.5vw, 19px);
+  font-size: 19px;
   font-weight: 600;
-  white-space: nowrap;
 }
 .section-head a {
   font-size: 13.5px;
@@ -693,29 +642,24 @@ main {
   margin-top: 10px;
   overflow-x: auto;
   scrollbar-width: none;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  -webkit-overflow-scrolling: touch;
 }
 .destination-strip::-webkit-scrollbar {
   display: none;
 }
 .dest-pill {
-  flex: 1 0 auto;
-  min-width: 68px;
+  flex: 1;
+  min-width: 72px;
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 8px 6px;
   text-align: center;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--text-muted);
   white-space: nowrap;
   transition: all 0.2s ease;
-  box-sizing: border-box;
 }
 .dest-pill.active {
   background: rgba(212, 175, 55, 0.15);
@@ -759,10 +703,6 @@ main {
   background: linear-gradient(180deg, var(--surface) 0%, #161810 100%);
   padding: 24px 20px;
   position: relative;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  overflow: hidden;
 }
 .confidence-seal {
   position: absolute;
@@ -777,8 +717,6 @@ main {
   justify-content: center;
   font-family: var(--mono);
   border: 2px solid currentColor;
-  box-sizing: border-box;
-  overflow: hidden;
 }
 .seal-high { color: var(--green-ok); }
 .seal-medium { color: var(--gold); }
@@ -792,9 +730,6 @@ main {
   font-size: 8.5px;
   text-transform: uppercase;
   margin-top: 2px;
-  white-space: nowrap;
-  letter-spacing: 0.5px;
-  font-weight: 600;
 }
 .label-eyebrow {
   font-family: var(--mono);
@@ -811,25 +746,19 @@ main {
   line-height: 1.25;
   max-width: 76%;
   margin-bottom: 6px;
-  word-break: break-word;
-  overflow-wrap: break-word;
 }
 .label-sub {
   font-size: 15px;
   color: var(--text-muted);
   max-width: 76%;
   margin-bottom: 16px;
-  word-break: break-word;
-  overflow-wrap: break-word;
 }
 .label-facts {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: 1fr 1fr;
   gap: 12px 16px;
   padding-top: 16px;
   border-top: 1px dashed var(--line);
-  width: 100%;
-  box-sizing: border-box;
 }
 .fact-label {
   font-family: var(--mono);
@@ -843,8 +772,6 @@ main {
   margin-top: 3px;
   color: var(--text);
   font-weight: 500;
-  word-break: break-word;
-  overflow-wrap: break-word;
 }
 
 .radar-wrap {
@@ -856,14 +783,6 @@ main {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-.radar-wrap svg {
-  max-width: 100%;
-  height: auto;
 }
 .radar-wrap h3 {
   font-family: var(--serif);
@@ -872,69 +791,21 @@ main {
   align-self: flex-start;
   margin-bottom: 12px;
 }
-.radar-legend-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px 10px;
-  width: 100%;
-  margin-top: 18px;
-  padding-top: 14px;
-  border-top: 1px dashed var(--line);
-  box-sizing: border-box;
-}
-.radar-dim-card {
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 8px 10px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  box-sizing: border-box;
-}
-.dim-bar-track {
-  width: 100%;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 999px;
-  overflow: hidden;
-  margin-top: 5px;
-}
-.dim-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--gold-dim) 0%, var(--gold) 100%);
-  border-radius: 999px;
-  transition: width 0.3s ease;
-}
 .radar-legend {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px 24px;
+  gap: 10px 16px;
   width: 100%;
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(212, 175, 55, 0.2);
+  margin-top: 16px;
 }
 .legend-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 13.5px;
 }
-.legend-row .dim {
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.5px;
-}
-.legend-row .val {
-  font-family: var(--mono);
-  color: var(--gold);
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-}
+.legend-row .dim { color: var(--text-muted); }
+.legend-row .val { font-family: var(--mono); color: var(--gold); font-size: 14.5px; font-weight: 600; }
 
 .rec-card {
   margin-top: 16px;
@@ -987,10 +858,6 @@ main {
   border: 1px solid var(--line);
   border-radius: 18px;
   padding: 20px 18px;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  overflow: hidden;
 }
 .info-block h3 {
   font-family: var(--serif);
@@ -1020,72 +887,34 @@ main {
 
 .text-input {
   width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  display: block;
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 11px 12px;
+  padding: 12px;
   color: var(--text);
-  font-size: 14.5px;
+  font-size: 15px;
   outline: none;
-  margin-top: 6px;
+  margin-top: 8px;
   font-family: var(--sans);
 }
 .text-input:focus {
   border-color: var(--gold-dim);
 }
 
-input[type="date"].text-input,
-input[type="datetime-local"].text-input {
-  width: 100% !important;
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-  display: block !important;
-  padding: 9px 12px !important;
-  color-scheme: dark;
-  -webkit-appearance: none;
-  appearance: none;
-  text-align: left !important;
-  direction: ltr !important;
-  font-family: var(--sans) !important;
-}
-
-/* 確保 iOS Safari / Chrome / WebKit 內部日期文字向左對齊，與其他文字輸入框完全齊平 */
-input[type="date"].text-input::-webkit-date-and-time-value,
-input[type="datetime-local"].text-input::-webkit-date-and-time-value {
-  text-align: left !important;
-  min-height: 1.4em;
-  padding: 0;
-  margin: 0;
-}
-
-/* 隱藏或微調 WebKit 原生多餘的外距，避免右邊突出一小截 */
-input[type="date"].text-input::-webkit-inner-spin-button,
-input[type="date"].text-input::-webkit-calendar-picker-indicator {
-  cursor: pointer;
-  opacity: 0.8;
-  filter: invert(0.8);
-  margin-left: 4px;
-}
-
 .bottomnav {
   position: fixed;
   bottom: 0;
-  left: 0;
-  right: 0;
-  margin: 0 auto;
+  left: 50%;
+  transform: translateX(-50%);
   width: 100%;
   max-width: 500px;
   display: flex;
   background: rgba(17, 18, 13, 0.96);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(14px);
   border-top: 1px solid var(--line);
-  padding: 10px 20px calc(25px + env(safe-area-inset-bottom, 20px));
+  padding: 11px 20px calc(11px + env(safe-area-inset-bottom));
   z-index: 100;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+  transition: max-width 0.3s ease;
 }
 @media (min-width: 860px) {
   .bottomnav {
@@ -1333,52 +1162,20 @@ input[type="date"].text-input::-webkit-calendar-picker-indicator {
 /* =======================================================
    真實金線世界地圖容器 (黑底金色線條 + 拖曳平移縮放)
 ======================================================= */
-.region-selector-bar {
-  display: flex;
-  gap: 7px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  padding: 2px 2px 10px 2px;
-  margin-bottom: 6px;
-}
-.region-selector-bar::-webkit-scrollbar {
-  display: none;
-}
-.region-pill {
-  flex-shrink: 0;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--surface-2);
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-.region-pill:hover {
-  border-color: var(--gold-dim);
-  color: var(--gold);
-}
-.region-pill.active {
-  background: rgba(212, 175, 55, 0.16);
-  border-color: var(--gold);
-  color: var(--gold);
-  box-shadow: 0 0 10px rgba(212, 175, 55, 0.25);
-}
-
+/* =======================================================
+   真實金線世界地圖容器 (黑底金色線條 + 拖曳平移縮放 + 產區地圖切換)
+======================================================= */
 .world-radar-container {
   width: 100%;
-  height: 290px;
+  aspect-ratio: 2 / 1;
+  max-height: 220px;
   background: #000;
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 16px;
   position: relative;
   overflow: hidden;
-  margin-bottom: 20px;
-  box-shadow: inset 0 0 40px rgba(0,0,0,0.9);
+  margin-bottom: 6px; /* 緊湊向上縮，減少空隙 */
+  box-shadow: inset 0 0 35px rgba(0,0,0,0.95), 0 4px 16px rgba(0,0,0,0.4);
   touch-action: none;
   cursor: grab;
   user-select: none;
@@ -1390,20 +1187,22 @@ input[type="date"].text-input::-webkit-calendar-picker-indicator {
   cursor: grabbing;
 }
 
-/* 核心：將地圖圖片與釘選光點鎖定在固定的 2:1 比例畫布內部，杜絕飄移 */
+/* 核心：將地圖圖片與釘選光點鎖定在固定的 2:1 比例畫布內部，杜絕飄移與垂直拉長 */
 .world-map-canvas-wrap {
   position: relative;
-  width: 580px;
-  height: 290px;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 2 / 1;
   flex-shrink: 0;
   transform-origin: center center;
   will-change: transform;
+  transition: opacity 0.35s ease;
 }
 
 .real-gold-map-img {
   width: 100%;
   height: 100%;
-  object-fit: fill;
+  object-fit: contain;
   display: block;
   pointer-events: none;
   user-select: none;
@@ -1439,15 +1238,15 @@ input[type="date"].text-input::-webkit-calendar-picker-indicator {
 
 .map-controls-hud {
   position: absolute;
-  bottom: 12px;
-  right: 12px;
+  bottom: 10px;
+  right: 10px;
   z-index: 20;
   display: flex;
   gap: 6px;
 }
 .map-hud-btn {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 8px;
   background: rgba(24, 25, 18, 0.85);
   border: 1px solid var(--gold-dim);
@@ -1459,6 +1258,132 @@ input[type="date"].text-input::-webkit-calendar-picker-indicator {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+}
+
+/* =======================================================
+   區域產區地圖層 (點擊酒款直飛切換)
+======================================================= */
+.regional-map-wrap {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: #060704;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 15;
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  overflow: hidden;
+}
+
+.regional-map-svg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.btn-back-world {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 30;
+  background: rgba(24, 25, 18, 0.9);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  transition: all 0.2s ease;
+}
+.btn-back-world:hover {
+  background: var(--surface-hover);
+  border-color: #fff;
+  transform: translateY(-1px);
+}
+
+.region-header-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 30;
+  background: rgba(24, 25, 18, 0.9);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--mono);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  pointer-events: none;
+}
+
+.region-bottle-pill {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  max-width: 90%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: rgba(15, 16, 11, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--gold-dim);
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 11px;
+  color: var(--gold);
+  font-weight: 600;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+  animation: slideUpPill 0.35s ease forwards;
+}
+
+@keyframes slideUpPill {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.radar-ring {
+  animation: regionalPulse 2s infinite ease-out;
+  transform-origin: center;
+}
+@keyframes regionalPulse {
+  0% { r: 6px; opacity: 1; stroke-width: 2px; }
+  100% { r: 24px; opacity: 0; stroke-width: 0.5px; }
+}
+
+.bottle-card.feed-clickable {
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.bottle-card.feed-clickable:hover {
+  border-color: var(--gold-dim);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+}
+.bottle-card.feed-highlight {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 16px rgba(212, 175, 55, 0.4) !important;
+}
+
+.install-guide-link {
+  transition: color 0.2s ease, opacity 0.2s ease;
+}
+.install-guide-link:hover {
+  color: #fce8a2 !important;
+  opacity: 0.9;
 }
 
 .toast {
@@ -1481,462 +1406,4 @@ input[type="date"].text-input::-webkit-calendar-picker-indicator {
   15% { opacity: 1; transform: translate(-50%, 0); }
   85% { opacity: 1; transform: translate(-50%, 0); }
   100% { opacity: 0; transform: translate(-50%, -10px); }
-}
-
-/* =======================================================
-   品飲時間軸優雅空白狀態卡片 (排版最佳化，杜絕孤字折行)
-======================================================= */
-.timeline-empty-card {
-  border: 1px dashed rgba(212, 175, 55, 0.28);
-  border-radius: 14px;
-  padding: 22px 18px;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.02);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  margin-top: 4px;
-}
-.timeline-empty-card .empty-icon {
-  font-size: 26px;
-  margin-bottom: 8px;
-  opacity: 0.9;
-}
-.timeline-empty-card .empty-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--gold);
-  margin-bottom: 6px;
-  letter-spacing: 0.3px;
-}
-.timeline-empty-card .empty-desc {
-  font-size: 13.5px;
-  color: var(--text-muted);
-  line-height: 1.6;
-  max-width: 320px;
-  margin: 0 auto;
-  word-break: keep-all;
-  line-break: strict;
-}
-
-/* =======================================================
-   酒瓶 Silhouette HUD 邊框樣式與懸浮提示膠囊
-======================================================= */
-.bottle-hud-svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 5;
-}
-
-.crop-hud-hint {
-  position: absolute;
-  top: 14px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(18, 19, 14, 0.88);
-  border: 1px solid rgba(212, 175, 55, 0.4);
-  color: var(--gold);
-  font-size: 12px;
-  font-weight: 600;
-  font-family: var(--sans);
-  padding: 5px 14px;
-  border-radius: 999px;
-  z-index: 10;
-  pointer-events: none;
-  white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
-}
-
-/* =======================================================
-   世界地圖 Loading 遮罩樣式 (杜絕一格格漸進式破圖)
-======================================================= */
-.map-loading-overlay {
-  position: absolute;
-  inset: 0;
-  background: #000;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 15;
-  transition: opacity 0.3s ease;
-}
-.map-loading-overlay .loading-ring {
-  width: 42px;
-  height: 42px;
-  border: 2px solid var(--line);
-  border-top-color: var(--gold);
-  animation: spin 1s linear infinite;
-  margin-bottom: 10px;
-}
-.map-loading-text {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  color: var(--gold-dim);
-  letter-spacing: 1px;
-}
-
-/* =======================================================
-   AI 辨識階段排版最佳化 (單行高雅標籤與文字)
-======================================================= */
-.loading-view {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 55px 20px;
-  text-align: center;
-}
-.loading-badge {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--gold);
-  background: rgba(212, 175, 55, 0.12);
-  border: 1px solid rgba(212, 175, 55, 0.28);
-  padding: 4px 14px;
-  border-radius: 999px;
-  margin-bottom: 12px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-.loading-title {
-  font-family: var(--serif);
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 8px;
-  white-space: nowrap;
-}
-.loading-desc {
-  color: var(--text-muted);
-  font-size: 14px;
-  line-height: 1.6;
-  max-width: 320px;
-  margin: 0 auto;
-  word-break: keep-all;
-  line-break: strict;
-}
-
-/* 地圖 Pin 點擊後高亮發光放大動畫 */
-.geo-pin-node.active-pin-glow {
-  transform: translate(-50%, -50%) scale(1.6) !important;
-  background: rgba(212, 175, 55, 0.85) !important;
-  border-color: #FFF !important;
-  box-shadow: 0 0 20px #D4AF37, 0 0 45px rgba(212, 175, 55, 0.8) !important;
-  z-index: 50 !important;
-  transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1), box-shadow 0.3s ease !important;
-}
-
-/* =======================================================
-   探索酒友卡片與右下角詳情按鈕 (一行過，不折行)
-======================================================= */
-.explore-feed-card {
-  position: relative;
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  background: #171812;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 14px 14px 44px 14px;
-  cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.25s ease, box-shadow 0.25s ease;
-  user-select: none;
-  margin-bottom: 14px;
-}
-.explore-feed-card:hover {
-  border-color: rgba(212, 175, 55, 0.4);
-}
-.explore-feed-card:active {
-  transform: scale(0.99);
-}
-
-.explore-card-detail-btn {
-  position: absolute;
-  bottom: 11px;
-  right: 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: rgba(212, 175, 55, 0.12);
-  border: 1px solid var(--gold);
-  border-radius: 999px;
-  color: var(--gold);
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 700;
-  padding: 5px 13px;
-  white-space: nowrap !important;
-  cursor: pointer;
-  z-index: 5;
-  transition: background 0.15s ease, transform 0.15s ease;
-}
-.explore-card-detail-btn:hover {
-  background: rgba(212, 175, 55, 0.25);
-}
-.explore-card-detail-btn:active {
-  transform: scale(0.94);
-}
-
-/* =======================================================
-   一鍵社交登入按鈕群 (Google, Apple, FB)
-======================================================= */
-.social-login-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 9px 8px;
-  color: var(--text);
-  font-family: var(--sans);
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  user-select: none;
-}
-.social-login-btn:hover {
-  border-color: var(--gold-dim);
-  background: var(--surface-hover);
-}
-.social-login-btn:active {
-  transform: scale(0.96);
-}
-.social-login-btn svg {
-  flex-shrink: 0;
-}
-
-/* 垂直時間軸真・直線設計 */
-.vertical-timeline-container {
-  position: relative;
-  margin-top: 14px;
-  padding-left: 22px;
-}
-.vertical-timeline-spine {
-  position: absolute;
-  top: 16px;
-  bottom: 24px;
-  left: 7px;
-  width: 2px;
-  background: linear-gradient(180deg, var(--gold) 0%, rgba(212, 175, 55, 0.45) 80%, rgba(212, 175, 55, 0.1) 100%);
-  border-radius: 1px;
-}
-.timeline-item-wrapper {
-  position: relative;
-  margin-bottom: 18px;
-}
-.timeline-item-wrapper:last-child {
-  margin-bottom: 0;
-}
-.timeline-spine-node {
-  position: absolute;
-  left: -22px;
-  top: 14px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #14170F;
-  border: 2px solid var(--gold);
-  box-shadow: 0 0 8px rgba(212, 175, 55, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2;
-}
-.timeline-spine-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--gold);
-}
-.timeline-expand-btn {
-  border-color: rgba(212, 175, 55, 0.35) !important;
-  color: var(--gold) !important;
-  font-size: 13px !important;
-  padding: 8px 20px !important;
-  border-radius: 999px !important;
-  background: rgba(212, 175, 55, 0.08) !important;
-  transition: all 0.2s ease !important;
-  cursor: pointer;
-}
-.timeline-expand-btn:active {
-  transform: scale(0.96);
-  background: rgba(212, 175, 55, 0.2) !important;
-}
-
-/* 我的公開分享卡片專屬高亮與徽章 */
-.explore-feed-card.my-share-card {
-  border-color: rgba(212, 175, 55, 0.45);
-  background: linear-gradient(180deg, #1A1D13 0%, #151710 100%);
-  box-shadow: 0 0 16px rgba(212, 175, 55, 0.08);
-}
-.explore-feed-card.my-share-card:hover {
-  border-color: var(--gold);
-}
-.my-share-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  background: rgba(212, 175, 55, 0.18);
-  border: 1px solid var(--gold);
-  color: var(--gold);
-  font-family: var(--mono);
-  font-size: 10.5px;
-  font-weight: 700;
-  padding: 1px 7px;
-  border-radius: 999px;
-  letter-spacing: 0.5px;
-  vertical-align: middle;
-  margin-left: 6px;
-}
-.timeline-retract-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.45);
-  color: #EF4444;
-  border-radius: 6px;
-  padding: 3px 8px;
-  font-size: 11.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.timeline-retract-btn:hover {
-  background: rgba(239, 68, 68, 0.25);
-  border-color: #EF4444;
-}
-
-/* -------------------------------------------------------------
-   PWA 安裝指引與 iOS 專屬視覺教學卡片
-------------------------------------------------------------- */
-.pwa-step-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 12px 14px;
-  margin-bottom: 10px;
-  text-align: left;
-}
-.pwa-step-num {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--gold);
-  color: #11120D;
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-.pwa-step-body {
-  flex: 1;
-}
-.pwa-step-title {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 2px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.pwa-step-desc {
-  font-size: 12px;
-  color: var(--text-muted);
-  line-height: 1.45;
-}
-
-/* -------------------------------------------------------------
-   探索地圖：熱點跳轉光圈 (Hotspots) 與返回全景懸浮按鈕
-------------------------------------------------------------- */
-.map-hotspot-node {
-  position: absolute;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: rgba(212, 175, 55, 0.22);
-  border: 1.5px solid var(--gold);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  cursor: pointer;
-  transform: translate(-50%, -50%);
-  animation: hotspotRadar 2.5s infinite ease-out;
-  box-shadow: 0 0 16px rgba(212, 175, 55, 0.5);
-  pointer-events: auto;
-  z-index: 8;
-  transition: transform 0.2s, background 0.2s;
-}
-.map-hotspot-node:hover {
-  transform: translate(-50%, -50%) scale(1.3);
-  background: rgba(212, 175, 55, 0.5);
-}
-@keyframes hotspotRadar {
-  0% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.6); }
-  70% { box-shadow: 0 0 0 14px rgba(212, 175, 55, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
-}
-
-.map-back-world-btn {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  background: rgba(17, 18, 13, 0.88);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--gold);
-  color: var(--gold);
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-  z-index: 20;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.6);
-  transition: transform 0.15s, background 0.2s;
-}
-.map-back-world-btn:hover {
-  transform: scale(1.05);
-  background: rgba(212, 175, 55, 0.2);
-}
-
-.map-zoom-hint-pill {
-  position: absolute;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(17, 18, 13, 0.92);
-  border: 1px solid var(--gold-dim);
-  color: var(--text);
-  padding: 6px 14px;
-  border-radius: 999px;
-  font-size: 11.5px;
-  font-family: var(--mono);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  z-index: 20;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.7);
-  pointer-events: auto;
-  white-space: nowrap;
 }
