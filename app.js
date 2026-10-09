@@ -1278,12 +1278,187 @@ function resolveRealImagePinPos(country, region) {
   return fallbackList[Math.floor(Math.random() * fallbackList.length)];
 }
 
+// 地圖平滑飛行並置中至指定 Pin 座標
+function flyMapToPin(pos, targetZoom = 1.7) {
+  const wrap = document.getElementById("worldMapCanvasWrap");
+  if (!wrap) return;
+
+  const pinX = (pos.left / 100) * 580;
+  const pinY = (pos.top / 100) * 290;
+
+  mapZoom = targetZoom;
+  mapPanX = -(pinX - 290) * mapZoom;
+  mapPanY = -(pinY - 145) * mapZoom;
+
+  wrap.style.transition = "transform 0.6s cubic-bezier(0.2, 0.9, 0.3, 1)";
+  updateRealMapTransform();
+
+  setTimeout(() => {
+    if (wrap) wrap.style.transition = "none";
+  }, 650);
+}
+
+// 點擊地圖光點或下方酒款卡片之聯動處理：地圖移過去 + 開窗看分享者手記
+function onExploreItemClick(id) {
+  const item = (window.currentExploreFeed || []).find(x => String(x.id) === String(id));
+  if (!item) return;
+
+  // 1. 地圖平滑移過去該產區 Pin 點並放大
+  const country = item.identification?.country || item.tags?.country || "";
+  const region = item.identification?.region || item.tags?.region || "";
+  const pos = resolveRealImagePinPos(country, region);
+  flyMapToPin(pos, 1.75);
+
+  // 2. 地圖光點發光放大動態
+  const pinEl = document.getElementById(`pin-${id}`);
+  if (pinEl) {
+    document.querySelectorAll(".geo-pin-node").forEach(p => p.classList.remove("active-pin-glow"));
+    pinEl.classList.add("active-pin-glow");
+  }
+
+  // 3. 列表卡片短暫邊框高亮
+  const cardEl = document.getElementById(`feed-card-${id}`);
+  if (cardEl) {
+    cardEl.style.borderColor = "var(--gold)";
+    setTimeout(() => { if (cardEl) cardEl.style.borderColor = "rgba(255,255,255,0.08)"; }, 2500);
+  }
+
+  // 4. 打開分享者酒款與完整品飲手記彈窗
+  openPublicBottleModal(item);
+}
+
+function openPublicBottleModal(b) {
+  const x = safeIdentification(b);
+  const img = bottleImage(b);
+  const name = bottleName(b);
+  const cat = formatFilterLabel(bottleCategory(b));
+  const country = formatFilterLabel(bottleCountry(b) || (currentLang === "zh" ? "未知" : "Unknown"));
+  const region = formatFilterLabel(bottleRegion(b) || (currentLang === "zh" ? "未知" : "Unknown"));
+  const vintage = formatFilterLabel(bottleVintage(b));
+  const producer = x.producer || x.brand || "";
+  const author = b.author || (currentLang === "zh" ? "品飲同好" : "Wine Lover");
+  const rating = Number(b.personalRating || 5);
+  const notes = b.diary?.notes || (currentLang === "zh" ? "這支酒整體表現相當出色，香氣與尾韻平衡。" : "Great overall balance and finish.");
+  const location = b.location || region || country || "";
+  const dateStr = b.publishedAt ? new Date(b.publishedAt).toLocaleDateString() : "";
+
+  const vm = b.identification?.vm || b.scan?.vm || null;
+  const rec = b.identification?.rec || b.scan?.rec || null;
+
+  modalContainer.innerHTML = `
+    <div class="modal-overlay" onclick="closeModal()">
+      <div class="modal-card" style="text-align:left; max-width:440px; max-height:88vh; overflow-y:auto;" onclick="event.stopPropagation()">
+        <!-- 頂部列：分享者資訊與關閉按鈕 -->
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; border-bottom:1px solid var(--line); padding-bottom:10px;">
+          <div>
+            <div style="font-size:12px; font-family:var(--mono); color:var(--gold); font-weight:700;">
+              👤 ${currentLang === "zh" ? "酒友分享" : "Community Share"} · ${esc(author)}
+            </div>
+            <div style="font-size:11.5px; color:var(--text-faint); margin-top:2px;">
+              📍 ${esc(location)}${dateStr ? " · " + dateStr : ""}
+            </div>
+          </div>
+          <button class="icon-btn" style="width:28px; height:28px;" onclick="closeModal()">✕</button>
+        </div>
+
+        <!-- 酒款照片展示 -->
+        ${img ? `
+          <div style="width:100%; height:200px; border-radius:12px; overflow:hidden; background:#000; border:1px solid var(--line); margin-bottom:14px; display:flex; align-items:center; justify-content:center;">
+            <img src="${esc(img)}" style="width:100%; height:100%; object-fit:contain;" alt="">
+          </div>
+        ` : ""}
+
+        <!-- 核心酒款名與產區 -->
+        <div style="font-size:11px; font-family:var(--mono); color:var(--gold-dim); text-transform:uppercase;">${esc(cat)}</div>
+        <div style="font-family:var(--serif); font-size:20px; font-weight:700; color:var(--text); margin-top:2px; margin-bottom:4px; line-height:1.3;">
+          ${esc(name)}
+        </div>
+        <div style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">
+          ${esc([producer, country, region].filter(Boolean).join(" · "))}
+        </div>
+
+        <!-- 規格網格 -->
+        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:10px; margin-bottom:14px; text-align:center;">
+          <div>
+            <div style="font-size:10px; font-family:var(--mono); color:var(--text-faint);">VINTAGE</div>
+            <div style="font-size:13px; font-weight:600; color:var(--gold); margin-top:2px;">${esc(vintage)}</div>
+          </div>
+          <div>
+            <div style="font-size:10px; font-family:var(--mono); color:var(--text-faint);">CATEGORY</div>
+            <div style="font-size:13px; font-weight:600; color:var(--text); margin-top:2px;">${esc(cat)}</div>
+          </div>
+          <div>
+            <div style="font-size:10px; font-family:var(--mono); color:var(--text-faint);">ORIGIN</div>
+            <div style="font-size:13px; font-weight:600; color:var(--text); margin-top:2px;">${esc(country)}</div>
+          </div>
+        </div>
+
+        <!-- 分享者的品飲心得手記 -->
+        <div style="background:rgba(212,175,55,0.06); border:1px solid rgba(212,175,55,0.25); border-left:3px solid var(--gold); border-radius:10px; padding:12px 14px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="font-size:12px; font-family:var(--mono); font-weight:700; color:var(--gold);">🥃 品飲體驗評分</span>
+            <span style="color:var(--gold); font-size:14px;">${"★".repeat(rating)}</span>
+          </div>
+          <div style="font-size:14px; color:var(--text); line-height:1.6; font-style:italic;">
+            "${esc(notes)}"
+          </div>
+        </div>
+
+        <!-- 八維雷達圖 (若有) -->
+        ${vm ? renderRadar(vm) : ""}
+
+        <!-- 侍酒師建議 (若有) -->
+        ${rec ? renderRecommendation(rec) : ""}
+
+        <!-- 操作按鈕：一鍵收藏至我的「想買」清單 -->
+        <div style="display:flex; gap:10px; margin-top:16px;">
+          <button class="btn btn-primary btn-block" style="padding:10px; font-size:13.5px;" onclick="addPublicBottleToWishlist('${esc(b.id)}')">
+            🏷️ ${currentLang === "zh" ? "加入我的想買清單" : "Add to Wishlist"}
+          </button>
+          <button class="btn btn-ghost btn-block" style="padding:10px; font-size:13.5px;" onclick="closeModal()">
+            ${t("btn_close")}
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function addPublicBottleToWishlist(bottleId) {
+  const item = (window.currentExploreFeed || []).find(x => String(x.id) === String(bottleId));
+  if (!item) return;
+
+  const newBottle = normalizeBottle({
+    id: uid(),
+    image: item.image,
+    imageData: item.image,
+    identification: item.identification || {},
+    scan: item.identification || {},
+    tags: {
+      category: item.identification?.category || "酒類",
+      vintage: item.identification?.vintage || "",
+      country: item.identification?.country || "",
+      region: item.identification?.region || ""
+    },
+    tastings: [],
+    isFavorite: false,
+    status: "wishlist",
+    addedAt: Date.now()
+  });
+
+  window.cellar.unshift(newBottle);
+  await saveBottleToDB(newBottle);
+  closeModal();
+  showToast(currentLang === "zh" ? "✓ 已成功收納至你的「想買」願望清單！" : "✓ Added to your Wishlist!");
+}
+
 async function renderRealWorldPinsAndFeed() {
   try {
     const res = await fetch(`${WORKER_API_URL}/api/explore`);
     const publicFeed = res.ok ? await res.json() : [];
-    const feedEl = document.getElementById('explore-feed');
-    const pinsLayer = document.getElementById('geoPinsContainer');
+    window.currentExploreFeed = publicFeed;
+    const feedEl = document.getElementById("explore-feed");
+    const pinsLayer = document.getElementById("geoPinsContainer");
     if (!feedEl) return;
 
     if (!publicFeed.length) {
@@ -1293,40 +1468,34 @@ async function renderRealWorldPinsAndFeed() {
 
     if (pinsLayer) {
       pinsLayer.innerHTML = publicFeed.slice(0, 10).map((b) => {
-        const country = b.identification?.country || b.tags?.country || '';
-        const region = b.identification?.region || b.tags?.region || '';
+        const country = b.identification?.country || b.tags?.country || "";
+        const region = b.identification?.region || b.tags?.region || "";
         const pos = resolveRealImagePinPos(country, region);
         return `
-          <div class="geo-pin-node" style="top:${pos.top}%; left:${pos.left}%; pointer-events:auto;" onclick="highlightFeedItem('${esc(b.id)}')" title="${esc(bottleName(b))}">
+          <div class="geo-pin-node" id="pin-${esc(b.id)}" style="top:${pos.top}%; left:${pos.left}%; pointer-events:auto;" onclick="onExploreItemClick('${esc(b.id)}')" title="${esc(bottleName(b))}">
             🍷
           </div>
         `;
-      }).join('');
+      }).join("");
     }
 
     feedEl.innerHTML = publicFeed.map(b => `
-      <div class="bottle-card" id="feed-card-${esc(b.id)}" style="margin-bottom:14px; transition: border-color 0.3s ease;">
-        <div class="bottle-photo-box">${b.image ? `<img src="${esc(b.image)}">` : '🍷'}</div>
+      <div class="bottle-card" id="feed-card-${esc(b.id)}" style="margin-bottom:14px; transition: border-color 0.3s ease; cursor:pointer;" onclick="onExploreItemClick('${esc(b.id)}')">
+        <div class="bottle-photo-box">${b.image ? `<img src="${esc(b.image)}">` : "🍷"}</div>
         <div class="bottle-info">
-          <div class="bottle-name">${esc(b.identification?.name || '酒款')}</div>
-          <div style="font-size:13px; color:var(--gold); margin-top:3px;">★ ${b.personalRating||5}/5 ・ ${esc(b.author||'品飲同好')}</div>
-          <div style="font-size:14px; color:var(--text-muted); margin-top:5px;">"${esc(b.diary?.notes || '無額外筆記')}"</div>
-          <div style="font-size:12px; color:var(--text-faint); margin-top:4px;">📍 ${esc(b.identification?.country || '')} ${esc(b.identification?.region || b.location || '')}</div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="bottle-name">${esc(b.identification?.name || "酒款")}</div>
+            <span style="font-size:11px; color:var(--gold); font-family:var(--mono);">詳情 →</span>
+          </div>
+          <div style="font-size:13px; color:var(--gold); margin-top:3px;">★ ${b.personalRating||5}/5 ・ ${esc(b.author||"品飲同好")}</div>
+          <div style="font-size:14px; color:var(--text); margin-top:5px; font-style:italic;">"${esc(b.diary?.notes || "無額外筆記")}"</div>
+          <div style="font-size:12px; color:var(--text-faint); margin-top:4px;">📍 ${esc(formatFilterLabel(b.identification?.country) || "")} ${esc(formatFilterLabel(b.identification?.region) || b.location || "")}</div>
         </div>
       </div>
-    `).join('');
+    `).join("");
   } catch(e) {
-    const feedEl = document.getElementById('explore-feed');
+    const feedEl = document.getElementById("explore-feed");
     if (feedEl) feedEl.innerHTML = `<div class="empty-shelf">暫時無法載入酒友動態。</div>`;
-  }
-}
-
-function highlightFeedItem(id) {
-  const el = document.getElementById(`feed-card-${id}`);
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    el.style.borderColor = 'var(--gold)';
-    setTimeout(() => el.style.borderColor = 'rgba(255,255,255,0.08)', 2000);
   }
 }
 
