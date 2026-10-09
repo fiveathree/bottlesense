@@ -1013,17 +1013,108 @@ const REAL_IMAGE_GEO_POINTS = {
 
 let mapZoom = 1;
 let mapPanX = 0, mapPanY = 0;
-
-let currentExploreFeed = [];
+let regionalZoom = 0.88; // 預設收細12%，完整呈現地圖全貌
+let regionalPanX = 0, regionalPanY = 0;
 let isRegionalMapActive = false;
+let currentExploreFeed = [];
+
+// =======================================================================
+// 精準產區地理 Pin 座標庫（針對各張區域地圖量身校準，杜絕隨意居中）
+// =======================================================================
+const REGIONAL_MAP_PINS = {
+  'map_europe': {
+    '波爾多': { top: 58.0, left: 39.5, name: '波爾多 (Bordeaux)' },
+    '香檳': { top: 48.0, left: 44.5, name: '香檳 (Champagne)' },
+    '勃艮第': { top: 52.5, left: 47.0, name: '勃艮第 (Bourgogne)' },
+    '法國': { top: 54.0, left: 42.5, name: '法國名釀區 (France)' },
+    '斯貝賽': { top: 29.5, left: 37.0, name: '斯貝賽威士忌 (Speyside)' },
+    '艾雷島': { top: 34.0, left: 33.5, name: '艾雷島 (Islay)' },
+    '高地': { top: 31.0, left: 35.5, name: '蘇格蘭高地 (Highlands)' },
+    '低地': { top: 36.5, left: 37.0, name: '蘇格蘭低地 (Lowlands)' },
+    '蘇格蘭': { top: 32.0, left: 36.0, name: '蘇格蘭 (Scotland)' },
+    '英國': { top: 38.0, left: 38.0, name: '英國 (UK)' },
+    '托斯卡納': { top: 64.0, left: 52.0, name: '托斯卡納 (Tuscany)' },
+    '皮埃蒙特': { top: 58.5, left: 49.0, name: '皮埃蒙特 (Piedmont)' },
+    '義大利': { top: 63.0, left: 53.0, name: '義大利 (Italy)' },
+    '意大利': { top: 63.0, left: 53.0, name: '義大利 (Italy)' },
+    '里奧哈': { top: 65.0, left: 35.5, name: '里奧哈 (Rioja)' },
+    '西班牙': { top: 68.0, left: 33.0, name: '西班牙 (Spain)' },
+    '葡萄牙': { top: 68.5, left: 27.5, name: '葡萄牙 (Portugal)' },
+    '德國': { top: 47.0, left: 50.0, name: '德國 (Germany)' }
+  },
+  'map_america': {
+    '納帕': { top: 37.5, left: 21.0, name: '加州納帕山谷 (Napa Valley)' },
+    '加州': { top: 38.5, left: 21.5, name: '加州 (California)' },
+    '肯塔基': { top: 41.0, left: 36.5, name: '肯塔基波本 (Kentucky)' },
+    '奧勒岡': { top: 34.0, left: 22.0, name: '奧勒岡 (Oregon)' },
+    '美國': { top: 39.0, left: 30.0, name: '美國 (USA)' },
+    '智利': { top: 81.0, left: 55.0, name: '智利中央山谷 (Chile)' },
+    '阿根廷': { top: 81.5, left: 58.5, name: '阿根廷門多薩 (Argentina)' }
+  },
+  'map_japan': {
+    '余市': { top: 23.0, left: 78.0, name: '北海道・余市 (Yoichi)' },
+    '北海道': { top: 25.0, left: 79.5, name: '北海道 (Hokkaido)' },
+    '山崎': { top: 57.5, left: 51.5, name: '關西・山崎蒸餾所 (Yamazaki)' },
+    '白州': { top: 53.5, left: 58.0, name: '山梨・白州 (Hakushu)' },
+    '東京': { top: 52.0, left: 61.5, name: '東京 (Tokyo)' },
+    '新潟': { top: 47.0, left: 59.0, name: '新潟清酒 (Niigata)' },
+    '山口': { top: 63.5, left: 41.0, name: '山口・獺祭 (Dassai)' },
+    '沖繩': { top: 89.0, left: 22.0, name: '沖繩泡盛 (Okinawa)' },
+    '日本': { top: 56.0, left: 53.0, name: '日本名釀區 (Japan)' }
+  },
+  'map_taiwan': {
+    '宜蘭': { top: 26.5, left: 72.0, name: '宜蘭・噶瑪蘭 (Kavalan)' },
+    '南投': { top: 52.0, left: 48.0, name: '南投・Omar威士忌 (Omar)' },
+    '台北': { top: 18.0, left: 66.0, name: '台北 (Taipei)' },
+    '台中': { top: 44.0, left: 44.0, name: '台中 (Taichung)' },
+    '台南': { top: 71.0, left: 35.0, name: '台南 (Tainan)' },
+    '高雄': { top: 76.0, left: 37.0, name: '高雄 (Kaohsiung)' },
+    '金門': { top: 40.0, left: 15.0, name: '金門高粱 (Kinmen)' },
+    '台灣': { top: 48.0, left: 52.0, name: '台灣 (Taiwan)' }
+  },
+  'map_china': {
+    '茅台': { top: 66.0, left: 54.0, name: '貴州茅台鎮 (Maotai)' },
+    '貴州': { top: 66.0, left: 54.0, name: '貴州 (Guizhou)' },
+    '寧夏': { top: 43.0, left: 50.0, name: '寧夏賀蘭山 (Ningxia)' },
+    '四川': { top: 61.0, left: 48.0, name: '四川 (Sichuan)' },
+    '紹興': { top: 59.0, left: 78.0, name: '浙江紹興 (Shaoxing)' },
+    '山西': { top: 45.0, left: 59.0, name: '山西杏花村 (Shanxi)' },
+    '中國': { top: 52.0, left: 58.0, name: '中國名產區 (China)' }
+  },
+  'map_hk': {
+    '新界': { top: 35.0, left: 48.0, name: '新界 (New Territories)' },
+    '九龍': { top: 56.0, left: 52.0, name: '九龍 (Kowloon)' },
+    '中環': { top: 68.0, left: 56.0, name: '港島 (Hong Kong Island)' },
+    '香港': { top: 55.0, left: 54.0, name: '香港本地精釀 (Hong Kong)' }
+  },
+  'map_africa': {
+    '南非': { top: 86.0, left: 48.0, name: '南非開普敦 (Stellenbosch)' },
+    '非洲': { top: 50.0, left: 50.0, name: '非洲產區 (Africa)' }
+  },
+  'map_russia': {
+    '莫斯科': { top: 48.0, left: 25.0, name: '莫斯科 (Moscow)' },
+    '俄羅斯': { top: 50.0, left: 45.0, name: '俄羅斯 (Russia)' }
+  }
+};
+
+function resolveRegionalPinPos(mapKey, country, region) {
+  const mapTable = REGIONAL_MAP_PINS[mapKey];
+  if (mapTable) {
+    if (region && mapTable[region]) return mapTable[region];
+    if (country && mapTable[country]) return mapTable[country];
+    for (const k in mapTable) {
+      if (region && region.includes(k)) return mapTable[k];
+      if (country && country.includes(k)) return mapTable[k];
+    }
+  }
+  return { top: 52.0, left: 48.0, name: region || country || '產區核心' };
+}
 
 async function renderExplore() {
   currentView = 'explore';
   setActiveNav('nav-explore');
   isRegionalMapActive = false;
 
-  // 安全內嵌金線世界地圖 SVG（維持嚴格 2:1 比例，絕不拉長，結合 WebP 支援與金色向量陸地輪廓）
-  // 地圖嚴格禁用 SVG，全面改用點陣圖片 (WebP / PNG)
   const worldMapImgHTML = `
     <img src="map_world.webp" onerror="this.onerror=null; this.src='map_world.png'; this.onerror=()=>this.src='world-map.webp'; this.onerror=()=>this.src='Glowing Gold World Map.png';" class="real-gold-map-img" alt="World Map" draggable="false">
   `;
@@ -1034,22 +1125,34 @@ async function renderExplore() {
         <h2>${t('explore_title')}</h2>
       </div>
 
-      <!-- 真實金線世界地圖容器 (2:1 比例鎖定，杜絕拉長，支援平移縮放與產區轉換) -->
+      <!-- 真實金線世界地圖容器 (PC 響應式 Responsive，手機/電腦皆完美適配) -->
       <div class="world-radar-container" id="worldRadarBox">
+        <!-- 世界地圖畫布層 -->
         <div class="world-map-canvas-wrap" id="worldMapCanvasWrap">
           ${worldMapImgHTML}
-          <!-- 釘選在實體地圖上的酒友/產區光點層 -->
           <div id="geoPinsContainer" style="position:absolute; inset:0; pointer-events:none;"></div>
         </div>
 
-        <!-- 區域地圖視圖 (點擊酒款後即時轉換) -->
-        <div class="regional-map-wrap" id="regionalMapView" style="display:none; opacity:0;"></div>
+        <!-- 區域地圖畫布層 (支援雙指縮放、拖曳、精準產區Pin與全貌收細) -->
+        <div class="regional-map-wrap" id="regionalMapView" style="display:none; opacity:0;">
+          <div class="regional-canvas-wrap" id="regionalCanvasWrap">
+            <img id="regionalMapImg" src="" class="regional-map-img" alt="Region Map" draggable="false">
+            <div id="regionalPinContainer" style="position:absolute; inset:0; pointer-events:none;"></div>
+          </div>
+          
+          <button class="btn-back-world" onclick="exitRegionalMap()">
+            <span>←</span>
+            <span>${currentLang==='zh'?'返回世界地圖':'World Map'}</span>
+          </button>
+          <div class="region-header-badge" id="regionalBadge"></div>
+          <div class="region-bottle-pill" id="regionalBottlePill"></div>
+        </div>
 
-        <!-- 縮放與重設 HUD 控制項 -->
+        <!-- 縮放與重設 HUD 控制項 (PC 與移動端自適應放大，支援點擊縮放) -->
         <div class="map-controls-hud" id="worldMapHud">
-          <button class="map-hud-btn" onclick="zoomWorldMap(1.25)">+</button>
-          <button class="map-hud-btn" onclick="zoomWorldMap(0.8)">−</button>
-          <button class="map-hud-btn" onclick="resetWorldMap()">↺</button>
+          <button class="map-hud-btn" onclick="handleMapZoomIn()">+</button>
+          <button class="map-hud-btn" onclick="handleMapZoomOut()">−</button>
+          <button class="map-hud-btn" onclick="handleMapReset()">↺</button>
         </div>
       </div>
 
@@ -1072,73 +1175,103 @@ async function renderExplore() {
   renderRealWorldPinsAndFeed();
 }
 
+// 核心手勢與互動管理：世界地圖與區域地圖 100% 均支援雙指捏合縮放 (Pinch)、拖曳平移與滾輪縮放
 function initRealMapInteractions() {
   const container = document.getElementById('worldRadarBox');
   if (!container) return;
 
-  // 滑鼠滾輪縮放 (PC)
+  // 滑鼠滾輪縮放 (PC 端)
   container.onwheel = (e) => {
-    if (isRegionalMapActive) return;
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.15 : 0.85;
-    zoomWorldMap(factor);
+    if (isRegionalMapActive) {
+      zoomRegionalMap(factor);
+    } else {
+      zoomWorldMap(factor);
+    }
   };
 
   let isDragging = false;
   let startX, startY;
 
+  // 滑鼠按住平移 (PC 端)
   container.onmousedown = (e) => {
-    if (isRegionalMapActive) return;
     if (e.target.closest('.map-hud-btn') || e.target.closest('.btn-back-world')) return;
     isDragging = true;
-    startX = e.clientX - mapPanX;
-    startY = e.clientY - mapPanY;
+    if (isRegionalMapActive) {
+      startX = e.clientX - regionalPanX;
+      startY = e.clientY - regionalPanY;
+    } else {
+      startX = e.clientX - mapPanX;
+      startY = e.clientY - mapPanY;
+    }
   };
 
   window.addEventListener('mousemove', (e) => {
-    if (!isDragging || isRegionalMapActive) return;
-    mapPanX = e.clientX - startX;
-    mapPanY = e.clientY - startY;
-    updateRealMapTransform();
+    if (!isDragging) return;
+    if (isRegionalMapActive) {
+      regionalPanX = e.clientX - startX;
+      regionalPanY = e.clientY - startY;
+      updateRegionalMapTransform();
+    } else {
+      mapPanX = e.clientX - startX;
+      mapPanY = e.clientY - startY;
+      updateRealMapTransform();
+    }
   });
 
   window.addEventListener('mouseup', () => { isDragging = false; });
 
-  // 移動端觸控雙指捏合縮放 (Pinch) 與單指拖曳平移
+  // 移動端觸控：雙指捏合縮放 (Pinch) 與單指拖曳平移 (同時支援世界地圖與區域地圖)
   let initialPinchDist = null;
   let initialPinchZoom = 1;
 
   container.ontouchstart = (e) => {
-    if (isRegionalMapActive) return;
     if (e.target.closest('.map-hud-btn') || e.target.closest('.btn-back-world')) return;
     if (e.touches.length === 1) {
       isDragging = true;
-      startX = e.touches[0].clientX - mapPanX;
-      startY = e.touches[0].clientY - mapPanY;
+      if (isRegionalMapActive) {
+        startX = e.touches[0].clientX - regionalPanX;
+        startY = e.touches[0].clientY - regionalPanY;
+      } else {
+        startX = e.touches[0].clientX - mapPanX;
+        startY = e.touches[0].clientY - mapPanY;
+      }
     } else if (e.touches.length === 2) {
       isDragging = false;
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       initialPinchDist = Math.hypot(dx, dy);
-      initialPinchZoom = mapZoom;
+      initialPinchZoom = isRegionalMapActive ? regionalZoom : mapZoom;
     }
   };
 
   container.ontouchmove = (e) => {
-    if (isRegionalMapActive) return;
     if (e.touches.length === 1 && isDragging) {
       e.preventDefault();
-      mapPanX = e.touches[0].clientX - startX;
-      mapPanY = e.touches[0].clientY - startY;
-      updateRealMapTransform();
+      if (isRegionalMapActive) {
+        regionalPanX = e.touches[0].clientX - startX;
+        regionalPanY = e.touches[0].clientY - startY;
+        updateRegionalMapTransform();
+      } else {
+        mapPanX = e.touches[0].clientX - startX;
+        mapPanY = e.touches[0].clientY - startY;
+        updateRealMapTransform();
+      }
     } else if (e.touches.length === 2 && initialPinchDist) {
       e.preventDefault();
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const currentDist = Math.hypot(dx, dy);
       const scaleFactor = currentDist / initialPinchDist;
-      mapZoom = Math.min(Math.max(initialPinchZoom * scaleFactor, 0.7), 4.5);
-      updateRealMapTransform();
+
+      if (isRegionalMapActive) {
+        regionalZoom = Math.min(Math.max(initialPinchZoom * scaleFactor, 0.55), 4.5);
+        updateRegionalMapTransform();
+      } else {
+        mapZoom = Math.min(Math.max(initialPinchZoom * scaleFactor, 0.7), 4.5);
+        updateRealMapTransform();
+      }
     }
   };
 
@@ -1148,8 +1281,23 @@ function initRealMapInteractions() {
   };
 }
 
+// HUD 按鈕縮放控制
+function handleMapZoomIn() {
+  if (isRegionalMapActive) zoomRegionalMap(1.25);
+  else zoomWorldMap(1.25);
+}
+
+function handleMapZoomOut() {
+  if (isRegionalMapActive) zoomRegionalMap(0.8);
+  else zoomWorldMap(0.8);
+}
+
+function handleMapReset() {
+  if (isRegionalMapActive) resetRegionalMap();
+  else resetWorldMap();
+}
+
 function zoomWorldMap(factor) {
-  if (isRegionalMapActive) return;
   mapZoom = Math.min(Math.max(mapZoom * factor, 0.7), 4.5);
   updateRealMapTransform();
 }
@@ -1167,6 +1315,28 @@ function updateRealMapTransform() {
   const wrap = document.getElementById('worldMapCanvasWrap');
   if (wrap) {
     wrap.style.transform = `translate(${mapPanX}px, ${mapPanY}px) scale(${mapZoom})`;
+  }
+}
+
+// 區域地圖縮放平移控制 (預設收細 0.88，睇清地圖全貌)
+function zoomRegionalMap(factor) {
+  regionalZoom = Math.min(Math.max(regionalZoom * factor, 0.55), 4.5);
+  updateRegionalMapTransform();
+}
+
+function resetRegionalMap() {
+  regionalZoom = 0.88;
+  regionalPanX = 0;
+  regionalPanY = 0;
+  const wrap = document.getElementById('regionalCanvasWrap');
+  if (wrap) wrap.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)';
+  updateRegionalMapTransform();
+}
+
+function updateRegionalMapTransform() {
+  const wrap = document.getElementById('regionalCanvasWrap');
+  if (wrap) {
+    wrap.style.transform = `translate(${regionalPanX}px, ${regionalPanY}px) scale(${regionalZoom})`;
   }
 }
 
@@ -1196,7 +1366,6 @@ async function renderRealWorldPinsAndFeed() {
       if (res.ok) publicFeed = await res.json();
     } catch(e) {}
 
-    // 如果後端暫無公開記錄，載入高品質多產區範例，確保即時可體驗飛航與區域地圖轉換
     if (!publicFeed || !publicFeed.length) {
       publicFeed = [
         {
@@ -1260,7 +1429,6 @@ async function renderRealWorldPinsAndFeed() {
       }).join('');
     }
 
-    // 3. 點擊支酒時即走係世界地圖飛去該地，然後馬上轉換成該地地圖
     feedEl.innerHTML = publicFeed.map(b => {
       const c = bottleCountry(b);
       const r = bottleRegion(b);
@@ -1306,9 +1474,7 @@ function flyToBottleRegion(bottleId) {
   const pos = resolveRealImagePinPos(country, region);
 
   const box = document.getElementById('worldRadarBox');
-  if (box) {
-    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
+  if (box) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
   highlightFeedItem(b.id);
 
@@ -1344,26 +1510,52 @@ function showRegionalMap(country, region, b) {
   const regView = document.getElementById('regionalMapView');
   const wrap = document.getElementById('worldMapCanvasWrap');
   const hud = document.getElementById('worldMapHud');
-  if (!regView || !wrap) return;
+  const regCanvas = document.getElementById('regionalCanvasWrap');
+  const regImg = document.getElementById('regionalMapImg');
+  const pinLayer = document.getElementById('regionalPinContainer');
+  const badgeEl = document.getElementById('regionalBadge');
+  const pillEl = document.getElementById('regionalBottlePill');
 
-  const mapImageContent = getRegionalMapImageHTML(country, region, b);
+  if (!regView || !wrap || !regCanvas || !regImg) return;
+
+  const mapKey = resolveGitHubMapKey(country, region);
   const regionLabel = getRegionalHeaderLabel(country, region);
+  const pinPos = resolveRegionalPinPos(mapKey, country, region);
 
-  regView.innerHTML = `
-    <button class="btn-back-world" onclick="exitRegionalMap()">
-      <span>←</span>
-      <span>${currentLang==='zh'?'返回世界地圖':'World Map'}</span>
-    </button>
-    <div class="region-header-badge">${regionLabel}</div>
-    ${mapImageContent}
-    <div class="region-bottle-pill">
-      🍷 ${esc(bottleName(b))} ${bottleVintage(b)!=='無年份'?'('+esc(bottleVintage(b))+')':''} ・ ${esc(region||country)}
-    </div>
-  `;
+  // 預設將地圖收細至 0.88，給予舒適邊界，睇清地圖全貌
+  regionalZoom = 0.88;
+  regionalPanX = 0;
+  regionalPanY = 0;
+  regCanvas.style.transition = 'none';
+  regCanvas.style.transform = `translate(0px, 0px) scale(${regionalZoom})`;
+
+  // 設定圖片來源 (自動支援 webp / png 回退)
+  regImg.src = `${mapKey}.webp`;
+  regImg.onerror = () => {
+    regImg.onerror = () => {
+      regImg.onerror = () => { regImg.src = 'map_world.webp'; };
+      regImg.src = `maps/${mapKey}.webp`;
+    };
+    regImg.src = `${mapKey}.png`;
+  };
+
+  // 產區精準 Pin 釘選（拒絕居中隨便顯示，置於該酒款/產區真實地理位置）
+  if (pinLayer) {
+    pinLayer.innerHTML = `
+      <div class="geo-pin-node" style="top:${pinPos.top}%; left:${pinPos.left}%; pointer-events:auto;" title="${pinPos.name}">
+        🍷
+        <div class="pin-callout-bubble">${esc(pinPos.name)}</div>
+      </div>
+    `;
+  }
+
+  if (badgeEl) badgeEl.textContent = regionLabel;
+  if (pillEl) {
+    pillEl.innerHTML = `🍷 ${esc(bottleName(b))} ${bottleVintage(b)!=='無年份'?'('+esc(bottleVintage(b))+')':''} ・ ${esc(pinPos.name || region || country)}`;
+  }
 
   wrap.style.opacity = '0';
   wrap.style.pointerEvents = 'none';
-  if (hud) hud.style.display = 'none';
 
   regView.style.display = 'flex';
   void regView.offsetWidth;
@@ -1374,138 +1566,16 @@ function exitRegionalMap() {
   isRegionalMapActive = false;
   const regView = document.getElementById('regionalMapView');
   const wrap = document.getElementById('worldMapCanvasWrap');
-  const hud = document.getElementById('worldMapHud');
   if (!regView || !wrap) return;
 
   regView.style.opacity = '0';
   setTimeout(() => {
     regView.style.display = 'none';
-    regView.innerHTML = '';
     wrap.style.display = 'block';
     wrap.style.opacity = '1';
     wrap.style.pointerEvents = 'auto';
-    if (hud) hud.style.display = 'flex';
     resetWorldMap();
   }, 300);
-}
-
-function getRegionalHeaderLabel(country, region) {
-  const c = country || '';
-  const r = region || '';
-  if (c.includes('法') || r.includes('波爾多') || r.includes('香檳') || r.includes('勃艮第') || c.toLowerCase().includes('france')) {
-    return '🇫🇷 法國・' + (r || '波爾多產區');
-  }
-  if (c.includes('英') || c.includes('蘇格蘭') || r.includes('斯貝賽') || r.includes('艾雷') || c.toLowerCase().includes('scotland')) {
-    return '🇬🇧 蘇格蘭・' + (r || '斯貝賽產區');
-  }
-  if (c.includes('日') || r.includes('山崎') || r.includes('余市') || c.toLowerCase().includes('japan')) {
-    return '🇯🇵 日本・' + (r || '關西與北海道');
-  }
-  if (c.includes('美') || r.includes('納帕') || r.includes('加州') || c.toLowerCase().includes('usa')) {
-    return '🇺🇸 美國・' + (r || '加州納帕山谷');
-  }
-  if (c.includes('台') || c.includes('臺灣') || r.includes('宜蘭') || r.includes('南投')) {
-    return '🇹🇼 台灣・' + (r || '宜蘭與南投');
-  }
-  return '🌍 ' + c + (r ? '・' + r : ' 產區');
-}
-
-// =======================================================================
-// GitHub 既有地圖圖檔對照庫 (嚴格禁用 SVG，全數對應用戶 GitHub 現成圖檔)
-// 包含: map_world, map_europe, map_america, map_japan, map_taiwan, map_china, map_hk, map_africa, map_russia
-// =======================================================================
-
-function resolveGitHubMapKey(country, region) {
-  const c = (country || '').toLowerCase();
-  const r = (region || '').toLowerCase();
-
-  // 1. 歐洲產區 (法國波爾多/香檳/勃艮第、蘇格蘭/英國、義大利、西班牙、德國、葡萄牙等)
-  if (c.includes('法') || r.includes('波爾多') || r.includes('香檳') || r.includes('勃艮第') || c.includes('france') ||
-      c.includes('英') || c.includes('蘇格蘭') || r.includes('斯貝賽') || r.includes('艾雷') || c.includes('scotland') || c.includes('uk') ||
-      c.includes('義') || c.includes('意') || c.includes('italy') ||
-      c.includes('西') || c.includes('spain') ||
-      c.includes('德') || c.includes('germany') ||
-      c.includes('葡') || c.includes('portugal') ||
-      c.includes('歐') || c.includes('europe')) {
-    return 'map_europe';
-  }
-
-  // 2. 美洲產區 (美國納帕山谷、加州、肯塔基、智利、阿根廷、加拿大等)
-  if (c.includes('美') || r.includes('納帕') || r.includes('加州') || c.includes('usa') || c.includes('america') ||
-      c.includes('智利') || c.includes('chile') ||
-      c.includes('阿根廷') || c.includes('argentina') ||
-      c.includes('加') || c.includes('canada')) {
-    return 'map_america';
-  }
-
-  // 3. 日本產區 (山崎、余市、白州、清酒、燒酎、泡盛等)
-  if (c.includes('日') || r.includes('山崎') || r.includes('余市') || r.includes('白州') || r.includes('沖繩') || c.includes('japan')) {
-    return 'map_japan';
-  }
-
-  // 4. 台灣產區 (宜蘭噶瑪蘭、南投Omar等)
-  if (c.includes('台') || c.includes('臺灣') || r.includes('宜蘭') || r.includes('南投') || c.includes('taiwan')) {
-    return 'map_taiwan';
-  }
-
-  // 5. 中國產區 (茅台、紹興、寧夏賀蘭山等)
-  if (c.includes('中') || r.includes('茅台') || r.includes('寧夏') || r.includes('紹興') || c.includes('china')) {
-    return 'map_china';
-  }
-
-  // 6. 香港 (精釀啤酒、本地蒸餾廠等)
-  if (c.includes('港') || c.includes('hk') || c.includes('hong kong')) {
-    return 'map_hk';
-  }
-
-  // 7. 非洲產區 (南非開普敦 Stellenbosch 等)
-  if (c.includes('非') || c.includes('南非') || c.includes('africa') || c.includes('south africa')) {
-    return 'map_africa';
-  }
-
-  // 8. 俄羅斯 (伏特加等)
-  if (c.includes('俄') || c.includes('russia')) {
-    return 'map_russia';
-  }
-
-  return 'map_world';
-}
-
-function getRegionalHeaderLabel(country, region) {
-  const mapKey = resolveGitHubMapKey(country, region);
-  const c = country || '';
-  const r = region || '';
-
-  const labelMap = {
-    'map_europe': '🇪🇺 歐洲・' + (r || c || '名釀產區'),
-    'map_america': '🇺🇸 美洲・' + (r || c || '名釀產區'),
-    'map_japan': '🇯🇵 日本・' + (r || c || '名釀產區'),
-    'map_taiwan': '🇹🇼 台灣・' + (r || c || '名釀產區'),
-    'map_china': '🇨🇳 中國・' + (r || c || '名釀產區'),
-    'map_hk': '🇭🇰 香港・' + (r || c || '本地精釀'),
-    'map_africa': '🇿🇦 非洲・' + (r || c || '名釀產區'),
-    'map_russia': '🇷🇺 俄羅斯・' + (r || c || '名釀產區'),
-    'map_world': '🌍 世界名釀產區'
-  };
-
-  return labelMap[mapKey] || '🌍 ' + c + (r ? '・' + r : '');
-}
-
-function getRegionalMapImageHTML(country, region, bottle) {
-  const mapKey = resolveGitHubMapKey(country, region);
-  const regionLabel = getRegionalHeaderLabel(country, region);
-
-  // 優先載入根目錄與 maps/ 下之 webp / png 圖檔，全自動 Fallback
-  return `
-    <img src="${mapKey}.webp"
-         onerror="this.onerror=null; this.src='${mapKey}.png'; this.onerror=()=>this.src='maps/${mapKey}.webp'; this.onerror=()=>this.src='maps/${mapKey}.png'; this.onerror=()=>this.src='map_world.webp';"
-         class="regional-map-img" alt="${regionLabel}" draggable="false">
-    <!-- 產區焦點光環 Pin (純 HTML/CSS 動畫，零 SVG) -->
-    <div class="regional-focus-pin">
-      <div class="pin-radar-ring"></div>
-      <div class="pin-core">🍷</div>
-    </div>
-  `;
 }
 
 
