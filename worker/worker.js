@@ -1184,7 +1184,14 @@ export default {
         await limitOrThrow(kv, `rl:scanip:${ip}:${ymd()}`, envInt(env.SCAN_IP_DAILY, 60), 86400, 'RATE_LIMITED_IP');
         await limitOrThrow(kv, `rl:scanall:${ymd()}`, envInt(env.SCAN_GLOBAL_DAILY, 1500), 86400, 'SERVICE_BUSY');
 
-        const mt = ['image/jpeg', 'image/png', 'image/webp'].includes(mediaType) ? mediaType : 'image/jpeg';
+        // 以實際檔頭判斷格式，避免手機相片標示與內容不符令 AI 拒收
+        let mt = ['image/jpeg', 'image/png', 'image/webp'].includes(mediaType) ? mediaType : 'image/jpeg';
+        try {
+          const hd = atob(image.slice(0, 24).replace(/[^A-Za-z0-9+/]/g, '').slice(0, 16));
+          if (hd.charCodeAt(0) === 0xFF && hd.charCodeAt(1) === 0xD8) mt = 'image/jpeg';
+          else if (hd.charCodeAt(0) === 0x89 && hd.slice(1, 4) === 'PNG') mt = 'image/png';
+          else if (hd.slice(0, 4) === 'RIFF' && hd.slice(8, 12) === 'WEBP') mt = 'image/webp';
+        } catch (e) {}
         const content = [
           { type: 'image', source: { type: 'base64', media_type: mt, data: image } },
           { type: 'text', text: lang === 'en' ? SCAN_PROMPT + EN_SUFFIX : SCAN_PROMPT }
