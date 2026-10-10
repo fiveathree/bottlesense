@@ -341,14 +341,21 @@ function bottleRegion(b) { const x = safeIdentification(b); return x.region || b
 const DZ_EN = {
   '紅酒':'Red Wine','白酒':'White Wine','氣泡酒':'Sparkling','威士忌':'Whisky','清酒':'Sake','啤酒':'Beer','琴酒':'Gin','蘭姆酒':'Rum','白蘭地':'Brandy','泡盛':'Awamori','利口酒':'Liqueur','其他':'Other','酒類':'Liquor','燒酎':'Shochu','伏特加':'Vodka','龍舌蘭':'Tequila','梅酒':'Plum Wine','黃酒':'Huangjiu','白酒(烈酒)':'Baijiu',
   '蘇格蘭':'Scotland','日本':'Japan','法國':'France','意大利':'Italy','義大利':'Italy','西班牙':'Spain','美國':'USA','台灣':'Taiwan','臺灣':'Taiwan','香港':'Hong Kong','德國':'Germany','澳洲':'Australia','澳大利亞':'Australia','智利':'Chile','阿根廷':'Argentina','紐西蘭':'New Zealand','葡萄牙':'Portugal','中國':'China','韓國':'Korea','愛爾蘭':'Ireland','英國':'UK','英格蘭':'England','加拿大':'Canada','南非':'South Africa','墨西哥':'Mexico','古巴':'Cuba','泰國':'Thailand','奧地利':'Austria','瑞士':'Switzerland','希臘':'Greece','匈牙利':'Hungary','牙買加':'Jamaica','巴貝多':'Barbados','委內瑞拉':'Venezuela','瓜地馬拉':'Guatemala','荷蘭':'Netherlands','比利時':'Belgium','捷克':'Czechia','波蘭':'Poland','俄羅斯':'Russia','印度':'India','越南':'Vietnam','新加坡':'Singapore','未知':'Unknown','未知產區':'Unknown',
-  '波爾多':'Bordeaux','勃艮第':'Burgundy','香檳':'Champagne','香檳區':'Champagne','納帕':'Napa Valley','納帕谷':'Napa Valley','山崎':'Yamazaki','斯貝賽':'Speyside','宜蘭':'Yilan','沖繩':'Okinawa','里奧哈':'Rioja','杜埃羅':'Duero','托斯卡納':'Tuscany','皮埃蒙特':'Piedmont','隆河谷':'Rhone Valley','盧瓦爾河谷':'Loire Valley','阿爾薩斯':'Alsace','巴羅薩':'Barossa','馬爾堡':'Marlborough','山口':'Yamaguchi','新潟':'Niigata','兵庫':'Hyogo','京都':'Kyoto','北海道':'Hokkaido','艾雷島':'Islay','高地':'Highlands','低地':'Lowlands','坎貝爾鎮':'Campbeltown','島嶼':'Islands','肯塔基':'Kentucky','田納西':'Tennessee','里奧哈/杜埃羅':'Rioja / Duero','無年份':'NV'
+  '波爾多':'Bordeaux','勃艮第':'Burgundy','香檳':'Champagne','香檳區':'Champagne','納帕':'Napa Valley','納帕谷':'Napa Valley','山崎':'Yamazaki','斯貝賽':'Speyside','宜蘭':'Yilan','沖繩':'Okinawa','里奧哈':'Rioja','杜埃羅':'Duero','托斯卡納':'Tuscany','皮埃蒙特':'Piedmont','隆河谷':'Rhone Valley','盧瓦爾河谷':'Loire Valley','阿爾薩斯':'Alsace','巴羅薩':'Barossa','馬爾堡':'Marlborough','山口':'Yamaguchi','新潟':'Niigata','兵庫':'Hyogo','京都':'Kyoto','北海道':'Hokkaido','艾雷島':'Islay','高地':'Highlands','低地':'Lowlands','坎貝爾鎮':'Campbeltown','島嶼':'Islands','肯塔基':'Kentucky','田納西':'Tennessee','里奧哈/杜埃羅':'Rioja / Duero','無年份':'NV','梅多克':"Medoc",'聖愛美濃':"Saint-Emilion",'波美侯':"Pomerol",'格拉夫':"Graves",'蘇玳':"Sauternes",'夏布利':"Chablis",'薄酒萊':"Beaujolais",'金丘':"Cote d'Or",'馬貢':"Maconnais",'普羅旺斯':"Provence",'朗格多克':"Languedoc",'巴羅洛':"Barolo",'巴巴瑞斯科':"Barbaresco",'奇揚地':"Chianti",'蒙塔爾奇諾':"Montalcino",'威尼托':"Veneto",'西西里':"Sicily",'索諾瑪':"Sonoma",'威拉米特':"Willamette",'巴羅薩谷':"Barossa Valley",'麥克拉倫谷':"McLaren Vale",'獵人谷':"Hunter Valley",'中奧塔哥':"Central Otago",'霍克斯灣':"Hawke's Bay",'蘇格蘭高地':"Scottish Highlands",'高地':"Highlands",'斯貝賽':"Speyside",'艾雷島':"Islay",'艾雷':"Islay",'坎貝爾鎮':"Campbeltown",'奧克尼':"Orkney",'斯凱島':"Skye",'白州':"Hakushu",'余市':"Yoichi",'宮城峽':"Miyagikyo",'秩父':"Chichibu",'山梨':"Yamanashi",'新潟':"Niigata",'廣島':"Hiroshima",'福岡':"Fukuoka",'九州':"Kyushu",'東京':"Tokyo",'大阪':"Osaka",'噶瑪蘭':"Kavalan",'南投':"Nantou",'台北':"Taipei",'葡萄酒':"Wine",'產區':"Region",'貴州':"Guizhou",'茅台':"Moutai",'四川':"Sichuan",'山東':"Shandong",'寧夏':"Ningxia",'摩澤爾':"Mosel",'萊茵高':"Rheingau",'杜羅河':"Douro",'波特':"Porto",'馬德拉':"Madeira",'赫雷斯':"Jerez",'加泰隆尼亞':"Catalonia",'普里奧拉特':"Priorat",'納瓦拉':"Navarra",'加州':"California",'華盛頓州':"Washington State",'俄勒岡':"Oregon",'紐約':"New York",'肯塔基':"Kentucky",'田納西':"Tennessee",'蘇格蘭':"Scotland",'愛爾蘭':"Ireland",'日本':"Japan",'台灣':"Taiwan",'法國':"France",'義大利':"Italy",'意大利':"Italy",'西班牙':"Spain",'德國':"Germany",'美國':"USA",'澳洲':"Australia",'紐西蘭':"New Zealand",'智利':"Chile",'阿根廷':"Argentina",'南非':"South Africa",'葡萄牙':"Portugal",'奧地利':"Austria",'中國':"China",'韓國':"Korea",'英國':"UK",'加拿大':"Canada",'墨西哥':"Mexico",'古巴':"Cuba",'牙買加':"Jamaica",'荷蘭':"Netherlands",'比利時':"Belgium",'瑞士':"Switzerland",'希臘':"Greece",'泰國':"Thailand",'越南':"Vietnam",'新加坡':"Singapore",'無年份':"NV",'年份':"Vintage"
 };
 function dz(x) {
   const v = String(x == null ? '' : x);
   if (currentLang === 'zh' || !v) return v;
   if (DZ_EN[v]) return DZ_EN[v];
-  return v.split(/([\s\/・·,，、]+)/).map(p => DZ_EN[p] || p).join('');
+  if (!window._dzKeys) window._dzKeys = Object.keys(DZ_EN).sort((a, b) => b.length - a.length);
+  let out = v;
+  window._dzKeys.forEach(k => { if (out.includes(k)) out = out.split(k).join(' ' + DZ_EN[k] + ' '); });
+  out = out.replace(/(\d)\s*年代/g, "$1s").replace(/(\d)\s*年/g, '$1');
+  out = out.replace(/約\s*/g, 'c. ').replace(/\s*[・·]\s*/g, ' · ').replace(/\s*\/\s*/g, ' / ');
+  return out.replace(/\s+/g, ' ').replace(/\s+([,，、])/g, '$1').trim();
 }
+function bottleCountryDisp(b) { const x = safeIdentification(b); return currentLang === 'en' && x.country_en ? x.country_en : dz(bottleCountry(b)); }
+function bottleRegionDisp(b) { const x = safeIdentification(b); return currentLang === 'en' && x.region_en ? x.region_en : dz(bottleRegion(b)); }
 function bottleVintage(b) { const x = safeIdentification(b); return x.vintage || b?.tags?.vintage || (currentLang === 'zh' ? '無年份' : 'NV'); }
 function bottleImage(b) { return b?.image || b?.imageData || b?.photo || b?.imageUrl || ''; }
 
@@ -667,7 +674,7 @@ function guestBannerHTML() {
 function bottleCardHTML(b) {
   const img = bottleImage(b);
   const vintage = bottleVintage(b);
-  const region = dz(bottleRegion(b));
+  const region = bottleRegionDisp(b);
   const cat = dz(bottleCategory(b));
   const pourCount = (b.tastings || []).length;
 
@@ -1177,13 +1184,13 @@ function renderBottleDetail(id) {
         </div>
 
         <div class="label-name">${esc(bottleName(b))}</div>
-        <div class="label-sub">${esc([dz(bottleCountry(b)), dz(bottleRegion(b))].filter(Boolean).join(' · '))}</div>
+        <div class="label-sub">${esc([bottleCountryDisp(b), bottleRegionDisp(b)].filter(Boolean).join(' · '))}</div>
 
         <div class="label-facts">
           <div><div class="fact-label">VINTAGE</div><div class="fact-value">${esc(dz(bottleVintage(b)))}</div></div>
           <div><div class="fact-label">CATEGORY</div><div class="fact-value">${esc(dz(bottleCategory(b)))}</div></div>
-          <div><div class="fact-label">COUNTRY</div><div class="fact-value">${esc(dz(bottleCountry(b)) || (currentLang==='zh'?'未知':'Unknown'))}</div></div>
-          <div><div class="fact-label">REGION</div><div class="fact-value">${esc(dz(bottleRegion(b)) || (currentLang==='zh'?'未知':'Unknown'))}</div></div>
+          <div><div class="fact-label">COUNTRY</div><div class="fact-value">${esc(bottleCountryDisp(b) || (currentLang==='zh'?'未知':'Unknown'))}</div></div>
+          <div><div class="fact-label">REGION</div><div class="fact-value">${esc(bottleRegionDisp(b) || (currentLang==='zh'?'未知':'Unknown'))}</div></div>
         </div>
       </div>
 

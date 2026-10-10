@@ -92,6 +92,8 @@ const SCAN_PROMPT = `你是一個世界頂級侍酒師與酒類數據庫專家�
   "producer": "酒莊/酒廠/品牌名稱",
   "country": "生產國家",
   "region": "產區",
+  "country_en": "Country name in English",
+  "region_en": "Region name in English",
   "vintage": "年份（若無年份寫無年份）",
   "abv": "酒精度（如 43%）",
   "vol": "容量（如 700ml）",
@@ -282,7 +284,7 @@ const EXP_TTL = 60 * 60 * 24 * 90;
 function sanitizeExploreItem(b, id, ownerShareId, origin) {
   const idn = (b.identification && typeof b.identification === 'object') ? b.identification : {};
   const ident = {};
-  for (const k of ['name', 'producer', 'country', 'region', 'vintage', 'category', 'abv', 'vol']) {
+  for (const k of ['name', 'producer', 'country', 'region', 'country_en', 'region_en', 'vintage', 'category', 'abv', 'vol']) {
     if (idn[k] !== undefined && idn[k] !== null) ident[k] = clip(String(idn[k]), 160);
   }
   let image = '';
