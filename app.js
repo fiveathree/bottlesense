@@ -1237,7 +1237,7 @@ async function drawMemoryCard(b, s, withPhoto) {
   return cv;
 }
 
-async function openMemoryCard(bottleId, sessionId) {
+async function openMemoryCard(bottleId, sessionId, fresh) {
   const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
   if (!b) return;
   const s = (b.tastings || []).find(x => String(x.id) === String(sessionId)) || b.tastings?.[0];
@@ -1255,22 +1255,13 @@ async function openMemoryCard(bottleId, sessionId) {
         <div style="font-family:var(--serif); font-size:18px; font-weight:700; color:var(--gold); margin-bottom:8px;">🖼️ ${zh ? '這次的品鑑紀念卡' : 'Memory card'}</div>
         <img src="${cv.toDataURL('image/png')}" alt="" style="width:100%; border-radius:12px;">
         <div style="display:flex; gap:8px; margin-top:12px;">
-          <button class="btn btn-ghost btn-block" onclick="saveMemoryCard()">${zh ? '儲存' : 'Save'}</button>
+          <button class="btn btn-ghost btn-block" onclick="closeModal(); ${fresh ? `showToast('${zh ? '✓ 紀錄已儲存' : '✓ Log saved'}')` : ''}">${fresh ? (zh ? '儲存' : 'Save') : (zh ? '關閉' : 'Close')}</button>
           <button class="btn btn-primary btn-block" onclick="shareMemoryCard()">${zh ? '分享' : 'Share'}</button>
         </div>
       </div>
     </div>`;
 }
 
-async function saveMemoryCard() {
-  const cv = window._memoryCanvas; if (!cv) return;
-  const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
-  if (!blob) return;
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = 'bottlesense-memory.png';
-  document.body.appendChild(a); a.click(); a.remove();
-  showToast(currentLang === 'zh' ? '✓ 已儲存圖片' : '✓ Saved');
-}
 async function shareMemoryCard() {
   const cv = window._memoryCanvas; if (!cv) return;
   const zh = currentLang === 'zh';
@@ -1419,6 +1410,8 @@ function timelineHTML(b) {
         ${vis ? '' : `<div class="tl-actions">
           <button onclick="event.stopPropagation(); togglePublishSession('${esc(b.id)}', '${esc(x.id)}')">${x.isPublic ? (zh ? '撤回' : 'Retract') : (zh ? '發布' : 'Publish')}</button>
           <button onclick="event.stopPropagation(); openShareActionSheet('${esc(b.id)}', '${esc(x.id)}')">${zh ? '分享' : 'Share'}</button>
+          <button onclick="event.stopPropagation(); openAddSessionModal('${esc(b.id)}', '${esc(x.id)}')">${zh ? '編輯' : 'Edit'}</button>
+          <button class="tl-del" onclick="event.stopPropagation(); deleteSession('${esc(b.id)}', '${esc(x.id)}')">${zh ? '刪除' : 'Delete'}</button>
         </div>`}
       </div>
     </div>`;
@@ -1640,7 +1633,7 @@ function defaultNowStr() {
   return d.toISOString().slice(0, 16).replace('T', ' ');
 }
 
-function openAddSessionModal(bottleId) {
+function openAddSessionModal(bottleId, editId) {
   if (blockIfVisitor()) return;
   const now = new Date();
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -1648,6 +1641,7 @@ function openAddSessionModal(bottleId) {
   currentSessionRating = 5;
   currentSessStatus = 'opened';
   window._sessPhoto = null;
+  window._sessEditId = editId || null;
   selectedSessionCity = '';
   selectedSessionScene = '';
 
@@ -1695,6 +1689,25 @@ function openAddSessionModal(bottleId) {
       </div>
     </div>
   `;
+  if (editId) {
+    const bb = (window.cellar || []).find(x => String(x.id) === String(bottleId));
+    const x = bb && (bb.tastings || []).find(q => String(q.id) === String(editId));
+    if (x) {
+      document.getElementById('sess-loc').value = x.location || '';
+      document.getElementById('sess-comp').value = x.companions || '';
+      document.getElementById('sess-notes').value = x.notes || '';
+      if (x.dateStr) document.getElementById('sess-date').value = String(x.dateStr).replace(' ', 'T').slice(0, 16);
+      setModalRating(x.rating || 5);
+      setSessStatus(x.st || (bb.status === 'finished' ? 'finished' : 'opened'));
+      if (x.photo) {
+        window._sessPhoto = x.photo;
+        const prev = document.getElementById('sess-photo-prev'), pb = document.getElementById('sess-photo-btns');
+        if (prev) { prev.style.display = 'block'; prev.innerHTML = `<img src="${esc(x.photo)}" alt=""><button type="button" onclick="clearSessionPhoto()" aria-label="remove">&times;</button>`; }
+        if (pb) pb.style.display = 'none';
+      }
+      const sv = document.querySelector('.sess-actions .btn-primary'); if (sv) sv.textContent = currentLang === 'zh' ? '更新' : 'Update';
+    }
+  }
 }
 
 function sessChip(btn) {
@@ -1774,6 +1787,29 @@ function clearSessionPhoto() {
   const pb = document.getElementById('sess-photo-btns'); if (pb) pb.style.display = '';
 }
 
+// 以時間最新的一筆紀錄，同步酒的狀態與個人評分
+function syncBottleFromTastings(b) {
+  const list = (b.tastings || []).slice().sort((p, q) => String(p.dateStr || '').localeCompare(String(q.dateStr || '')));
+  const last = list[list.length - 1];
+  if (!last) return;
+  b.personalRating = last.rating || b.personalRating;
+  if (last.st) b.status = last.st === 'finished' ? 'finished' : 'opened';
+}
+async function deleteSession(bottleId, sessionId) {
+  if (blockIfVisitor()) return;
+  const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
+  const x = b && (b.tastings || []).find(q => String(q.id) === String(sessionId));
+  if (!x) return;
+  const zh = currentLang === 'zh';
+  const ok = await askConfirm(zh ? '刪除這筆品鑑紀錄？\n刪除後無法復原。' : 'Delete this tasting log?\nThis cannot be undone.', { danger: true, ok: zh ? '刪除' : 'Delete', title: zh ? '刪除紀錄' : 'Delete log' });
+  if (!ok) return;
+  if (x.isPublic) { try { await unpublishFromCommunityPool(bottleId, sessionId); } catch (e) {} }
+  b.tastings = b.tastings.filter(q => String(q.id) !== String(sessionId));
+  syncBottleFromTastings(b);
+  await saveBottleToDB(b);
+  renderBottleDetail(bottleId);
+  showToast(zh ? '✓ 已刪除紀錄' : '✓ Log deleted');
+}
 async function saveNewSession(bottleId) {
   if (blockIfVisitor()) return;
   const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
@@ -1790,13 +1826,26 @@ async function saveNewSession(bottleId) {
     st: currentSessStatus,
     notes: document.getElementById('sess-notes').value.trim()
   };
+  const editId = window._sessEditId; window._sessEditId = null;
+  const old = editId ? (b.tastings || []).find(q => String(q.id) === String(editId)) : null;
   if (window._sessPhoto) {
     let ph = window._sessPhoto;
-    try { if (typeof uploadPhotoDataUrl === 'function') ph = (await uploadPhotoDataUrl(ph)) || ph; } catch (e) {}
+    if (!/^https?:/.test(ph)) { try { if (typeof uploadPhotoDataUrl === 'function') ph = (await uploadPhotoDataUrl(ph)) || ph; } catch (e) {} }
     newSession.photo = ph;
     window._sessPhoto = null;
   }
-
+  if (old) {
+    newSession.id = old.id;
+    if (old.isPublic) newSession.isPublic = old.isPublic;
+    Object.keys(old).forEach(k => { if (!(k in newSession) && k !== 'photo') newSession[k] = old[k]; });
+    b.tastings[b.tastings.indexOf(old)] = newSession;
+    syncBottleFromTastings(b);
+    await saveBottleToDB(b);
+    closeModal();
+    renderBottleDetail(bottleId);
+    showToast(currentLang === 'zh' ? '✓ 已更新紀錄' : '✓ Log updated');
+    return;
+  }
   b.tastings.unshift(newSession);
   b.personalRating = newSession.rating;
   b.status = currentSessStatus === 'finished' ? 'finished' : 'opened';
@@ -1804,7 +1853,7 @@ async function saveNewSession(bottleId) {
   await saveBottleToDB(b);
   closeModal();
   renderBottleDetail(bottleId);
-  openMemoryCard(bottleId, newSession.id);
+  openMemoryCard(bottleId, newSession.id, true);
 }
 
 function openShareActionSheet(bottleId, sessionId = null) {
