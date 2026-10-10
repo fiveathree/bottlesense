@@ -2059,3 +2059,19 @@ select.text-input {
 @keyframes dlgFade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes dlgPop { from { opacity: 0; transform: translateY(10px) scale(0.97); } to { opacity: 1; transform: none; } }
 .dlg-btn:focus { outline: none; box-shadow: 0 0 0 2px rgba(212,175,55,0.35); }
+
+/* ---- round 18: scan button gliding light, log photo ---- */
+.home-hero .scan-btn { position: relative; isolation: isolate; border: 1px solid rgba(212,175,55,0.35) !important; background: radial-gradient(circle at 50% 35%, #1b1a10 0%, #0d0d08 75%) !important; }
+.home-hero .scan-btn svg { width: 46px; height: 46px; stroke-width: 1.4; filter: drop-shadow(0 0 6px rgba(212,175,55,0.35)); }
+.home-hero .scan-btn::before { content: ""; position: absolute; inset: -3px; border-radius: 50%; background: conic-gradient(from 0deg, rgba(212,175,55,0) 0deg, rgba(212,175,55,0) 150deg, rgba(212,175,55,0.35) 235deg, rgba(246,224,140,1) 320deg, rgba(212,175,55,0) 360deg); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px)); animation: scanSpin 4.6s linear infinite; pointer-events: none; }
+.home-hero .scan-btn::after { content: ""; position: absolute; inset: -8px; border-radius: 50%; z-index: -1; background: conic-gradient(from 0deg, rgba(212,175,55,0) 0deg, rgba(212,175,55,0) 170deg, rgba(212,175,55,0.5) 300deg, rgba(212,175,55,0) 360deg); filter: blur(11px); opacity: 0.6; animation: scanSpin 4.6s linear infinite; pointer-events: none; }
+@keyframes scanSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .home-hero .scan-btn::before, .home-hero .scan-btn::after { animation: none; } }
+.sess-photo { margin-bottom: 4px; }
+.sess-photo-btns { display: flex; gap: 8px; }
+.sess-photo-btns .btn { flex: 1; }
+.sess-photo-prev { position: relative; margin-top: 8px; border-radius: 12px; overflow: hidden; border: 1px solid rgba(212,175,55,0.3); }
+.sess-photo-prev img { display: block; width: 100%; max-height: 190px; object-fit: cover; }
+.sess-photo-prev button { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.4); background: rgba(0,0,0,0.6); color: #fff; font-size: 16px; line-height: 1; cursor: pointer; }
+.tl-photo { margin: -2px -2px 8px; border-radius: 8px; overflow: hidden; }
+.tl-photo img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }

@@ -307,7 +307,8 @@ function toggleLanguage() {
     if (key) el.innerHTML = t(key);
   });
   applyStaticI18n();
-  if (currentView === 'home') renderHome();
+  if (window._detailId && (window.cellar || []).some(x => String(x.id) === String(window._detailId))) renderBottleDetail(window._detailId);
+  else if (currentView === 'home') renderHome();
   else if (currentView === 'cellar') renderCellar();
   else if (currentView === 'explore') renderExplore();
 
@@ -478,6 +479,7 @@ async function refreshQuota() {
 }
 
 function renderHome() {
+  window._detailId = null;
   currentView = 'home';
   setActiveNav('nav-home');
   const zh = currentLang === 'zh';
@@ -489,9 +491,12 @@ function renderHome() {
         <p>${t('hero_desc')}</p>
         <div class="scan-center-box">
           <button class="scan-btn" onclick="openCamera()" aria-label="Scan Bottle">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-              <circle cx="12" cy="13" r="4"/>
+            <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 17.5a3.5 3.5 0 0 1 3.5-3.5h3.2c.8 0 1.5-.4 1.9-1.1l1.1-1.8c.4-.7 1.1-1.1 1.9-1.1h6.8c.8 0 1.5.4 1.9 1.1l1.1 1.8c.4.7 1.1 1.1 1.9 1.1h3.2A3.5 3.5 0 0 1 39 17.5v15A3.5 3.5 0 0 1 35.5 36h-23A3.5 3.5 0 0 1 9 32.5z"/>
+              <circle cx="24" cy="25" r="7.2"/>
+              <circle cx="24" cy="25" r="3.4" opacity="0.7"/>
+              <path d="M33 18.6h1.8" />
+              <path d="M21.6 22.4a3.6 3.6 0 0 1 2.4-1" opacity="0.8"/>
             </svg>
           </button>
           <span class="upload-subtext" onclick="openGallery()">${t('choose_album')}</span>
@@ -539,6 +544,7 @@ function openScene(scene) {
 
 /* ---------------- 5 大空間酒窖渲染 ---------------- */
 function renderCellar() {
+  window._detailId = null;
   currentView = 'cellar';
   setActiveNav('nav-cellar');
 
@@ -1088,7 +1094,7 @@ async function drawMemoryCard(b, s, withPhoto) {
   y += 40;
   let drawn = false;
   if (withPhoto) {
-    const im = await loadImageForCanvas(bottleImage(b));
+    const im = await loadImageForCanvas((s && s.photo) || bottleImage(b));
     if (im) {
       const box = 520, r = Math.min(box / im.width, box / im.height);
       const w = im.width * r, h = im.height * r;
@@ -1165,6 +1171,7 @@ async function shareMemoryCard() {
 function renderBottleDetail(id) {
   const b = (window.cellar || []).find(x => String(x.id) === String(id));
   if (!b) { renderCellar(); return; }
+  window._detailId = id;
 
   const x = safeIdentification(b);
   const img = bottleImage(b);
@@ -1281,6 +1288,7 @@ function timelineHTML(b) {
     <div class="tl-item ${side}" style="opacity:${op}">
       <span class="tl-dot"></span>
       <div class="tl-card ${vis ? '' : 'tl-click'}" ${vis ? '' : `onclick="openMemoryCard('${esc(b.id)}', '${esc(x.id)}')"`}>
+        ${x.photo ? `<div class="tl-photo"><img src="${esc(x.photo)}" alt="" loading="lazy"></div>` : ''}
         <div class="tl-date">${esc(x.dateStr || x.date || '')}</div>
         <div class="tl-stars">${'&#9733;'.repeat(x.rating || 5)}</div>
         ${x.location ? `<div class="tl-meta">📍 ${esc(x.location)}</div>` : ''}
@@ -1511,6 +1519,7 @@ function openAddSessionModal(bottleId) {
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
   const defaultIso = now.toISOString().slice(0, 16);
   currentSessionRating = 5;
+  window._sessPhoto = null;
   selectedSessionCity = '';
   selectedSessionScene = '';
 
@@ -1524,7 +1533,17 @@ function openAddSessionModal(bottleId) {
           ${t('btn_add_log')}
         </div>
 
-        <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint);">${currentLang==='zh'?'日期與時間':'Date & Time'}</div>
+        <div class="sess-photo" id="sess-photo-box">
+          <div class="sess-photo-btns">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('sess-cam').click()">${currentLang==='zh'?'即時拍照':'Take photo'}</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('sess-pick').click()">${currentLang==='zh'?'從相簿選':'Choose photo'}</button>
+          </div>
+          <input type="file" id="sess-cam" accept="image/*" capture="environment" hidden onchange="onSessionPhoto(this)">
+          <input type="file" id="sess-pick" accept="image/*" hidden onchange="onSessionPhoto(this)">
+          <div class="sess-photo-prev" id="sess-photo-prev" style="display:none;"></div>
+        </div>
+
+        <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint); margin-top:12px;">${currentLang==='zh'?'日期與時間':'Date & Time'}</div>
         <input type="datetime-local" id="sess-date" class="text-input" value="${defaultIso}" style="margin-top:2px;">
 
         <!-- 雙軌地點與環境選取 -->
@@ -1622,6 +1641,26 @@ function setModalRating(n) {
   }
 }
 
+async function onSessionPhoto(input) {
+  const f = input.files && input.files[0];
+  input.value = '';
+  if (!f) return;
+  try {
+    const raw = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
+    window._sessPhoto = await shrinkDataUrl(raw, 1000, 0.75);
+    const prev = document.getElementById('sess-photo-prev');
+    if (prev) {
+      prev.style.display = 'block';
+      prev.innerHTML = `<img src="${window._sessPhoto}" alt=""><button type="button" onclick="clearSessionPhoto()" aria-label="remove">&times;</button>`;
+    }
+  } catch (e) { showToast(currentLang==='zh'?'相片載入失敗，請重試':'Could not load the photo'); }
+}
+function clearSessionPhoto() {
+  window._sessPhoto = null;
+  const prev = document.getElementById('sess-photo-prev');
+  if (prev) { prev.style.display = 'none'; prev.innerHTML = ''; }
+}
+
 async function saveNewSession(bottleId) {
   if (blockIfVisitor()) return;
   const b = (window.cellar || []).find(x => String(x.id) === String(bottleId));
@@ -1637,6 +1676,12 @@ async function saveNewSession(bottleId) {
     rating: currentSessionRating,
     notes: document.getElementById('sess-notes').value.trim()
   };
+  if (window._sessPhoto) {
+    let ph = window._sessPhoto;
+    try { if (typeof uploadPhotoDataUrl === 'function') ph = (await uploadPhotoDataUrl(ph)) || ph; } catch (e) {}
+    newSession.photo = ph;
+    window._sessPhoto = null;
+  }
 
   b.tastings.unshift(newSession);
   b.personalRating = newSession.rating;
@@ -2267,6 +2312,7 @@ function isMyExploreItem(b, myShareId, myProfileName, myBoundEmail) {
 
 // 3. 探索頁面渲染（純粹單一世界地圖容器，零圖層切換）
 async function renderExplore() {
+  window._detailId = null;
   currentView = 'explore';
   setActiveNav('nav-explore');
   isRegionalMapActive = false;
