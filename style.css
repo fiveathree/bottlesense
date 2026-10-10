@@ -2035,3 +2035,8 @@ select.text-input {
 .tl-dot-party { background: #E8D48A; box-shadow: 0 0 10px rgba(232,212,138,0.7); }
 
 .quota-out-ring { width: 64px; height: 64px; border-radius: 50%; border: 1px solid rgba(212,175,55,0.55); color: var(--gold); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; box-shadow: 0 0 22px rgba(212,175,55,0.15); }
+
+/* ---- home slogan breathing room ---- */
+.home-hero { padding-left: 28px !important; padding-right: 28px !important; }
+.home-hero h1.hero-en { font-size: clamp(17px, 5.3vw, 24px) !important; letter-spacing: 0.02em; }
+.home-hero h1.hero-zh { font-size: clamp(24px, 7.4vw, 31px) !important; }
