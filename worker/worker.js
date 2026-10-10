@@ -490,8 +490,12 @@ async function callClaude(env, model, content, maxTokens) {
   });
   if (!res.ok) { let body = ''; try { body = (await res.text()).slice(0, 300); } catch (e) {} const er = new Error('AI_UPSTREAM_' + res.status); er.status = res.status; er.body = body; er.model = model; throw er; }
   const data = await res.json();
-  return data.content?.[0]?.text || '';
+  // 模型可能先回傳 thinking 區塊：取所有 text 區塊合併，而不是只讀第一個
+  const txt = (Array.isArray(data.content) ? data.content : []).filter(c => c && c.type === 'text').map(c => c.text || '').join('\n');
+  if (!txt) { lastEmpty = { stop: data.stop_reason || '', types: (data.content || []).map(c => c && c.type).join(',') }; }
+  return txt;
 }
+let lastEmpty = null;
 function extractJson(text) {
   const a = text.indexOf('{'), b = text.lastIndexOf('}');
   if (a === -1 || b === -1) return null;
@@ -1200,14 +1204,17 @@ export default {
         const fast = env.SCAN_MODEL_FAST || 'claude-haiku-5-5';
         let out = null, modelUsed = strong;
         try {
-          const ask = async (mdl) => { const txt = await callClaude(env, mdl, content, 4000); const j = extractJson(txt); if (!j) { const er = new Error('AI_BAD_JSON'); er.status = 200; er.model = mdl; er.body = 'PARSE FAIL, tail: ' + String(txt).slice(-200); throw er; } return j; };
+          const ask = async (mdl) => { lastEmpty = null; const txt = await callClaude(env, mdl, content, 4000); const j = extractJson(txt); if (!j) { const er = new Error('AI_BAD_JSON'); er.status = 200; er.model = mdl; er.body = 'PARSE FAIL stop=' + (lastEmpty && lastEmpty.stop) + ' types=' + (lastEmpty && lastEmpty.types) + ' tail: ' + String(txt).slice(-200); throw er; } return j; };
           if (env.SCAN_FAST_FIRST === '1') {
             out = await ask(fast).catch(() => null);
             modelUsed = fast;
             const lowConf = !out || (!out.not_alcohol && Number(out.conf || 0) < envInt(env.SCAN_CONF_MIN, 75));
             if (lowConf) out = null;
           }
-          if (!out) { out = await ask(strong); modelUsed = strong; }
+          if (!out) {
+            try { out = await ask(strong); modelUsed = strong; }
+            catch (e1) { if (e1.message !== 'AI_BAD_JSON' || fast === strong) throw e1; out = await ask(fast); modelUsed = fast; }
+          }
         } catch (er) {
           try { await kv.put('ailast', JSON.stringify({ t: Date.now(), status: er.status || 0, model: er.model || '', msg: String(er.body || er.message || '').slice(0, 300) }), { expirationTtl: 60 * 60 * 24 * 14 }); } catch (e) {}
           await bumpDay(kv, { ai_err: 1 });
