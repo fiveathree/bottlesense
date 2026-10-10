@@ -1255,13 +1255,22 @@ async function openMemoryCard(bottleId, sessionId) {
         <div style="font-family:var(--serif); font-size:18px; font-weight:700; color:var(--gold); margin-bottom:8px;">🖼️ ${zh ? '這次的品鑑紀念卡' : 'Memory card'}</div>
         <img src="${cv.toDataURL('image/png')}" alt="" style="width:100%; border-radius:12px;">
         <div style="display:flex; gap:8px; margin-top:12px;">
-          <button class="btn btn-ghost btn-block" onclick="closeModal()">${zh ? '關閉' : 'Close'}</button>
-          <button class="btn btn-primary btn-block" onclick="shareMemoryCard()">${zh ? '分享 / 儲存' : 'Share / Save'}</button>
+          <button class="btn btn-ghost btn-block" onclick="saveMemoryCard()">${zh ? '儲存' : 'Save'}</button>
+          <button class="btn btn-primary btn-block" onclick="shareMemoryCard()">${zh ? '分享' : 'Share'}</button>
         </div>
       </div>
     </div>`;
 }
 
+async function saveMemoryCard() {
+  const cv = window._memoryCanvas; if (!cv) return;
+  const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+  if (!blob) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'bottlesense-memory.png';
+  document.body.appendChild(a); a.click(); a.remove();
+  showToast(currentLang === 'zh' ? '✓ 已儲存圖片' : '✓ Saved');
+}
 async function shareMemoryCard() {
   const cv = window._memoryCanvas; if (!cv) return;
   const zh = currentLang === 'zh';
@@ -1378,14 +1387,14 @@ function renderBottleDetail(id) {
 
 function timelineHTML(b) {
   const zh = currentLang === 'zh';
-  const list = b.tastings || [];
+  const list = (b.tastings || []).slice().sort((p, q) => String(p.dateStr || p.date || '').localeCompare(String(q.dateStr || q.date || '')));
   const isExpanded = window['timeline_expanded_' + b.id];
-  const shown = isExpanded ? list : list.slice(0, 4);
+  const shown = isExpanded ? list : list.slice(-4);
   const vis = isVisitorMode;
   const canInvite = !vis && ['unopened','opened','kept'].includes(b.status);
   const hasParty = !!(b.party && !vis);
   const party = hasParty ? `
-    <div class="tl-item tl-left">
+    <div class="tl-item ${shown.length % 2 === 0 ? 'tl-left' : 'tl-right'}">
       <span class="tl-dot tl-dot-party"></span>
       <div class="tl-card tl-card-party">
         <div class="tl-party-tag">${zh ? '共飲邀約' : 'Pour invitation'}</div>
@@ -1394,15 +1403,15 @@ function timelineHTML(b) {
       </div>
     </div>` : '';
   const items = shown.map((x, i0) => {
-    const idx = i0 + (hasParty ? 1 : 0);
-    const side = idx % 2 === 0 ? 'tl-left' : 'tl-right';
-    const op = Math.max(0.42, 1 - idx * 0.13).toFixed(2);
+    const side = i0 % 2 === 0 ? 'tl-left' : 'tl-right';
+    const op = (shown.length > 1 ? 0.5 + 0.5 * (i0 / (shown.length - 1)) : 1).toFixed(2);
+    const stChip = x.st ? `<span class="tl-st tl-st-${x.st === 'finished' ? 'fin' : 'op'}">${x.st === 'finished' ? t('space_bar') : t('space_wood')}</span>` : '';
     return `
     <div class="tl-item ${side}" style="opacity:${op}">
       <span class="tl-dot"></span>
       <div class="tl-card ${vis ? '' : 'tl-click'}" ${vis ? '' : `onclick="openMemoryCard('${esc(b.id)}', '${esc(x.id)}')"`}>
         ${x.photo ? `<div class="tl-photo"><img src="${esc(x.photo)}" alt="" loading="lazy"></div>` : ''}
-        <div class="tl-date">${esc(x.dateStr || x.date || '')}</div>
+        <div class="tl-date">${esc(x.dateStr || x.date || '')}${stChip}</div>
         <div class="tl-stars">${'&#9733;'.repeat(x.rating || 5)}</div>
         ${x.location ? `<div class="tl-meta">📍 ${esc(x.location)}</div>` : ''}
         ${x.companions ? `<div class="tl-meta">👥 ${esc(x.companions)}</div>` : ''}
@@ -1415,7 +1424,8 @@ function timelineHTML(b) {
     </div>`;
   }).join('');
   const more = (list.length > 4 && !isExpanded)
-    ? `<div class="tl-more"><button class="btn btn-ghost btn-sm" onclick="expandTimeline('${esc(b.id)}')">${zh ? '展開全部 ' + list.length + ' 筆' : 'Show all ' + list.length}</button></div>` : '';
+    ? `<div class="tl-more"><button class="btn btn-ghost btn-sm" onclick="expandTimeline('${esc(b.id)}')">${zh ? '展開更早的 ' + (list.length - 4) + ' 筆' : 'Show ' + (list.length - 4) + ' earlier'}</button></div>` : '';
+  const done = b.status === 'finished';
   const empty = (!list.length && !party)
     ? `<div class="tl-empty">${t('no_logs')}</div>` : '';
   return `
@@ -1430,9 +1440,8 @@ function timelineHTML(b) {
         <div style="font-size:13px; color:var(--text-faint); margin-bottom:14px;">${t('timeline_hint')}</div>
         ${empty}
         <div class="tl">
-          ${party}${items}
-          ${more}
-          <div class="tl-end"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 20 3 6h18z"/></svg><span>${zh ? '期待無盡時光' : 'Endless moments await'}</span></div>
+          ${more}${items}${party}
+          <div class="tl-end"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 20 3 6h18z"/></svg><span>${done ? (zh ? '這支酒的旅程完結' : 'This bottle\'s journey is complete') : (zh ? '期待無盡時光' : 'Endless moments await')}</span></div>
         </div>
       </div>`;
 }
@@ -1617,6 +1626,11 @@ async function saveEditedBottle(id) {
 }
 
 let currentSessionRating = 5;
+let currentSessStatus = 'opened';
+function setSessStatus(st) {
+  currentSessStatus = st;
+  document.querySelectorAll('#sess-status button').forEach(el => el.classList.toggle('on', el.dataset.st === st));
+}
 let selectedSessionCity = '';
 let selectedSessionScene = '';
 
@@ -1632,6 +1646,7 @@ function openAddSessionModal(bottleId) {
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
   const defaultIso = now.toISOString().slice(0, 16);
   currentSessionRating = 5;
+  currentSessStatus = 'opened';
   window._sessPhoto = null;
   selectedSessionCity = '';
   selectedSessionScene = '';
@@ -1699,6 +1714,12 @@ function openAddSessionModal(bottleId) {
 
         <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint); margin-top:10px;">${currentLang==='zh'?'品飲感受與筆記':'Tasting Impressions'}</div>
         <textarea id="sess-notes" class="text-input" style="height:70px; resize:none; margin-top:2px;"></textarea>
+
+        <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint); margin-top:12px;">${currentLang==='zh'?'這次之後，酒的狀態':'Bottle status after this pour'}</div>
+        <div class="sess-status" id="sess-status">
+          <button type="button" class="on" data-st="opened" onclick="setSessStatus('opened')">${t('space_wood')}<small>${currentLang==='zh'?'仍有餘酒':'some left'}</small></button>
+          <button type="button" data-st="finished" onclick="setSessStatus('finished')">${t('space_bar')}<small>${currentLang==='zh'?'已經喝完':'all gone'}</small></button>
+        </div>
 
         <div style="display:flex; gap:10px; margin-top:16px;">
           <button class="btn btn-ghost btn-block" onclick="closeModal()">${currentLang==='zh'?'取消':'Cancel'}</button>
@@ -1787,6 +1808,7 @@ async function saveNewSession(bottleId) {
     location: document.getElementById('sess-loc').value.trim(),
     companions: document.getElementById('sess-comp').value.trim(),
     rating: currentSessionRating,
+    st: currentSessStatus,
     notes: document.getElementById('sess-notes').value.trim()
   };
   if (window._sessPhoto) {
@@ -1798,6 +1820,7 @@ async function saveNewSession(bottleId) {
 
   b.tastings.unshift(newSession);
   b.personalRating = newSession.rating;
+  b.status = currentSessStatus === 'finished' ? 'finished' : 'opened';
   delete b.party;
   await saveBottleToDB(b);
   closeModal();

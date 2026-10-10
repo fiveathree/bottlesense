@@ -992,7 +992,6 @@ select.text-input {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2108,3 +2107,16 @@ select.text-input {
 .pc-comm:empty { display: none; }
 .pc-comm-k { font-size: 11px; color: var(--text-faint); margin-bottom: 2px; }
 .pc-comm-dim { font-size: 11px; color: var(--text-faint); margin-left: 6px; }
+
+/* dark canvas so the iOS keyboard area never flashes white */
+html { background: #0b0b0a; color-scheme: dark; }
+.modal-overlay { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(0, 0, 0, 0.9); }
+.dlg-overlay { -webkit-backdrop-filter: none; backdrop-filter: none; }
+.text-input, textarea.text-input, input.text-input { color-scheme: dark; background-color: #15160f; color: var(--text); }
+/* session status picker + timeline chips */
+.sess-status { display: flex; gap: 8px; margin-top: 6px; }
+.sess-status button { flex: 1; padding: 9px 6px; border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--text); font: inherit; font-size: 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.sess-status button small { font-size: 11px; color: var(--text-faint); }
+.sess-status button.on { border-color: var(--gold); background: rgba(212,175,55,0.16); color: var(--gold); }
+.tl-st { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 8px; font-size: 10px; border: 1px solid var(--gold); color: var(--gold); }
+.tl-st-fin { background: var(--gold); color: #111; }
