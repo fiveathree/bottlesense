@@ -28,6 +28,7 @@ svg{width:100%;height:auto;max-height:200px;display:block}
 <p class="dim" id="lerr"></p></div>
 <div id="app" hidden>
 <h1><span>BottleSense 後台</span><span class="row"><select id="days" onchange="load()"><option value="7">7 日</option><option value="14">14 日</option><option value="30" selected>30 日</option></select><button class="sm" onclick="load()">重新整理</button><button class="sm dng" onclick="out()">登出</button></span></h1>
+<div id="aierr"></div>
 <div class="grid" id="kpi"></div>
 <div class="card"><h2>每日掃描 (訪客 / 會員)</h2><div id="ch1"></div><div class="dim" style="font-size:12px">紅線：額度用盡次數</div></div>
 <div class="card"><h2>每日活躍 / 新註冊</h2><div id="ch2"></div></div>
@@ -62,8 +63,8 @@ lines.forEach(l=>{g+=`<polyline fill="none" stroke="${l[1]}" stroke-width="2" po
 $(el).innerHTML=g+'</svg>'}
 function cost(){if(!D)return;const n=sum(D.series,'scan');$('costv').textContent=` × ${n} 次 ≈ US$ ${(n*parseFloat($('unit').value||0)).toFixed(2)}`}
 async function load(){const d=$('days').value;const [o,st,fl]=await Promise.all([api('/api/admin/overview?days='+d),api('/api/admin/stats').catch(()=>({})),api('/api/admin/explore/flagged').catch(()=>[])]);D=o;const s=o.series,t=o.totals;
-$('login').hidden=true;$('app').hidden=false;
-$('kpi').innerHTML=[['註冊用戶',t.users],['期內掃描',sum(s,'scan')],['期內活躍(獨立)',sum(s,'active')],['期內新註冊',sum(s,'signup')],['額度用盡',sum(s,'quota_out')],['非酒類被拒',sum(s,'not_alcohol')],['探索已公開',t.exp_live],['待審/被舉報',t.exp_pending+'/'+t.exp_hidden],['已封鎖',t.banned],['商家',t.merchants]].map(([a,b])=>`<div class="kpi"><b>${b}</b><span>${a}</span></div>`).join('');
+$('aierr').innerHTML=o.ailast?`<div class="card" style="border-color:var(--red)"><h2 style="color:var(--red)">AI 最近一次錯誤</h2><div>HTTP ${E(o.ailast.status)} ・ 模型 ${E(o.ailast.model)} ・ ${new Date(o.ailast.t).toLocaleString()}</div><div class="dim" style="word-break:break-all;margin-top:4px">${E(o.ailast.msg)}</div></div>`:'';$('login').hidden=true;$('app').hidden=false;
+$('kpi').innerHTML=[['註冊用戶',t.users],['期內掃描',sum(s,'scan')],['期內活躍(獨立)',sum(s,'active')],['期內新註冊',sum(s,'signup')],['額度用盡',sum(s,'quota_out')],['非酒類被拒',sum(s,'not_alcohol')],['AI 錯誤次數',sum(s,'ai_err')],['探索已公開',t.exp_live],['待審/被舉報',t.exp_pending+'/'+t.exp_hidden],['已封鎖',t.banned],['商家',t.merchants]].map(([a,b])=>`<div class="kpi"><b>${b}</b><span>${a}</span></div>`).join('');
 chart('ch1',s,['scan_user','scan_guest'],[['quota_out','#e06c6c']]);chart('ch2',s,[],[['active','#d4af37'],['signup','#6cc08b']]);
 const agg=p=>{const r={};s.forEach(x=>{for(const k in x)if(k.startsWith(p))r[k.slice(p.length)]=(r[k.slice(p.length)]||0)+x[k]});return r};
 bars('cat',agg('c:'));bars('cty',agg('k:'),10);const m=agg('mdl:');$('mdl').textContent='模型分佈：'+(Object.entries(m).map(([k,v])=>k+' '+v).join('、')||'暫無');cost();

@@ -488,7 +488,7 @@ async function callClaude(env, model, content, maxTokens) {
     headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model, max_tokens: maxTokens, messages: [{ role: 'user', content }] })
   });
-  if (!res.ok) throw new Error('AI_UPSTREAM_' + res.status);
+  if (!res.ok) { let body = ''; try { body = (await res.text()).slice(0, 300); } catch (e) {} const er = new Error('AI_UPSTREAM_' + res.status); er.status = res.status; er.body = body; er.model = model; throw er; }
   const data = await res.json();
   return data.content?.[0]?.text || '';
 }
@@ -1132,7 +1132,8 @@ export default {
             exp_pending: await count('exp:', k => k.metadata && k.metadata.h === 2),
             exp_hidden: await count('exp:', k => k.metadata && k.metadata.h === 1)
           };
-          return json({ tz: 'UTC+8', days, series, totals });
+          let ailast = null; try { ailast = JSON.parse(await kv.get('ailast') || 'null'); } catch (e) {}
+          return json({ tz: 'UTC+8', days, series, totals, ailast });
         }
         if (path === '/api/admin/explore/flagged' && request.method === 'GET') {
           const l = await kv.list({ prefix: 'exp:', limit: 500 });
@@ -1199,7 +1200,11 @@ export default {
             if (lowConf) out = null;
           }
           if (!out) { out = extractJson(await callClaude(env, strong, content, 2000)); modelUsed = strong; }
-        } catch (er) { throw new HttpError(502, 'AI_UPSTREAM_ERROR'); }
+        } catch (er) {
+          try { await kv.put('ailast', JSON.stringify({ t: Date.now(), status: er.status || 0, model: er.model || '', msg: String(er.body || er.message || '').slice(0, 300) }), { expirationTtl: 60 * 60 * 24 * 14 }); } catch (e) {}
+          await bumpDay(kv, { ai_err: 1 });
+          throw new HttpError(502, 'AI_UPSTREAM_ERROR');
+        }
         if (!out) throw new HttpError(502, 'AI_UPSTREAM_ERROR');
 
         if (out.not_alcohol) {
