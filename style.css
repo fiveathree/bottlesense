@@ -2120,3 +2120,26 @@ html { background: #0b0b0a; color-scheme: dark; }
 .sess-status button.on { border-color: var(--gold); background: rgba(212,175,55,0.16); color: var(--gold); }
 .tl-st { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 8px; font-size: 10px; border: 1px solid var(--gold); color: var(--gold); }
 .tl-st-fin { background: var(--gold); color: #111; }
+
+/* one-screen pour log */
+.sess-card { max-width: 380px; text-align: left; padding: 16px 16px 14px; overflow: visible; }
+.sess-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.sess-title { font-family: var(--serif); font-size: 19px; font-weight: 700; color: var(--gold); }
+.sess-x { background: none; border: 0; color: var(--text-faint); font-size: 26px; line-height: 1; cursor: pointer; padding: 0 4px; }
+.sess-row1 { display: flex; gap: 12px; align-items: stretch; margin-bottom: 10px; }
+.sess-photo-col { width: 96px; flex: none; }
+.sess-photo-col .sess-photo-btns { display: flex; flex-direction: column; gap: 6px; }
+.sess-photo-col .sess-photo-btns button { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 4px; border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--gold); font: inherit; font-size: 13px; cursor: pointer; }
+.sess-photo-col .sess-photo-prev { margin: 0; height: 90px; }
+.sess-photo-col .sess-photo-prev img { height: 90px; max-height: 90px; width: 100%; object-fit: cover; }
+.sess-rate-col { flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; min-width: 0; }
+.sess-rate-col .star-row { justify-content: space-between; margin: 0; }
+.sess-card .text-input { margin: 0 0 8px; width: 100%; }
+.sess-chips { display: flex; gap: 6px; overflow-x: auto; margin: -2px 0 8px; padding-bottom: 2px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.sess-chips::-webkit-scrollbar { display: none; }
+.sess-chips button { flex: none; padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; }
+.sess-chips button.on { background: rgba(212,175,55,0.2); border-color: var(--gold); color: var(--gold); }
+.sess-date { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--text-faint); margin: 2px 0 12px; }
+.sess-date input { flex: 1; min-width: 0; background: transparent; border: 0; color: var(--text); color-scheme: dark; font: inherit; font-size: 13px; text-align: right; }
+.sess-actions { display: flex; gap: 10px; }
+.sess-card .sess-status { margin-top: 0; }

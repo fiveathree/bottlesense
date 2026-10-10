@@ -1654,80 +1654,57 @@ function openAddSessionModal(bottleId) {
   const cities = currentLang === 'zh' ? ['中環', '尖沙咀', '銅鑼灣', '旺角', '台中', '高雄', '台北', '東京', '大阪', '澳門'] : ['Central', 'Tsim Sha Tsui', 'Causeway Bay', 'Mong Kok', 'Taichung', 'Kaohsiung', 'Taipei', 'Tokyo', 'Osaka', 'Macau'];
   const scenes = currentLang === 'zh' ? ['家中陽台', '酒吧', '居酒屋', '露營星空下', '海邊', '朋友聚會', '餐廳'] : ['Home Balcony', 'Bar', 'Izakaya', 'Camping', 'Beach', 'Gathering', 'Restaurant'];
 
+  const chips = [...cities.slice(0, 6), ...scenes.slice(0, 5)];
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="closeModal()">
-      <div class="modal-card" role="dialog" aria-modal="true" style="max-width:390px; text-align:left; max-height:calc(var(--vvh, 100dvh) - 40px); overflow-y:auto; -webkit-overflow-scrolling:touch;" onclick="event.stopPropagation()">
-        <div style="font-family:var(--serif); font-size:19px; font-weight:700; margin-bottom:12px; color:var(--gold);">
-          ${t('btn_add_log')}
+      <div class="modal-card sess-card" role="dialog" aria-modal="true" onclick="event.stopPropagation()">
+        <div class="sess-top">
+          <div class="sess-title">${t('btn_add_log')}</div>
+          <button type="button" class="sess-x" aria-label="close" onclick="closeModal()">&times;</button>
         </div>
 
-        <div class="sess-photo" id="sess-photo-box">
-          <div class="sess-photo-btns">
-            <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('sess-cam').click()">${currentLang==='zh'?'即時拍照':'Take photo'}</button>
-            <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('sess-pick').click()">${currentLang==='zh'?'從相簿選':'Choose photo'}</button>
+        <div class="sess-row1">
+          <div class="sess-photo-col">
+            <div class="sess-photo-prev" id="sess-photo-prev" style="display:none;"></div>
+            <div class="sess-photo-btns" id="sess-photo-btns">
+              <button type="button" onclick="document.getElementById('sess-cam').click()" aria-label="camera"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span>${currentLang==='zh' ? '拍照' : 'Photo'}</span></button>
+              <button type="button" onclick="document.getElementById('sess-pick').click()" aria-label="gallery"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m4 16 4-4 4 4 3-3 5 5"/></svg><span>${currentLang==='zh' ? '相簿' : 'Gallery'}</span></button>
+            </div>
+            <input type="file" id="sess-cam" accept="image/*" capture="environment" hidden onchange="onSessionPhoto(this)">
+            <input type="file" id="sess-pick" accept="image/*" hidden onchange="onSessionPhoto(this)">
           </div>
-          <input type="file" id="sess-cam" accept="image/*" capture="environment" hidden onchange="onSessionPhoto(this)">
-          <input type="file" id="sess-pick" accept="image/*" hidden onchange="onSessionPhoto(this)">
-          <div class="sess-photo-prev" id="sess-photo-prev" style="display:none;"></div>
+          <div class="sess-rate-col">
+            <div class="star-row">${[1,2,3,4,5].map(n => `<button type="button" class="star-btn filled" id="sess-star-${n}" onclick="setModalRating(${n})">&#9733;</button>`).join('')}</div>
+            <div class="sess-status" id="sess-status">
+              <button type="button" class="on" data-st="opened" onclick="setSessStatus('opened')">${t('space_wood')}<small>${currentLang==='zh' ? '仍有餘酒' : 'some left'}</small></button>
+              <button type="button" data-st="finished" onclick="setSessStatus('finished')">${t('space_bar')}<small>${currentLang==='zh' ? '已經喝完' : 'all gone'}</small></button>
+            </div>
+          </div>
         </div>
 
-        <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint); margin-top:12px;">${currentLang==='zh'?'日期與時間':'Date & Time'}</div>
-        <input type="datetime-local" id="sess-date" class="text-input" value="${defaultIso}" style="margin-top:2px;">
+        <input type="text" id="sess-loc" class="text-input" placeholder="${currentLang==='zh' ? '地點，例如：中環 酒吧' : 'Where, e.g. Central bar'}">
+        <div class="sess-chips">${chips.map(c => `<button type="button" onclick="sessChip(this)">${c}</button>`).join('')}</div>
+        <input type="text" id="sess-comp" class="text-input" placeholder="${currentLang==='zh' ? '同伴 (選填)' : 'With whom (optional)'}">
+        <input type="text" id="sess-notes" class="text-input" placeholder="${currentLang==='zh' ? '一句感受 (選填)' : 'A few words (optional)'}">
+        <label class="sess-date"><span>${currentLang==='zh' ? '時間' : 'When'}</span><input type="datetime-local" id="sess-date" value="${defaultIso}"></label>
 
-        <!-- 雙軌地點與環境選取 -->
-        <div style="margin-top:10px;">
-          <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint); margin-bottom:4px;">
-            📍 ${currentLang==='zh'?'城市 / 地區 (單選)':'City / District'}
-          </div>
-          <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px;">
-            ${cities.map(c => `
-              <button type="button" class="btn btn-ghost btn-sm session-city-pill" onclick="selectSessionCity('${esc(c)}', this)" style="padding:4px 9px; font-size:11.5px; border-radius:999px;">
-                ${c}
-              </button>
-            `).join('')}
-          </div>
-
-          <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint); margin-bottom:4px;">
-            🥂 ${currentLang==='zh'?'場合 / 環境 (單選)':'Occasion / Scene'}
-          </div>
-          <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px;">
-            ${scenes.map(s => `
-              <button type="button" class="btn btn-ghost btn-sm session-scene-pill" onclick="selectSessionScene('${esc(s)}', this)" style="padding:4px 9px; font-size:11.5px; border-radius:999px;">
-                ${s}
-              </button>
-            `).join('')}
-          </div>
-
-          <div style="font-size:11.5px; color:var(--text-faint); margin-bottom:2px;">
-            ${currentLang==='zh'?'自由組合輸出地點：':'Combined Location Output:'}
-          </div>
-          <input type="text" id="sess-loc" class="text-input" placeholder="${currentLang==='zh'?'點選上方標籤或自由輸入地點':'Select tags or enter custom location'}" style="margin-top:0;">
-        </div>
-
-        <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint); margin-top:10px;">${currentLang==='zh'?'同飲同伴':'Companions'}</div>
-        <input type="text" id="sess-comp" class="text-input" placeholder="${currentLang==='zh'?'例如：獨酌深思、好友相聚':'e.g. Solo, Friends'}" style="margin-top:2px;">
-
-        <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint); margin-top:10px;">${currentLang==='zh'?'評分':'Rating'}</div>
-        <div class="star-row" style="margin-top:4px;">
-          ${[1,2,3,4,5].map(n => `<button type="button" class="star-btn filled" id="sess-star-${n}" onclick="setModalRating(${n})">★</button>`).join('')}
-        </div>
-
-        <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint); margin-top:10px;">${currentLang==='zh'?'品飲感受與筆記':'Tasting Impressions'}</div>
-        <textarea id="sess-notes" class="text-input" style="height:70px; resize:none; margin-top:2px;"></textarea>
-
-        <div style="font-size:12px; font-family:var(--mono); color:var(--text-faint); margin-top:12px;">${currentLang==='zh'?'這次之後，酒的狀態':'Bottle status after this pour'}</div>
-        <div class="sess-status" id="sess-status">
-          <button type="button" class="on" data-st="opened" onclick="setSessStatus('opened')">${t('space_wood')}<small>${currentLang==='zh'?'仍有餘酒':'some left'}</small></button>
-          <button type="button" data-st="finished" onclick="setSessStatus('finished')">${t('space_bar')}<small>${currentLang==='zh'?'已經喝完':'all gone'}</small></button>
-        </div>
-
-        <div style="display:flex; gap:10px; margin-top:16px;">
-          <button class="btn btn-ghost btn-block" onclick="closeModal()">${currentLang==='zh'?'取消':'Cancel'}</button>
-          <button class="btn btn-primary btn-block" onclick="saveNewSession('${esc(bottleId)}')">${currentLang==='zh'?'儲存品飲':'Save Pour'}</button>
+        <div class="sess-actions">
+          <button class="btn btn-ghost btn-block" onclick="closeModal()">${currentLang==='zh' ? '取消' : 'Cancel'}</button>
+          <button class="btn btn-primary btn-block" onclick="saveNewSession('${esc(bottleId)}')">${currentLang==='zh' ? '儲存' : 'Save'}</button>
         </div>
       </div>
     </div>
   `;
+}
+
+function sessChip(btn) {
+  const input = document.getElementById('sess-loc'); if (!input) return;
+  const w = btn.textContent.trim();
+  const parts = input.value.split(/\s+/).filter(Boolean);
+  const k = parts.indexOf(w);
+  if (k >= 0) parts.splice(k, 1); else parts.push(w);
+  input.value = parts.join(' ');
+  btn.classList.toggle('on', k < 0);
 }
 
 function selectSessionCity(city, btn) {
@@ -1785,6 +1762,7 @@ async function onSessionPhoto(input) {
     const prev = document.getElementById('sess-photo-prev');
     if (prev) {
       prev.style.display = 'block';
+      const pb = document.getElementById('sess-photo-btns'); if (pb) pb.style.display = 'none';
       prev.innerHTML = `<img src="${window._sessPhoto}" alt=""><button type="button" onclick="clearSessionPhoto()" aria-label="remove">&times;</button>`;
     }
   } catch (e) { showToast(currentLang==='zh'?'相片載入失敗，請重試':'Could not load the photo'); }
@@ -1793,6 +1771,7 @@ function clearSessionPhoto() {
   window._sessPhoto = null;
   const prev = document.getElementById('sess-photo-prev');
   if (prev) { prev.style.display = 'none'; prev.innerHTML = ''; }
+  const pb = document.getElementById('sess-photo-btns'); if (pb) pb.style.display = '';
 }
 
 async function saveNewSession(bottleId) {
