@@ -285,6 +285,17 @@ const I18N = {
 
 function t(k) { return I18N[currentLang]?.[k] || I18N['zh'][k] || k; }
 
+function applyStaticI18n() {
+  const langBtn = document.getElementById('langSwitchBtn');
+  if (langBtn) langBtn.textContent = currentLang === 'zh' ? 'EN' : '繁';
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (key) el.innerHTML = t(key);
+  });
+  document.documentElement.lang = currentLang === 'zh' ? 'zh-Hant' : 'en';
+  if (typeof setSyncStatus === 'function') setSyncStatus(window._syncState || 'ok');
+}
+
 function toggleLanguage() {
   currentLang = currentLang === 'zh' ? 'en' : 'zh';
   localStorage.setItem('bottlesense_lang', currentLang);
@@ -295,6 +306,7 @@ function toggleLanguage() {
     const key = el.getAttribute('data-i18n');
     if (key) el.innerHTML = t(key);
   });
+  applyStaticI18n();
   if (currentView === 'home') renderHome();
   else if (currentView === 'cellar') renderCellar();
   else if (currentView === 'explore') renderExplore();
@@ -326,6 +338,17 @@ function bottleName(b) { const x = safeIdentification(b); return x.name || x.bra
 function bottleCategory(b) { const x = safeIdentification(b); return x.category || b?.tags?.category || (currentLang === 'zh' ? '酒類' : 'Liquor'); }
 function bottleCountry(b) { const x = safeIdentification(b); return x.country || b?.tags?.country || ''; }
 function bottleRegion(b) { const x = safeIdentification(b); return x.region || b?.tags?.region || ''; }
+const DZ_EN = {
+  '紅酒':'Red Wine','白酒':'White Wine','氣泡酒':'Sparkling','威士忌':'Whisky','清酒':'Sake','啤酒':'Beer','琴酒':'Gin','蘭姆酒':'Rum','白蘭地':'Brandy','泡盛':'Awamori','利口酒':'Liqueur','其他':'Other','酒類':'Liquor','燒酎':'Shochu','伏特加':'Vodka','龍舌蘭':'Tequila','梅酒':'Plum Wine','黃酒':'Huangjiu','白酒(烈酒)':'Baijiu',
+  '蘇格蘭':'Scotland','日本':'Japan','法國':'France','意大利':'Italy','義大利':'Italy','西班牙':'Spain','美國':'USA','台灣':'Taiwan','臺灣':'Taiwan','香港':'Hong Kong','德國':'Germany','澳洲':'Australia','澳大利亞':'Australia','智利':'Chile','阿根廷':'Argentina','紐西蘭':'New Zealand','葡萄牙':'Portugal','中國':'China','韓國':'Korea','愛爾蘭':'Ireland','英國':'UK','英格蘭':'England','加拿大':'Canada','南非':'South Africa','墨西哥':'Mexico','古巴':'Cuba','泰國':'Thailand','奧地利':'Austria','瑞士':'Switzerland','希臘':'Greece','匈牙利':'Hungary','牙買加':'Jamaica','巴貝多':'Barbados','委內瑞拉':'Venezuela','瓜地馬拉':'Guatemala','荷蘭':'Netherlands','比利時':'Belgium','捷克':'Czechia','波蘭':'Poland','俄羅斯':'Russia','印度':'India','越南':'Vietnam','新加坡':'Singapore','未知':'Unknown','未知產區':'Unknown',
+  '波爾多':'Bordeaux','勃艮第':'Burgundy','香檳':'Champagne','香檳區':'Champagne','納帕':'Napa Valley','納帕谷':'Napa Valley','山崎':'Yamazaki','斯貝賽':'Speyside','宜蘭':'Yilan','沖繩':'Okinawa','里奧哈':'Rioja','杜埃羅':'Duero','托斯卡納':'Tuscany','皮埃蒙特':'Piedmont','隆河谷':'Rhone Valley','盧瓦爾河谷':'Loire Valley','阿爾薩斯':'Alsace','巴羅薩':'Barossa','馬爾堡':'Marlborough','山口':'Yamaguchi','新潟':'Niigata','兵庫':'Hyogo','京都':'Kyoto','北海道':'Hokkaido','艾雷島':'Islay','高地':'Highlands','低地':'Lowlands','坎貝爾鎮':'Campbeltown','島嶼':'Islands','肯塔基':'Kentucky','田納西':'Tennessee','里奧哈/杜埃羅':'Rioja / Duero','無年份':'NV'
+};
+function dz(x) {
+  const v = String(x == null ? '' : x);
+  if (currentLang === 'zh' || !v) return v;
+  if (DZ_EN[v]) return DZ_EN[v];
+  return v.split(/([\s\/・·,，、]+)/).map(p => DZ_EN[p] || p).join('');
+}
 function bottleVintage(b) { const x = safeIdentification(b); return x.vintage || b?.tags?.vintage || (currentLang === 'zh' ? '無年份' : 'NV'); }
 function bottleImage(b) { return b?.image || b?.imageData || b?.photo || b?.imageUrl || ''; }
 
@@ -567,7 +590,7 @@ function renderCellar() {
       <div class="filter-row">${filterOptions.length > 1 ? `
           ${filterOptions.map(opt => `
             <div class="filter-chip ${activeFilter===opt?'active':''}" onclick="setShelfFilter('${esc(opt)}')">
-              ${opt === 'all' ? t('filter_all') : esc(opt)}
+              ${opt === 'all' ? t('filter_all') : esc(dz(opt))}
             </div>
           `).join('')}
       ` : ''}</div>
@@ -644,8 +667,8 @@ function guestBannerHTML() {
 function bottleCardHTML(b) {
   const img = bottleImage(b);
   const vintage = bottleVintage(b);
-  const region = bottleRegion(b);
-  const cat = bottleCategory(b);
+  const region = dz(bottleRegion(b));
+  const cat = dz(bottleCategory(b));
   const pourCount = (b.tastings || []).length;
 
   return `
@@ -780,11 +803,13 @@ function deriveVerdict(b) {
   }
   const zh = currentLang === 'zh';
   const v = VERDICTS[key];
+  const cjk = /[\u4e00-\u9fff]/;
+  const ok = x => x && (zh || !cjk.test(x));
   return {
     key,
-    headline: rec.headline || (zh ? v.headZh : v.headEn),
-    when: rec.when || (zh ? v.whenZh : v.whenEn),
-    reason: rec.reason || ''
+    headline: ok(rec.headline) ? rec.headline : (zh ? v.headZh : v.headEn),
+    when: ok(rec.when) ? rec.when : (zh ? v.whenZh : v.whenEn),
+    reason: ok(rec.reason) ? rec.reason : ''
   };
 }
 
@@ -1145,20 +1170,20 @@ function renderBottleDetail(id) {
         ` : ''}
 
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-          <div class="label-eyebrow" style="margin-bottom:0;">${esc(bottleCategory(b))}</div>
+          <div class="label-eyebrow" style="margin-bottom:0;">${esc(dz(bottleCategory(b)))}</div>
           ${isVisitorMode ? '' : `<button class="edit-badge-btn" onclick="openEditBottleModal('${esc(b.id)}')">
             ${EDIT_PENCIL_SVG} ${t('edit_info')}
           </button>`}
         </div>
 
         <div class="label-name">${esc(bottleName(b))}</div>
-        <div class="label-sub">${esc([bottleCountry(b), bottleRegion(b)].filter(Boolean).join(' · '))}</div>
+        <div class="label-sub">${esc([dz(bottleCountry(b)), dz(bottleRegion(b))].filter(Boolean).join(' · '))}</div>
 
         <div class="label-facts">
-          <div><div class="fact-label">VINTAGE</div><div class="fact-value">${esc(bottleVintage(b))}</div></div>
-          <div><div class="fact-label">CATEGORY</div><div class="fact-value">${esc(bottleCategory(b))}</div></div>
-          <div><div class="fact-label">COUNTRY</div><div class="fact-value">${esc(bottleCountry(b) || (currentLang==='zh'?'未知':'Unknown'))}</div></div>
-          <div><div class="fact-label">REGION</div><div class="fact-value">${esc(bottleRegion(b) || (currentLang==='zh'?'未知':'Unknown'))}</div></div>
+          <div><div class="fact-label">VINTAGE</div><div class="fact-value">${esc(dz(bottleVintage(b)))}</div></div>
+          <div><div class="fact-label">CATEGORY</div><div class="fact-value">${esc(dz(bottleCategory(b)))}</div></div>
+          <div><div class="fact-label">COUNTRY</div><div class="fact-value">${esc(dz(bottleCountry(b)) || (currentLang==='zh'?'未知':'Unknown'))}</div></div>
+          <div><div class="fact-label">REGION</div><div class="fact-value">${esc(dz(bottleRegion(b)) || (currentLang==='zh'?'未知':'Unknown'))}</div></div>
         </div>
       </div>
 
@@ -2245,9 +2270,9 @@ async function renderExplore() {
 
         <!-- 縮放與重設 HUD 控制項 -->
         <div class="map-controls-hud" id="worldMapHud">
-          <button class="map-hud-btn" onclick="handleMapZoomIn()" title="放大">+</button>
-          <button class="map-hud-btn" onclick="handleMapZoomOut()" title="縮小">−</button>
-          <button class="map-hud-btn" onclick="handleMapReset()" title="重設視圖">↺</button>
+          <button class="map-hud-btn" onclick="handleMapZoomIn()" title="${currentLang==='zh'?'放大':'Zoom in'}">+</button>
+          <button class="map-hud-btn" onclick="handleMapZoomOut()" title="${currentLang==='zh'?'縮小':'Zoom out'}">−</button>
+          <button class="map-hud-btn" onclick="handleMapReset()" title="${currentLang==='zh'?'重設視圖':'Reset view'}">↺</button>
         </div>
       </div>
 
@@ -2517,7 +2542,7 @@ let exploreCtx = {};
 let exploreFilter = { city: null, sub: null, mode: 'all' };
 const CITY_LIST = ['香港','澳門','台北','新北','台中','台南','高雄','東京','大阪','京都','首爾','新加坡','上海','北京','深圳','廣州','曼谷','倫敦','巴黎','紐約','悉尼'];
 const DISTRICT_CITY = { '中環':'香港','上環':'香港','灣仔':'香港','銅鑼灣':'香港','尖沙咀':'香港','旺角':'香港','佐敦':'香港','金鐘':'香港','荃灣':'香港','沙田':'香港','信義':'台北','大安':'台北','中山':'台北','松山':'台北','銀座':'東京','新宿':'東京','澀谷':'東京','六本木':'東京' };
-const PLACE_EN = { '香港':'Hong Kong','澳門':'Macau','台北':'Taipei','新北':'New Taipei','台中':'Taichung','台南':'Tainan','高雄':'Kaohsiung','東京':'Tokyo','大阪':'Osaka','京都':'Kyoto','首爾':'Seoul','新加坡':'Singapore','上海':'Shanghai','北京':'Beijing','深圳':'Shenzhen','廣州':'Guangzhou','曼谷':'Bangkok','倫敦':'London','巴黎':'Paris','紐約':'New York','悉尼':'Sydney','中環':'Central','上環':'Sheung Wan','灣仔':'Wan Chai','銅鑼灣':'Causeway Bay','尖沙咀':'Tsim Sha Tsui','旺角':'Mong Kok','佐敦':'Jordan','金鐘':'Admiralty','荃灣':'Tsuen Wan','沙田':'Sha Tin','信義':'Xinyi','大安':"Da'an",'中山':'Zhongshan','松山':'Songshan','銀座':'Ginza','新宿':'Shinjuku','澀谷':'Shibuya','六本木':'Roppongi','家中':'Home' };
+const PLACE_EN = { '香港':'Hong Kong','澳門':'Macau','台北':'Taipei','新北':'New Taipei','台中':'Taichung','台南':'Tainan','高雄':'Kaohsiung','東京':'Tokyo','大阪':'Osaka','京都':'Kyoto','首爾':'Seoul','新加坡':'Singapore','上海':'Shanghai','北京':'Beijing','深圳':'Shenzhen','廣州':'Guangzhou','曼谷':'Bangkok','倫敦':'London','巴黎':'Paris','紐約':'New York','悉尼':'Sydney','中環':'Central','上環':'Sheung Wan','灣仔':'Wan Chai','銅鑼灣':'Causeway Bay','尖沙咀':'Tsim Sha Tsui','旺角':'Mong Kok','佐敦':'Jordan','金鐘':'Admiralty','荃灣':'Tsuen Wan','沙田':'Sha Tin','信義':'Xinyi','大安':"Da'an",'中山':'Zhongshan','松山':'Songshan','銀座':'Ginza','新宿':'Shinjuku','澀谷':'Shibuya','六本木':'Roppongi','家中':'Home','九龍':'Kowloon','新界':'New Territories','黃竹坑':'Wong Chuk Hang','西貢':'Sai Kung','大嶼山':'Lantau','桃園':'Taoyuan','新竹':'Hsinchu','宜蘭':'Yilan','噶瑪蘭':'Kavalan','南投':'Nantou','花蓮':'Hualien','嘉義':'Chiayi','屏東':'Pingtung','台東':'Taitung','澎湖':'Penghu','金門':'Kinmen','沖繩':'Okinawa','鹿兒島':'Kagoshima','九州':'Kyushu','福岡':'Fukuoka','廣島':'Hiroshima','山崎蒸餾所':'Yamazaki Distillery','兵庫':'Hyogo','灘五鄉':'Nada Gogo','山梨':'Yamanashi','白州':'Hakushu','長野':'Nagano','新潟':'Niigata','東北':'Tohoku','北海道':'Hokkaido','余市':'Yoichi','貴州':'Guizhou','茅台':'Moutai','四川':'Sichuan','寧夏':'Ningxia','山西':'Shanxi','山東':'Shandong','紹興':'Shaoxing','莫斯科':'Moscow','聖彼得堡':'St Petersburg','西伯利亞':'Siberia','波爾多':'Bordeaux','盧瓦爾河':'Loire','香檳':'Champagne','勃艮第':'Burgundy','羅納河':'Rhone','杜羅河':'Douro','波特':'Porto','里奧哈':'Rioja','杜埃羅河岸':'Ribera del Duero','赫雷斯':'Jerez','皮埃蒙特':'Piedmont','托斯卡納':'Tuscany','西西里':'Sicily','摩澤爾':'Mosel','法國':'France','義大利':'Italy','歐洲':'Europe','納帕':'Napa','加州':'California','肯塔基':'Kentucky','田納西':'Tennessee','智利':'Chile','門多薩':'Mendoza','阿根廷':'Argentina','加拿大':'Canada','開普敦':'Cape Town','台灣':'Taiwan' };
 function placeLabel(txt) {
   const x = String(txt || '');
   if (currentLang === 'zh') return x;
@@ -2808,7 +2833,7 @@ function showRegionalMap(target, targetBottle, fromWorld) {
         <div class="regional-focus-pin" style="top:${top}%; left:${left}%; z-index:30; pointer-events:auto;" onclick="focusRegionalBottle('${esc(o.x.id)}')">
           <div class="pin-radar-ring"></div>
           <div class="pin-core">📍</div>
-          <div class="pin-callout-bubble">${esc(p.name)}</div>
+          <div class="pin-callout-bubble">${esc(placeLabel(p.name))}</div>
         </div>`;
     }
     return `
@@ -2817,7 +2842,7 @@ function showRegionalMap(target, targetBottle, fromWorld) {
 
   if (pillEl) {
     pillEl.style.display = 'block';
-    pillEl.innerHTML = `🍷 ${esc(bottleName(targetBottle))} ・ ${esc(target.pin.name)}`;
+    pillEl.innerHTML = `🍷 ${esc(bottleName(targetBottle))} ・ ${esc(placeLabel(target.pin.name))}`;
   }
 
   if (!sameMap) {
@@ -2937,7 +2962,7 @@ function openSharedTastingModal(bottleId) {
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
           <div style="flex:1; padding-right:10px;">
             <div style="font-size:11px; color:var(--gold); font-family:var(--mono); text-transform:uppercase; letter-spacing:0.5px;">
-              ${esc(bottleCategory(b))} ${bottleVintage(b)!=='無年份'?'・ '+esc(bottleVintage(b)):''}
+              ${esc(dz(bottleCategory(b)))} ${bottleVintage(b)!=='無年份' && bottleVintage(b)!=='NV'?'・ '+esc(bottleVintage(b)):''}
             </div>
             <h3 style="font-family:var(--serif); font-size:18px; margin-top:2px; color:var(--text); line-height:1.35;">
               ${esc(bottleName(b))}
@@ -3206,6 +3231,7 @@ async function confirmCropAndScan(isFullImage = false) {
     renderBottleDetail(bottle.id);
 
   } catch(err) {
+    if (err && err.code === 'QUOTA_EXCEEDED') { showQuotaExhausted(err.data); return; }
     showError(err?.message || (currentLang === 'zh' ? '辨識失敗，請確保酒標清晰後重試。' : 'Recognition failed. Please try again.'));
   }
 }
@@ -3213,11 +3239,11 @@ async function confirmCropAndScan(isFullImage = false) {
 async function identifyBottle(image, mediaType) {
   const res = await apiFetch('/api/scan', {
     method: 'POST',
-    body: JSON.stringify({ image, mediaType })
+    body: JSON.stringify({ image, mediaType, lang: currentLang })
   });
   let data = {};
   try { data = await res.json(); } catch {}
-  if (!res.ok) throw new Error(apiErrorMessage(data.error, data) || `AI API Error (${res.status})`);
+  if (!res.ok) { const e = new Error(apiErrorMessage(data.error, data) || `AI API Error (${res.status})`); e.code = data.error; e.data = data; throw e; }
   if (data._quota) {
     try { localStorage.setItem('bottlesense_quota', JSON.stringify({ tier: data._quota.tier, used: data._quota.used, limit: data._quota.limit, bonus: data._quota.bonus || 0 })); } catch (e) {}
     const left = (data._quota.limit - data._quota.used) + (data._quota.bonus || 0);
@@ -3236,11 +3262,34 @@ function showScanLoading() {
   `;
 }
 
+function showQuotaExhausted(data) {
+  const zh = currentLang === 'zh';
+  const tier = (data && data.tier) || 'guest';
+  const limit = (data && data.limit) || '';
+  const now = new Date();
+  const reset = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const resetStr = zh ? `${reset.getMonth() + 1} 月 1 日` : reset.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+  const desc = tier === 'guest'
+    ? (zh ? `未登入每月可免費鑑識 ${limit} 次，本月額度已全數使用。登入後每月可獲更多額度，並可雲端備份酒窖。` : `Guests get ${limit} free appraisals a month and this month's are used. Sign in for a larger allowance and cloud backup.`)
+    : (zh ? `本月 ${limit} 次鑑識額度已全數使用。可邀請朋友獲取額外額度，或等待下月重置。` : `Your ${limit} appraisals for this month are used. Invite friends for extra credits, or wait for the monthly reset.`);
+  main.innerHTML = `
+    <div class="loading-view quota-out">
+      <div class="quota-out-ring"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9"/></svg></div>
+      <h2 style="font-family:var(--serif); font-size:22px; margin-top:6px;">${zh ? '本月鑑識額度已用完' : 'Monthly appraisals used up'}</h2>
+      <p style="color:var(--text-muted); font-size:14px; line-height:1.7; margin:12px 24px 6px;">${desc}</p>
+      <p style="color:var(--text-faint); font-size:12.5px; margin:0 24px 22px;">${zh ? '額度將於 ' + resetStr + ' 重置' : 'Resets on ' + resetStr}</p>
+      ${tier === 'guest'
+        ? `<button class="btn btn-primary" style="min-width:210px;" onclick="goHome(); openSettings('auth')">${zh ? '登入 / 註冊，獲取更多額度' : 'Sign in for more'}</button>`
+        : `<button class="btn btn-primary" style="min-width:210px;" onclick="goHome(); openSettings('credits')">${zh ? '邀請朋友，獲取額度' : 'Invite friends for credits'}</button>`}
+      <button class="btn btn-ghost" style="margin-top:10px; min-width:210px;" onclick="goHome()">${zh ? '返回首頁' : 'Back to Home'}</button>
+    </div>`;
+}
+
 function showError(msg) {
   main.innerHTML = `
     <div class="loading-view">
       <div style="font-size:48px; margin-bottom:16px;">⚠️</div>
-      <h2 style="font-family:var(--serif); font-size:22px;">出現問題</h2>
+      <h2 style="font-family:var(--serif); font-size:22px;">${currentLang==='zh'?'出現問題':'Something went wrong'}</h2>
       <p style="color:var(--text-muted); font-size:14px; margin:12px 20px 24px;">${esc(msg)}</p>
       <button class="btn btn-primary" onclick="goHome()">${currentLang==='zh'?'返回首頁':'Back to Home'}</button>
     </div>
@@ -4069,7 +4118,7 @@ async function initApp() {
   try {
     captureRefParam();
     updateHeaderGreeting();
-    document.getElementById('langSwitchBtn').textContent = currentLang === 'zh' ? 'EN' : '繁';
+    applyStaticI18n();
     await refreshCellar();
     const params = new URLSearchParams(location.search);
     const publicKey = params.get('cellar') || params.get('key');

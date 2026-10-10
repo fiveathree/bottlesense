@@ -2033,3 +2033,5 @@ select.text-input {
 .tl-card-party { text-align: left; }
 .tl-card-party .btn { margin-top: 2px; }
 .tl-dot-party { background: #E8D48A; box-shadow: 0 0 10px rgba(232,212,138,0.7); }
+
+.quota-out-ring { width: 64px; height: 64px; border-radius: 50%; border: 1px solid rgba(212,175,55,0.55); color: var(--gold); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; box-shadow: 0 0 22px rgba(212,175,55,0.15); }

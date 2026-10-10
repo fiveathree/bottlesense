@@ -82,6 +82,9 @@ function mergeCellars(cloud, incoming, deletedCloud, deletedIncoming) {
   return { cellar: merged, deleted };
 }
 
+const EN_SUFFIX = `
+
+[LANGUAGE] The user reads English. Write rec.headline, rec.when, rec.reason and every rec.actions[].reason in plain, elegant English (one short sentence each, no jargon, no slang). Keep category, country, region and vintage values exactly in the Traditional Chinese forms specified above (the app translates them); keep the JSON keys and the verdict codes unchanged.`;
 const SCAN_PROMPT = `你是一個世界頂級侍酒師與酒類數據庫專家。請辨識相片中的酒標，並以嚴格的純 JSON 格式輸出（不要包含任何 markdown 標籤或額外文字）。若相片明顯不是酒類（酒瓶、酒罐、酒標、酒杯），只輸出 {"not_alcohol": true}。
 {
   "category": "紅酒/白酒/威士忌/清酒/氣泡酒/啤酒/琴酒/蘭姆酒/白蘭地/泡盛/利口酒/其他",
@@ -1087,7 +1090,7 @@ export default {
       // ---------- AI 酒標辨識 (有配額、限大小) ----------
       if (path === '/' || path === '/api/scan') {
         if (request.method !== 'POST') return new Response('POST only', { status: 405, headers: corsHeaders });
-        const { image, mediaType } = await readJson(request, 7_000_000);
+        const { image, mediaType, lang } = await readJson(request, 7_000_000);
         if (typeof image !== 'string' || image.length < 100 || image.length > 6_000_000) throw new HttpError(413, 'BAD_IMAGE_SIZE');
         if (!env.ANTHROPIC_API_KEY) throw new HttpError(503, 'AI_NOT_CONFIGURED');
 
@@ -1107,7 +1110,7 @@ export default {
         const mt = ['image/jpeg', 'image/png', 'image/webp'].includes(mediaType) ? mediaType : 'image/jpeg';
         const content = [
           { type: 'image', source: { type: 'base64', media_type: mt, data: image } },
-          { type: 'text', text: SCAN_PROMPT }
+          { type: 'text', text: lang === 'en' ? SCAN_PROMPT + EN_SUFFIX : SCAN_PROMPT }
         ];
         const strong = env.SCAN_MODEL_STRONG || 'claude-sonnet-5-5';
         const fast = env.SCAN_MODEL_FAST || 'claude-haiku-5-5';

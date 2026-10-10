@@ -28,7 +28,8 @@ function setSyncStatus(state) {
   const el = document.getElementById('syncDot');
   if (!el) return;
   el.dataset.state = state;
-  const labels = { ok: '已同步', syncing: '同步中…', offline: '離線 (稍後自動同步)', error: '同步失敗', auth: '需要重新登入' };
+  const en = (localStorage.getItem('bottlesense_lang') || 'zh') === 'en';
+  const labels = en ? { ok: 'Synced', syncing: 'Syncing...', offline: 'Offline (will sync later)', error: 'Sync failed', auth: 'Please sign in again' } : { ok: '已同步', syncing: '同步中…', offline: '離線 (稍後自動同步)', error: '同步失敗', auth: '需要重新登入' };
   el.title = labels[state] || '';
   el.setAttribute('aria-label', labels[state] || '');
 }
