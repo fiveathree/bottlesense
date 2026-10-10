@@ -159,8 +159,8 @@ const I18N = {
     nav_scan: "鑑識",
     nav_cellar: "酒窖",
     nav_explore: "探索",
-    hero_title: "Know what to do with it",
-    hero_desc: "拍攝酒標，AI 即時鑑識，並建議該開、該飲、該藏，或是該贈。",
+    hero_title: "一瓶在手，自有定奪",
+    hero_desc: "拍攝酒標，AI 即時鑑識<br>該開、該飲、該藏或是該贈，為您決定",
     choose_album: "從相簿選照片",
     spaces_title: "我的電子酒架",
     open_cellar: "前往酒窖 →",
@@ -168,19 +168,19 @@ const I18N = {
     view_all: "查看全部 →",
     empty_cellar: "酒櫃目前是空的<br>先拍一瓶酒標開始吧。",
     empty_recent_loggedin: "尚未有最近加入的酒款<br>拍一瓶酒標，開始建立您的酒窖。",
-    space_cooler: "⚡ 電子酒櫃",
-    space_wood: "🪵 實木酒架",
-    space_bar: "🥃 吧台",
-    space_kept: "💎 珍藏櫃",
-    space_gift: "🎁 贈禮台",
-    space_wish: "🏷️ 願望清單",
+    space_cooler: "未開",
+    space_wood: "已飲",
+    space_bar: "盡飲",
+    space_kept: "珍藏",
+    space_gift: "饋贈",
+    space_wish: "願望",
     space_fav: "⭐ 最愛",
     space_random: "🎲 隨機賞味",
     shelf_cooler_title: "⚡ 電子恆溫酒櫃（未開封）",
-    shelf_wood_title: "🪵 實木日常酒架（品鑑中）",
-    shelf_bar_title: "🥃 吧台展示桌（已品畢．紀念）",
+    shelf_wood_title: "🪵 梨花實木酒架（品鑑中）",
+    shelf_bar_title: "🥃 紀念空瓶牆（盡飲留念）",
     shelf_kept_title: "💎 珍藏展示櫃（典藏）",
-    shelf_gift_title: "🎁 贈禮台（已贈送）",
+    shelf_gift_title: "🎁 緞帶禮盒櫃（已饋贈）",
     shelf_wish_title: "🏷️ 願望清單（心儀酒款）",
     shelf_fav_title: "⭐ 心頭好精選 (最愛)",
     share_cellar: "分享全窖",
@@ -189,7 +189,7 @@ const I18N = {
     back: "← 返回",
     share_bottle: "分享此酒",
     edit_info: "編輯資料",
-    transfer_title: "📍 移至酒窖空間",
+    transfer_title: "📍 移至酒窖",
     timeline_title: "🥃 品鑑紀錄",
     btn_add_log: "＋ 記錄這次品鑑",
     timeline_hint: "記錄不同時間、地點與同伴帶來的獨特體驗。",
@@ -220,8 +220,8 @@ const I18N = {
     nav_scan: "Scan",
     nav_cellar: "Cellar",
     nav_explore: "Explore",
-    hero_title: "Know What To Do With It",
-    hero_desc: "Snap a label. Know whether to open, drink, keep or gift it.",
+    hero_title: "Know what to do with it",
+    hero_desc: "Snap the label for an instant AI appraisal<br>Open, drink, keep or gift - decided for you",
     choose_album: "Upload from Photos",
     spaces_title: "Spaces & Random Pick",
     open_cellar: "Open Cellar →",
@@ -229,19 +229,19 @@ const I18N = {
     view_all: "View All →",
     empty_cellar: "Your cellar is empty.<br>Snap a bottle label to begin.",
     empty_recent_loggedin: "No recent bottles yet.<br>Snap a label to start building your cellar.",
-    space_cooler: "⚡ Cooler",
-    space_wood: "🪵 Wood Rack",
-    space_bar: "🥃 Bar",
-    space_kept: "💎 Vault",
-    space_gift: "🎁 Gift Table",
-    space_wish: "🏷️ Wishlist",
+    space_cooler: "Sealed",
+    space_wood: "Opened",
+    space_bar: "Finished",
+    space_kept: "Treasured",
+    space_gift: "Gifted",
+    space_wish: "Wishlist",
     space_fav: "⭐ Favorite",
     space_random: "🎲 Surprise Pick",
     shelf_cooler_title: "⚡ Wine Cooler (Unopened)",
-    shelf_wood_title: "🪵 Wood Rack (Open)",
-    shelf_bar_title: "🥃 Bar Table (Finished)",
-    shelf_kept_title: "💎 Vault (Kept)",
-    shelf_gift_title: "🎁 Gift Table (Given)",
+    shelf_wood_title: "🪵 Pear-wood Rack (Opened)",
+    shelf_bar_title: "🥃 Memory Wall (Finished)",
+    shelf_kept_title: "💎 Collector's Cabinet (Treasured)",
+    shelf_gift_title: "🎁 Ribbon Gift Cabinet (Gifted)",
     shelf_wish_title: "🏷️ Wishlist",
     shelf_fav_title: "⭐ Favorites (Top Pick)",
     share_cellar: "Share Cellar",
@@ -250,7 +250,7 @@ const I18N = {
     back: "← Back",
     share_bottle: "Share Bottle",
     edit_info: "Edit Details",
-    transfer_title: "📍 Transfer Space",
+    transfer_title: "📍 Move to cellar",
     timeline_title: "🥃 Tasting Timeline",
     btn_add_log: "+ Log This Pour",
     timeline_hint: "Record how flavor shifts with time, places and companions.",
@@ -424,11 +424,11 @@ function renderHome() {
   main.innerHTML = `
     <div class="view home-wrap">
       <section class="scan-hero home-hero">
-        <h1>${t('hero_title')}</h1>
+        <h1 class="hero-slogan ${zh ? 'hero-zh' : 'hero-en'}">${t('hero_title')}</h1>
         <p>${t('hero_desc')}</p>
         <div class="scan-center-box">
           <button class="scan-btn" onclick="openCamera()" aria-label="Scan Bottle">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
               <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
               <circle cx="12" cy="13" r="4"/>
             </svg>
@@ -437,10 +437,8 @@ function renderHome() {
         </div>
       </section>
 
-      <div class="guide-steps">
-        <div class="guide-card"><span class="guide-no">I</span><div>${zh ? '點擊上方按鈕' : 'Tap above'}</div></div>
-        <div class="guide-card"><span class="guide-no">II</span><div>${zh ? '拍攝或選取酒類相片' : 'Snap or choose a photo'}</div></div>
-        <div class="guide-card"><span class="guide-no">III</span><div>${zh ? 'AI 完成鑑識分析' : 'AI completes analysis'}</div></div>
+      <div class="guide-flow">
+        <span>${zh ? '點擊按鈕' : 'Tap the button'}</span><i>&rsaquo;</i><span>${zh ? '使用相片' : 'Use a photo'}</span><i>&rsaquo;</i><span>${zh ? 'AI 鑑析' : 'AI appraisal'}</span>
       </div>
 
       <div class="quota-bar" id="quotaBar">${quotaBarHTML()}</div>
@@ -523,7 +521,7 @@ function renderCellar() {
 
   main.innerHTML = `
     <div class="view" style="padding-bottom: 50px;">
-      <div class="section-head" style="margin-top:8px; margin-bottom:6px;">
+      <div class="section-head cellar-head" style="margin-top:8px; margin-bottom:16px;">
         <h2>${currentLang === 'zh' ? '私人酒窖全景' : 'Private Cellar Overview'}</h2>
         <button class="share-plane-btn" style="background:rgba(212,175,55,0.25);" onclick="shareEntireCellar()">
           ${TELEGRAM_PLANE_SVG}
@@ -799,6 +797,15 @@ function actionLabel(a) {
   return currentLang === 'zh' ? v.zh : v.en;
 }
 
+function partyBannerHTML(b) {
+  const zh = currentLang === 'zh';
+  return b.party && !isVisitorMode ? `
+    <div class="party-banner">
+      🍾 ${zh ? '品鑑雅集' : 'Tasting gathering'}：${esc(b.party.date || '')} ${esc(b.party.place || '')}
+      <button class="btn btn-primary btn-sm" onclick="finishPourParty('${esc(b.id)}')">${zh ? '活動結束，記錄這次' : 'Done - log it'}</button>
+    </div>` : '';
+}
+
 function renderVerdictCard(b) {
   const d = deriveVerdict(b);
   const v = VERDICTS[d.key];
@@ -808,11 +815,6 @@ function renderVerdictCard(b) {
     const hit = (rec.actions || []).find(a => normVerdictKey(a.a) === k);
     return { k, reason: hit?.reason || '' };
   });
-  const party = b.party && !isVisitorMode ? `
-    <div class="party-banner">
-      🍾 ${zh ? '品鑑雅集' : 'Tasting gathering'}：${esc(b.party.date || '')} ${esc(b.party.place || '')}
-      <button class="btn btn-primary btn-sm" onclick="finishPourParty('${esc(b.id)}')">${zh ? '活動結束，記錄這次' : 'Done - log it'}</button>
-    </div>` : '';
   return `
     <div class="verdict-card verdict-${d.key}">
       <div class="verdict-eyebrow">${zh ? '這瓶酒該如何處理？' : 'What to do with it?'}</div>
@@ -824,16 +826,14 @@ function renderVerdictCard(b) {
         </div>
       </div>
       ${d.reason ? `<div class="verdict-reason">${esc(d.reason)}</div>` : ''}
-      ${isVisitorMode ? '' : `<button class="btn btn-primary btn-block verdict-cta" onclick="verdictAct('${esc(b.id)}','${d.key}')">${zh ? v.ctaZh : v.ctaEn}</button>`}
-      <details class="verdict-others">
-        <summary>${zh ? '查看其他選擇' : 'Other options'}</summary>
+      <details class="verdict-others" open>
+        <summary>${zh ? '其他選擇' : 'Other options'}</summary>
         ${others.map(o => `
           <div class="verdict-other-row">
             <span class="verdict-other-tag">${VERDICTS[o.k].emoji} ${zh ? VERDICTS[o.k].zh : VERDICTS[o.k].en}</span>
             <span>${esc(o.reason || (zh ? VERDICTS[o.k].headZh : VERDICTS[o.k].headEn))}</span>
           </div>`).join('')}
       </details>
-      ${party}
     </div>`;
 }
 
@@ -854,7 +854,7 @@ async function verdictAct(id, key) {
     renderBottleDetail(id);
   } else if (key === 'gift') {
     openShareActionSheet(id);
-    showToast(currentLang === 'zh' ? '🎁 贈出後，請在下方將酒移至「贈禮台」' : '🎁 Tap "Gifted" below once given');
+    showToast(currentLang === 'zh' ? '🎁 贈出後，請在下方將酒移至「饋贈」' : '🎁 Tap "Gifted" below once given');
   }
 }
 
@@ -1146,16 +1146,16 @@ function renderBottleDetail(id) {
         </div>
       </div>
 
-      <!-- 2. 八維價值地圖雷達圖 (Know your bottle 核心) -->
-      ${renderVerdictCard(b)}
-      ${(!isVisitorMode && ['unopened','opened','kept'].includes(b.status) && deriveVerdict(b).key !== 'open') ? `<button class="btn btn-ghost btn-block" style="margin-bottom:10px;" onclick="openPourParty('${esc(b.id)}')">🍾 ${currentLang==='zh'?'約朋友開瓶':'Start a pour party'}</button>` : ''}
+      <!-- 2. 八維價值地圖 (數據先行) -->
+      ${(() => { const r = renderRadar(vm); return r ? `<div class="info-block radar-card">${r}</div>` : ''; })()}
 
-      ${(() => { const r = renderRadar(vm); return r ? `<details class="radar-fold"><summary>${currentLang==='zh'?'查看詳細評分':'Detailed scores'}</summary>${r}</details>` : ''; })()}
+      <!-- 3. 建議 -->
+      ${renderVerdictCard(b)}
 
       <!-- 4. 轉移藏酒空間 (單行極致收窄膠囊列) -->
       ${isVisitorMode ? '' : `<div class="info-block">
         <h3 style="font-size:14px; margin-bottom:6px;">${t('transfer_title')}</h3>
-        <div class="destination-strip">
+        <div class="destination-strip ${currentLang==='zh'?'dest-zh':'dest-en'}">
           ${statuses.map(s => `
             <div class="dest-pill ${b.status===s.key?'active':''}" onclick="moveStatus('${esc(b.id)}','${s.key}')">
               ${s.label}
@@ -1164,17 +1164,15 @@ function renderBottleDetail(id) {
         </div>
       </div>`}
 
-      <!-- 5. 品飲歷史時間軸 (智慧隱藏：僅在「已飲」與「飲完」狀態顯示) -->
-      ${['opened', 'finished'].includes(b.status) ? `
-        <div class="info-block" id="tasting-timeline-block">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <h3>${t('timeline_title')} (${(b.tastings || []).length})</h3>
-            ${isVisitorMode ? '' : `<button class="btn btn-primary btn-sm" onclick="openAddSessionModal('${esc(b.id)}')">
-              ${t('btn_add_log')}
-            </button>`}
-          </div>
-          <div style="font-size:13px; color:var(--text-faint); margin-bottom:14px;">${t('timeline_hint')}</div>
-
+      <!-- 5. 品鑑紀錄：所有互動集中於此 -->
+      <div class="info-block" id="tasting-timeline-block">
+        <h3 style="margin-bottom:6px;">${t('timeline_title')}</h3>
+        <div style="font-size:13px; color:var(--text-faint); margin-bottom:12px;">${t('timeline_hint')}</div>
+        ${isVisitorMode ? '' : `<div class="log-actions">
+          <button class="btn btn-primary btn-sm" onclick="openAddSessionModal('${esc(b.id)}')">${t('btn_add_log')}</button>
+          ${(['unopened','opened','kept'].includes(b.status)) ? `<button class="btn btn-ghost btn-sm" onclick="openPourParty('${esc(b.id)}')">🍾 ${currentLang==='zh'?'邀約共飲':'Invite to pour'}</button>` : ''}
+        </div>`}
+        ${partyBannerHTML(b)}
           <div class="timeline-list" style="position:relative; padding-left:14px; border-left:2px solid var(--gold-dim);">
             ${(() => {
               const list = b.tastings || [];
@@ -1221,7 +1219,6 @@ function renderBottleDetail(id) {
             })()}
           </div>
         </div>
-      ` : ''}
 
       ${isVisitorMode ? '' : `<div id="offers-slot"></div>`}
 
@@ -1235,7 +1232,7 @@ function renderBottleDetail(id) {
 
 function renderRadar(vm) {
   const dimKeys = ['mv','ql','dv','pv','sv','gv','cv','sto'];
-  const dimZh = { mv:"價值感", ql:"品質", dv:"好不好喝", pv:"搭餐", sv:"適合分享", gv:"送禮體面", cv:"值得收藏", sto:"可存放多久" };
+  const dimZh = { mv:"市場價值", ql:"品質工藝", dv:"飲用愉悅", pv:"配餐價值", sv:"社交話題", gv:"饋贈體面", cv:"收藏價值", sto:"陳放潛力" };
   const dimEn = { mv:"Market", ql:"Quality", dv:"Drinking", pv:"Pairing", sv:"Social", gv:"Gifting", cv:"Collection", sto:"Storage" };
   const labels = currentLang === 'zh' ? dimZh : dimEn;
 
@@ -1288,7 +1285,7 @@ function renderRadar(vm) {
 
   return `
     <div class="radar-wrap" style="text-align:center;">
-      <h3 style="margin-bottom:6px;">${currentLang === 'zh' ? '酒款評分' : 'Scores'}</h3>
+      <h3 style="margin-bottom:6px;">${currentLang === 'zh' ? '八維價值地圖' : 'Eight-Dimension Value Map'}</h3>
       <svg width="280" height="280" viewBox="0 0 280 280" style="overflow:visible; margin:0 auto; display:block;">
         ${rings}
         ${axes}
@@ -2470,39 +2467,39 @@ async function renderRealWorldPinsAndFeed() {
     }
 
     // 酒友公開動態卡片
-    feedEl.innerHTML = publicFeed.map(b => {
+    const hidden = getHiddenFeed();
+    const shown = publicFeed.filter(x => !hidden.includes(String(x.id)));
+    if (!shown.length) {
+      feedEl.innerHTML = `<div class="empty-shelf">${currentLang==='zh'?'暫無更多酒友動態':'No more tastings to show'}</div>`;
+      return;
+    }
+    feedEl.innerHTML = shown.map((b, idx) => {
       const c = bottleCountry(b);
       const r = bottleRegion(b);
       const isMine = isMyExploreItem(b, myShareId, myProfileName, myBoundEmail);
+      const place = tastingPlaceOf(b);
+      const zh = currentLang === 'zh';
 
       return `
-        <div class="bottle-card feed-clickable" id="feed-card-${esc(b.id)}" onclick="flyToBottleRegion('${esc(b.id)}')" style="margin-bottom:12px; cursor:pointer;">
-          <div class="bottle-photo-box">${b.image ? `<img src="${esc(b.image)}">` : '🍷'}</div>
-          <div class="bottle-info" style="flex:1; min-width:0;">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:4px;">
-              <div class="bottle-name">${esc(bottleName(b))}</div>
-              ${isMine ? `<span style="font-size:10px; font-family:var(--mono); color:#D4AF37; background:rgba(212,175,55,0.15); border:1px solid rgba(212,175,55,0.3); padding:1px 6px; border-radius:4px; white-space:nowrap;">${currentLang==='zh'?'★ 我的分享':'★ My Share'}</span>` : ''}
-            </div>
-            
-            <div style="font-size:12.5px; color:var(--gold); margin-top:2px;">★ ${b.personalRating||5}/5 ・ ${esc(b.author||'品飲同好')}</div>
-            <div style="font-size:13px; color:var(--text-muted); margin-top:4px;">"${esc(b.diary?.notes || '無額外筆記')}"</div>
-            
-            <div style="font-size:11.5px; color:var(--text-faint); margin-top:8px; display:flex; align-items:center; justify-content:space-between; gap:6px;">
-              <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;">${tastingPlaceOf(b) ? '📍 ' + esc(tastingPlaceOf(b)) + ' · 🍷 ' + esc((c + ' ' + (r || '')).trim()) : '🍷 ' + esc((c + ' ' + (r || '')).trim())}</span>
-              
-              <div style="display:flex; gap:6px; align-items:center;" onclick="event.stopPropagation();">
-                ${isMine ? `
-                  <button class="btn btn-ghost btn-sm" style="color:#f87171; border-color:rgba(239,68,68,0.3); font-size:11px; padding:2px 7px;" onclick="deleteMyExploreShare('${esc(b.id)}')">
-                    🗑️ ${currentLang==='zh'?'刪除分享':'Delete'}
-                  </button>
-                ` : `
-                  <button class="btn btn-ghost btn-sm" style="color:var(--gold); border-color:var(--gold-dim); font-size:11px; padding:2px 7px;" onclick="addExploreItemToWishlist('${esc(b.id)}')">
-                    🏷️ ${currentLang==='zh'?'加入願望清單':'Add to Wishlist'}
-                  </button>
-                `}
-                
-                <button class="feed-detail-link" onclick="openSharedTastingModal('${esc(b.id)}')" title="查看分享內容">
-                  <span>${currentLang==='zh'?'詳細':'Detail'}</span><span style="font-family:monospace; font-size:12px; margin-left:1px;">&gt;</span>
+        <div class="feed-swipe${idx === 0 ? ' nudge' : ''}" data-id="${esc(b.id)}" data-mine="${isMine ? 1 : 0}">
+          <div class="feed-swipe-bg">
+            <span class="fs-star">&#9733; ${zh ? '加星' : 'Star'}</span>
+            <span class="fs-del">${isMine ? (zh ? '收回' : 'Remove') : (zh ? '隱藏' : 'Hide')} &#10005;</span>
+          </div>
+          <div class="bottle-card feed-clickable feed-glow" id="feed-card-${esc(b.id)}" onclick="flyToBottleRegion('${esc(b.id)}')" style="margin-bottom:0; cursor:pointer;">
+            <div class="bottle-photo-box">${b.image ? `<img src="${esc(b.image)}">` : '🍷'}</div>
+            <div class="bottle-info" style="flex:1; min-width:0;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:4px;">
+                <div class="bottle-name">${esc(bottleName(b))}</div>
+                ${isMine ? `<span style="font-size:10px; font-family:var(--mono); color:#D4AF37; background:rgba(212,175,55,0.15); border:1px solid rgba(212,175,55,0.3); padding:1px 6px; border-radius:4px; white-space:nowrap;">${zh?'我的分享':'Mine'}</span>` : ''}
+              </div>
+              <div style="font-size:12.5px; color:var(--gold); margin-top:2px;">&#9733; ${b.personalRating||5}/5 ・ ${esc(b.author||'品飲同好')}</div>
+              ${place ? `<div class="feed-place">📍 ${esc(place)}</div>` : ''}
+              <div style="font-size:13px; color:var(--text-muted); margin-top:4px;">"${esc(b.diary?.notes || (zh ? '無額外筆記' : 'No notes'))}"</div>
+              <div style="font-size:11.5px; color:var(--text-faint); margin-top:8px; display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;">🍷 ${esc((c + ' ' + (r || '')).trim())}</span>
+                <button class="feed-detail-link" onclick="event.stopPropagation(); openSharedTastingModal('${esc(b.id)}')" title="${zh?'查看分享內容':'View'}">
+                  <span>${zh?'詳細':'Detail'}</span><span style="font-family:monospace; font-size:12px; margin-left:1px;">&gt;</span>
                 </button>
               </div>
             </div>
@@ -2510,10 +2507,58 @@ async function renderRealWorldPinsAndFeed() {
         </div>
       `;
     }).join('');
+    attachFeedSwipe(feedEl);
   } catch(e) {
     const feedEl = document.getElementById('explore-feed');
     if (feedEl) feedEl.innerHTML = `<div class="empty-shelf">${currentLang==='zh'?'暫時無法載入酒友動態。':'Unable to load public feed.'}</div>`;
   }
+}
+
+// ---- 探索動態：左右滑動 (右滑加星 / 左滑刪除或隱藏) ----
+function getHiddenFeed() {
+  try { return JSON.parse(localStorage.getItem('bottlesense_feed_hidden') || '[]'); } catch (e) { return []; }
+}
+function hideFeedItem(id) {
+  const h = getHiddenFeed(); h.push(String(id));
+  try { localStorage.setItem('bottlesense_feed_hidden', JSON.stringify(h.slice(-300))); } catch (e) {}
+}
+function attachFeedSwipe(root) {
+  root.querySelectorAll('.feed-swipe').forEach(wrap => {
+    const card = wrap.querySelector('.bottle-card');
+    let sx = 0, sy = 0, dx = 0, drag = false, lock = null;
+    wrap.addEventListener('touchstart', e => {
+      const t0 = e.touches[0]; sx = t0.clientX; sy = t0.clientY; dx = 0; drag = true; lock = null;
+      card.style.transition = 'none';
+    }, { passive: true });
+    wrap.addEventListener('touchmove', e => {
+      if (!drag) return;
+      const t0 = e.touches[0]; const mx = t0.clientX - sx, my = t0.clientY - sy;
+      if (lock === null && (Math.abs(mx) > 8 || Math.abs(my) > 8)) lock = Math.abs(mx) > Math.abs(my) ? 'x' : 'y';
+      if (lock !== 'x') return;
+      dx = Math.max(-120, Math.min(120, mx));
+      card.style.transform = 'translateX(' + dx + 'px)';
+      wrap.classList.toggle('sw-right', dx > 12);
+      wrap.classList.toggle('sw-left', dx < -12);
+    }, { passive: true });
+    const end = async () => {
+      if (!drag) return; drag = false;
+      card.style.transition = 'transform .25s ease';
+      card.style.transform = '';
+      wrap.classList.remove('sw-right', 'sw-left');
+      const id = wrap.dataset.id, mine = wrap.dataset.mine === '1';
+      if (lock === 'x' && dx > 70) {
+        if (mine) showToast(currentLang==='zh'?'這是您自己的分享':'This is your own share');
+        else addExploreItemToWishlist(id);
+      } else if (lock === 'x' && dx < -70) {
+        if (mine) deleteMyExploreShare(id);
+        else { hideFeedItem(id); wrap.style.display = 'none'; showToast(currentLang==='zh'?'已隱藏此則動態':'Hidden'); }
+      }
+      if (lock === 'x' && Math.abs(dx) > 8) { wrap.dataset.swiped = '1'; setTimeout(() => { delete wrap.dataset.swiped; }, 350); }
+    };
+    wrap.addEventListener('touchend', end);
+    wrap.addEventListener('touchcancel', end);
+    wrap.addEventListener('click', e => { if (wrap.dataset.swiped) { e.stopPropagation(); e.preventDefault(); } }, true);
+  });
 }
 
 // 6. 高亮卡片與 Pin 點
@@ -4075,7 +4120,7 @@ function maybeShowOnboarding() {
       <div class="modal-card" role="dialog" aria-modal="true" style="max-width:360px; text-align:left;">
         <h2 style="font-family:var(--serif); color:var(--gold); font-size:20px; text-align:center; margin-bottom:14px;">${zh ? '歡迎使用 BottleSense' : 'Welcome to BottleSense'}</h2>
         <div class="onb-step"><span>📷</span><div><strong>${zh ? '拍攝酒標，AI 即時鑑識' : 'Snap a label'}</strong><br>${zh ? '自動填寫酒款、產區與價值評分。' : 'AI fills in the bottle details and value profile.'}</div></div>
-        <div class="onb-step"><span>🗂️</span><div><strong>${zh ? '以電子酒窖典藏您的酒' : 'Four spaces'}</strong><br>${zh ? '電子酒櫃、實木酒架、吧台、珍藏櫃、贈禮台與願望清單。可在酒款頁隨時移動。' : 'Unopened, Opened, Finished, Wishlist.'}</div></div>
+        <div class="onb-step"><span>🗂️</span><div><strong>${zh ? '以電子酒窖典藏您的酒' : 'Four spaces'}</strong><br>${zh ? '未開、已飲、盡飲、珍藏、饋贈與願望六處空間。可在酒款頁隨時移動。' : 'Unopened, Opened, Finished, Wishlist.'}</div></div>
         <div class="onb-step"><span>🌍</span><div><strong>${zh ? '探索酒友分享' : 'Explore'}</strong><br>${zh ? '在世界地圖上看看其他人在哪裡品嚐什麼酒。' : 'See what others are drinking around the world.'}</div></div>
         <div class="onb-step"><span>🎁</span><div><strong>${zh ? '登入有額外禮遇' : 'Perks when you sign in'}</strong><br>${zh ? '跨裝置同步、壽星送辨識額度、邀請朋友雙方有獎。' : 'Sync devices, birthday bonus, invite friends for rewards.'}</div></div>
         <button class="btn btn-primary btn-block" style="margin-top:14px;" onclick="try{localStorage.setItem('bottlesense_onboarded','1')}catch(e){}; closeModal();">${zh ? '開始使用' : 'Get started'}</button>

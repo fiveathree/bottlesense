@@ -20,7 +20,7 @@
     users: '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 5.2a3 3 0 0 1 0 5.6M18 14.4c2 .7 3.5 2.6 3.5 5.6"/>',
     user: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/>',
     bolt: '<path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/>',
-    wood: '<ellipse cx="8" cy="12" rx="3.2" ry="6.5"/><path d="M8 5.5h11a3.2 6.5 0 0 1 0 13H8"/><ellipse cx="8" cy="12" rx="1" ry="2"/>',
+    wood: '<path d="M3.5 20.5h17"/><path d="M6 20.5v-7.2a1.4 1.4 0 0 1 .9-1.3V6.5h2.2v5.5a1.4 1.4 0 0 1 .9 1.3v7.2"/><path d="M13.5 20.5v-7.2a1.4 1.4 0 0 1 .9-1.3V6.5h2.2v5.5a1.4 1.4 0 0 1 .9 1.3v7.2"/>',
     globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
     phone: '<rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/>',
     mail: '<rect x="3" y="5.5" width="18" height="13" rx="1.5"/><path d="m3.5 7 8.5 6.5L20.5 7"/>',
