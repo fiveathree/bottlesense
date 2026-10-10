@@ -964,12 +964,16 @@ function priceCardHTML(b) {
         <div><div class="pc-k">${zh ? '市場行情' : 'Market'}</div><div class="pc-v">${rng(pi.market)}</div></div>
       </div>
       ${(offersEnabled() && !isVisitorMode) ? `<div id="pc-comm" class="pc-comm"></div>` : ''}
-      ${(!pi.retail && !pi.market) ? `<div class="pc-none">${zh ? '此酒款尚無 AI 價格參考，重新掃描可取得。' : 'No AI price estimate for this bottle yet - rescan to get one.'}</div>` : `<div class="pc-tag">${zh ? 'AI 估算' : 'AI estimate'}${pi.conf ? ' ・ ' + (pi.conf === 'high' ? (zh ? '信心高' : 'high confidence') : pi.conf === 'low' ? (zh ? '信心低' : 'low confidence') : (zh ? '信心中' : 'medium confidence')) : ''}</div>`}
-      ${isVisitorMode ? '' : `<div class="pc-buy">
-        <label for="buy-input">${zh ? '買入價' : 'You paid'} (${cur})</label>
-        <input id="buy-input" type="number" inputmode="decimal" min="0" placeholder="${zh ? '選填' : 'optional'}" value="${buyLocal ? Math.round(buyLocal) : ''}" onchange="setBuyPrice('${esc(b.id)}')">
-        ${badge}
-      </div>`}
+      <div class="pc-row2">
+        <div class="pc-estcol">
+          ${(!pi.retail && !pi.market) ? `<div class="pc-none">${zh ? '尚無 AI 價格參考，重新掃描可取得。' : 'No AI estimate yet - rescan to get one.'}</div>` : `<div class="pc-tag">${zh ? 'AI 估算，只供參考' : 'AI estimate, for reference only'}</div>`}
+          ${badge}
+        </div>
+        ${isVisitorMode ? '' : `<div class="pc-buy">
+          <label for="buy-input">${zh ? '買入價' : 'You paid'} (${cur})</label>
+          <input id="buy-input" type="number" inputmode="decimal" min="0" placeholder="${zh ? '選填' : 'optional'}" value="${buyLocal ? Math.round(buyLocal) : ''}" onchange="setBuyPrice('${esc(b.id)}')">
+        </div>`}
+      </div>
     </div>`;
 }
 
@@ -4443,6 +4447,7 @@ async function togglePublishSession(bottleId, sessionId) {
     if (!vv) return;
     document.documentElement.style.setProperty('--vvh', vv.height + 'px');
     document.documentElement.style.setProperty('--vvt', vv.offsetTop + 'px');
+    document.documentElement.classList.toggle('kb-open', window.innerHeight - vv.height > 140);
   };
   if (vv) { vv.addEventListener('resize', apply); vv.addEventListener('scroll', apply); apply(); }
   document.addEventListener('focusin', (e) => {
