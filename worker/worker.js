@@ -491,7 +491,7 @@ async function callClaude(env, model, content, maxTokens) {
   if (!res.ok) { let body = ''; try { body = (await res.text()).slice(0, 300); } catch (e) {} const er = new Error('AI_UPSTREAM_' + res.status); er.status = res.status; er.body = body; er.model = model; throw er; }
   const data = await res.json();
   // 模型可能先回傳 thinking 區塊：取所有 text 區塊合併，而不是只讀第一個
-  const txt = (Array.isArray(data.content) ? data.content : []).filter(c => c && c.type === 'text').map(c => c.text || '').join('\n');
+  const txt = (Array.isArray(data.content) ? data.content : []).filter(c => c && typeof c.text === 'string' && (!c.type || c.type === 'text')).map(c => c.text || '').join('\n');
   if (!txt) { lastEmpty = { stop: data.stop_reason || '', types: (data.content || []).map(c => c && c.type).join(',') }; }
   return txt;
 }
