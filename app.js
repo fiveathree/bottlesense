@@ -1237,7 +1237,7 @@ function timelineHTML(b) {
         <div class="tl-titlebar">
           <h3>${t('timeline_title')}</h3>
           ${vis ? '' : `<div class="tl-tools">
-            <button class="btn btn-primary btn-sm" onclick="openAddSessionModal('${esc(b.id)}')">${zh ? '記錄' : 'Log'}</button>
+            <button class="btn btn-primary btn-sm" onclick="openAddSessionModal('${esc(b.id)}')">+ ${zh ? '記錄' : 'Log'}</button>
             ${canInvite ? `<button class="btn btn-ghost btn-sm tl-invite" onclick="openPourParty('${esc(b.id)}')">${TELEGRAM_PLANE_SVG}<span>${zh ? '約飲' : 'Invite'}</span></button>` : ''}
           </div>`}
         </div>
