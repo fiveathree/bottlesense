@@ -677,6 +677,13 @@ export default {
         return json({ success: true, syncKey: newKey, token });
       }
 
+      // 讀取目前身分的 AI 辨識額度 (訪客 / 免費 / Pro 皆可；只讀，不計次)
+      if (path === '/api/quota' && request.method === 'GET') {
+        const tier = await scanTier(request, kv, env);
+        const used = parseInt(await kv.get(`quota:${tier.id}:${ym()}`) || '0', 10);
+        return json({ tier: tier.tier, used, limit: tier.limit, bonus: tier.email ? await bonusBalance(kv, tier.email) : 0 });
+      }
+
       if (path === '/api/me' && request.method === 'GET') {
         const { email, userKey } = await requireSession(request, kv);
         const rec = parseUserRecord(await kv.get('user:' + userKey));

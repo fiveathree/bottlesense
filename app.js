@@ -53,7 +53,7 @@ function apiErrorMessage(code, data) {
   const zh = currentLang === 'zh';
   const map = {
     RATE_LIMITED: zh ? '操作太頻繁，請稍後再試' : 'Too many requests, please try later',
-    RATE_LIMITED_IP: zh ? '你的網絡操作太頻繁，請稍後再試' : 'Too many requests from your network',
+    RATE_LIMITED_IP: zh ? '您的網路操作太頻繁，請稍後再試' : 'Too many requests from your network',
     RATE_LIMITED_EMAIL: zh ? '此電郵一小時內發送次數已達上限' : 'Too many codes sent to this email',
     COOLDOWN: zh ? '請等約 1 分鐘後再重新發送驗證碼' : 'Please wait a minute before resending',
     INVALID_EMAIL: zh ? '電郵格式不正確' : 'Invalid email',
@@ -80,7 +80,7 @@ function apiErrorMessage(code, data) {
     CODE_INVALID: zh ? '兌換碼無效' : 'Invalid code',
     CODE_EXPIRED: zh ? '兌換碼已過期' : 'Code expired',
     CODE_USED_UP: zh ? '兌換碼已被領完' : 'Code fully redeemed',
-    CODE_ALREADY: zh ? '你已使用過此兌換碼' : 'You already redeemed this code',
+    CODE_ALREADY: zh ? '您已使用過此兌換碼' : 'You already redeemed this code',
   };
   if (code && map[code]) return map[code];
   if (code && /^EMAIL_SEND_FAILED/.test(code)) return (zh ? '驗證郵件發送失敗：' : 'Email failed: ') + code.replace('EMAIL_SEND_FAILED: ', '');
@@ -100,19 +100,19 @@ function handleAuthExpired() {
   authFlowState = { step: 'email', email, name: '', gender: 'unspecified', birthday: '' };
   showToast(currentLang === 'zh' ? '🔒 為保障安全，請重新以電郵登入一次（本機酒款會自動合併）' : '🔒 Please sign in again (local bottles will be merged)');
   updateHeaderGreeting();
-  setTimeout(() => { try { renderSettings(); } catch (e) {} }, 600);
+  setTimeout(() => { try { openSettings('auth'); } catch (e) {} }, 600);
 }
 
 async function reportExploreItem(itemId) {
   if (!confirm(currentLang === 'zh' ? '檢舉此分享內容不當 / 垃圾訊息？' : 'Report this share as inappropriate or spam?')) return;
   try {
     await apiFetch('/api/explore/report', { method: 'POST', body: JSON.stringify({ id: String(itemId) }) });
-    showToast(currentLang === 'zh' ? '✓ 已收到檢舉，多謝你' : '✓ Report received');
+    showToast(currentLang === 'zh' ? '✓ 已收到檢舉，感謝您' : '✓ Report received');
   } catch (e) { showToast(currentLang === 'zh' ? '檢舉失敗，請稍後再試' : 'Report failed'); }
 }
 
 async function logoutAllDevices() {
-  if (!confirm(currentLang === 'zh' ? '登出所有裝置並更換同步碼？\n其他裝置需重新登入；你之前分享出去的酒櫃連結會失效，需重新分享。' : 'Sign out all devices and rotate your sync key?\nOther devices must sign in again; previous share links will stop working.')) return;
+  if (!confirm(currentLang === 'zh' ? '登出所有裝置並更換同步碼？\n其他裝置需重新登入；您之前分享出去的酒櫃連結會失效，需重新分享。' : 'Sign out all devices and rotate your sync key?\nOther devices must sign in again; previous share links will stop working.')) return;
   try {
     const res = await apiFetch('/api/auth/logout-all', { method: 'POST' });
     const data = await res.json();
@@ -156,32 +156,32 @@ function calibrateValueMap(vm, category = '', name = '') {
 
 const I18N = {
   zh: {
-    nav_scan: "辨識",
-    nav_cellar: "酒櫃",
+    nav_scan: "鑑識",
+    nav_cellar: "酒窖",
     nav_explore: "探索",
     hero_title: "Know what to do with it",
-    hero_desc: "拍下酒標，立即知道這瓶酒該開、該飲、該藏，還是該送。",
+    hero_desc: "拍攝酒標，AI 即時鑑識，並建議該開、該飲、該藏，或是該贈。",
     choose_album: "從相簿選照片",
     spaces_title: "我的電子酒架",
-    open_cellar: "打開酒櫃 →",
+    open_cellar: "前往酒窖 →",
     recent_title: "最近加入",
     view_all: "查看全部 →",
     empty_cellar: "酒櫃目前是空的<br>先拍一瓶酒標開始吧。",
-    empty_recent_loggedin: "尚未有最近加入的酒款<br>拍一瓶酒標，開始建立你的酒窖。",
-    space_cooler: "🧊 未開瓶",
-    space_wood: "🥃 飲用中",
-    space_bar: "🏁 飲完",
-    space_kept: "💎 收藏",
-    space_gift: "🎁 送人",
-    space_wish: "🏷️ 想買",
+    empty_recent_loggedin: "尚未有最近加入的酒款<br>拍一瓶酒標，開始建立您的酒窖。",
+    space_cooler: "⚡ 電子酒櫃",
+    space_wood: "🪵 實木酒架",
+    space_bar: "🥃 吧台",
+    space_kept: "💎 珍藏櫃",
+    space_gift: "🎁 贈禮台",
+    space_wish: "🏷️ 願望清單",
     space_fav: "⭐ 最愛",
     space_random: "🎲 隨機賞味",
-    shelf_cooler_title: "🧊 未開瓶 (等待決定)",
-    shelf_wood_title: "🥃 飲用中 (已開瓶)",
-    shelf_bar_title: "🏁 飲完 (回憶牆)",
-    shelf_kept_title: "💎 收藏 (不飲用，妥善保存)",
-    shelf_gift_title: "🎁 送人 (已經送出)",
-    shelf_wish_title: "🏷️ 願望清單 (想買)",
+    shelf_cooler_title: "⚡ 電子恆溫酒櫃（未開封）",
+    shelf_wood_title: "🪵 實木日常酒架（品鑑中）",
+    shelf_bar_title: "🥃 吧台展示桌（已品畢．紀念）",
+    shelf_kept_title: "💎 珍藏展示櫃（典藏）",
+    shelf_gift_title: "🎁 贈禮台（已贈送）",
+    shelf_wish_title: "🏷️ 願望清單（心儀酒款）",
     shelf_fav_title: "⭐ 心頭好精選 (最愛)",
     share_cellar: "分享全窖",
     filter_all: "全部",
@@ -189,11 +189,11 @@ const I18N = {
     back: "← 返回",
     share_bottle: "分享此酒",
     edit_info: "編輯資料",
-    transfer_title: "📍 轉移藏酒空間",
-    timeline_title: "🥃 品飲記錄時間軸",
-    btn_add_log: "＋ 記錄這次品飲",
+    transfer_title: "📍 移至酒窖空間",
+    timeline_title: "🥃 品鑑紀錄",
+    btn_add_log: "＋ 記錄這次品鑑",
     timeline_hint: "記錄不同時間、地點與同伴帶來的獨特體驗。",
-    no_logs: "尚未記錄品飲歷史，點擊上方按鈕記錄你的第一杯！",
+    no_logs: "尚未記錄品飲歷史，點擊上方按鈕記錄您的第一杯！",
     btn_remove: "從酒庫中移除",
     crop_hint: "雙指縮放拖曳對準酒瓶",
     guide_label_tag: "請將酒標置於框內",
@@ -202,7 +202,7 @@ const I18N = {
     analyzing_title: "正在辨識酒標",
     analyzing_desc: "AI 正在分析酒款、年份及產區…",
     settings_title: "設定與備份",
-    sync_key_label: "你的專屬同步碼 (Sync Key)",
+    sync_key_label: "您的專屬同步碼 (Sync Key)",
     btn_copy_sync: "複製同步碼",
     btn_close: "關閉",
     copied_toast: "✓ 已複製專屬連結至剪貼簿！",
@@ -229,20 +229,20 @@ const I18N = {
     view_all: "View All →",
     empty_cellar: "Your cellar is empty.<br>Snap a bottle label to begin.",
     empty_recent_loggedin: "No recent bottles yet.<br>Snap a label to start building your cellar.",
-    space_cooler: "⚡ Unopened",
-    space_wood: "🪵 Opened",
-    space_bar: "🏁 Finished",
-    space_kept: "💎 Kept",
-    space_gift: "🎁 Gifted",
+    space_cooler: "⚡ Cooler",
+    space_wood: "🪵 Wood Rack",
+    space_bar: "🥃 Bar",
+    space_kept: "💎 Vault",
+    space_gift: "🎁 Gift Table",
     space_wish: "🏷️ Wishlist",
     space_fav: "⭐ Favorite",
     space_random: "🎲 Surprise Pick",
     shelf_cooler_title: "⚡ Wine Cooler (Unopened)",
-    shelf_wood_title: "🪵 Daily Rack (Opened)",
-    shelf_bar_title: "🏁 Finished (Memories)",
-    shelf_kept_title: "💎 Kept (not for drinking)",
-    shelf_gift_title: "🎁 Gifted",
-    shelf_wish_title: "🏷️ Wishlist (To Buy)",
+    shelf_wood_title: "🪵 Wood Rack (Open)",
+    shelf_bar_title: "🥃 Bar Table (Finished)",
+    shelf_kept_title: "💎 Vault (Kept)",
+    shelf_gift_title: "🎁 Gift Table (Given)",
+    shelf_wish_title: "🏷️ Wishlist",
     shelf_fav_title: "⭐ Favorites (Top Pick)",
     share_cellar: "Share Cellar",
     filter_all: "All",
@@ -387,19 +387,48 @@ function goHome() {
 }
 
 /* ---------------- 首頁 6 格齊整佈局 (含隨機賞味) ---------------- */
+function quotaCache() {
+  try { return JSON.parse(localStorage.getItem('bottlesense_quota') || 'null'); } catch (e) { return null; }
+}
+function quotaBarHTML(q) {
+  const zh = currentLang === 'zh';
+  const guest = !localStorage.getItem('bottlesense_account_bound');
+  const c = q || quotaCache() || { tier: guest ? 'guest' : 'free', used: 0, limit: guest ? 8 : 40, bonus: 0 };
+  const left = Math.max(0, c.limit - c.used) + (c.bonus || 0);
+  const total = Math.max(1, c.limit + (c.bonus || 0));
+  const pct = Math.max(0, Math.min(100, Math.round((left / total) * 100)));
+  return `
+    <div class="quota-head">
+      <span>${zh ? '本月 AI 鑑識額度' : 'Monthly AI scans'}</span>
+      <span><b>${left}</b> / ${total} ${zh ? '次' : ''}</span>
+    </div>
+    <div class="quota-track"><div class="quota-fill" style="width:${pct}%"></div></div>
+    ${guest ? `<div class="quota-note">${zh ? '登入後可獲得更多額度' : 'Sign in for more scans'}</div>` : ''}`;
+}
+async function refreshQuota() {
+  try {
+    const res = await apiFetch('/api/quota');
+    if (!res.ok) return;
+    const q = await res.json();
+    localStorage.setItem('bottlesense_quota', JSON.stringify(q));
+    const el = document.getElementById('quotaBar');
+    if (el) el.innerHTML = quotaBarHTML(q);
+  } catch (e) {}
+}
+
 function renderHome() {
   currentView = 'home';
   setActiveNav('nav-home');
-  const s = statCounts();
+  const zh = currentLang === 'zh';
 
   main.innerHTML = `
-    <div class="view" style="padding-bottom: 40px;">
-      <section class="scan-hero">
+    <div class="view home-wrap">
+      <section class="scan-hero home-hero">
         <h1>${t('hero_title')}</h1>
         <p>${t('hero_desc')}</p>
         <div class="scan-center-box">
           <button class="scan-btn" onclick="openCamera()" aria-label="Scan Bottle">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
               <circle cx="12" cy="13" r="4"/>
             </svg>
@@ -408,26 +437,16 @@ function renderHome() {
         </div>
       </section>
 
-
-      <div class="section-head">
-        <h2>${t('spaces_title')}</h2>
-        <a onclick="renderCellar()">${t('open_cellar')}</a>
+      <div class="guide-steps">
+        <div class="guide-card"><span class="guide-no">I</span><div>${zh ? '點擊上方按鈕' : 'Tap above'}</div></div>
+        <div class="guide-card"><span class="guide-no">II</span><div>${zh ? '拍攝或選取酒類相片' : 'Snap or choose a photo'}</div></div>
+        <div class="guide-card"><span class="guide-no">III</span><div>${zh ? 'AI 完成鑑識分析' : 'AI completes analysis'}</div></div>
       </div>
 
-      ${guestBannerHTML()}
-
-      <div class="shelf-container shelf-cooler home-shelf">
-        ${homeShelfHTML()}
-      </div>
-
-      <div class="status-chips">
-        ${[['cooler','space_cooler',s.cooler],['wood','space_wood',s.wood],['bar','space_bar',s.bar],['kept','space_kept',s.kept],['gift','space_gift',s.gift],['wishlist','space_wish',s.wish]]
-          .map(([k,lab,n]) => `<button class="status-chip" onclick="openScene('${k}')">${t(lab)} <b>${n}</b></button>`).join('')}
-      </div>
+      <div class="quota-bar" id="quotaBar">${quotaBarHTML()}</div>
     </div>
   `;
-
-  attachSwipeListeners();
+  refreshQuota();
 }
 
 function pickRandomBottle() {
@@ -516,33 +535,33 @@ function renderCellar() {
 
       <div class="cellar-scene-tabs">
         <div class="scene-tab ${currentScene==='cooler'?'active-cooler':''}" onclick="switchScene('cooler')">
-          <span class="scene-icon">🧊</span>
+          <span class="scene-icon">⚡</span>
           <div class="scene-name">${t('space_cooler').replace(/^\S+\s/, '')}</div>
           <div class="scene-count">${coolerBottles.length}</div>
         </div>
         <div class="scene-tab ${currentScene==='wood'?'active-wood':''}" onclick="switchScene('wood')">
-          <span class="scene-icon">🥃</span>
+          <span class="scene-icon">🪵</span>
           <div class="scene-name">${t('space_wood').replace(/^\S+\s/, '')}</div>
           <div class="scene-count">${woodBottles.length}</div>
         </div>
         <div class="scene-tab ${currentScene==='bar'?'active-bar':''}" onclick="switchScene('bar')">
-          <span class="scene-icon">🏁</span>
+          <span class="scene-icon">🥃</span>
           <div class="scene-name">${t('space_bar').replace(/^\S+\s/, '')}</div>
           <div class="scene-count">${barBottles.length}</div>
         </div>
         <div class="scene-tab ${currentScene==='kept'?'active-kept':''}" onclick="switchScene('kept')">
           <span class="scene-icon">💎</span>
-          <div class="scene-name">${currentLang==='zh'?'收藏':'Kept'}</div>
+          <div class="scene-name">${t('space_kept').replace(/^\S+\s/, '')}</div>
           <div class="scene-count">${keptBottles.length}</div>
         </div>
         <div class="scene-tab ${currentScene==='gift'?'active-gift':''}" onclick="switchScene('gift')">
           <span class="scene-icon">🎁</span>
-          <div class="scene-name">${currentLang==='zh'?'送人':'Gifted'}</div>
+          <div class="scene-name">${t('space_gift').replace(/^\S+\s/, '')}</div>
           <div class="scene-count">${giftBottles.length}</div>
         </div>
         <div class="scene-tab ${currentScene==='wishlist'?'active-wish':''}" onclick="switchScene('wishlist')">
           <span class="scene-icon">🏷️</span>
-          <div class="scene-name">${currentLang==='zh'?'想買':'Wishlist'}</div>
+          <div class="scene-name">${t('space_wish').replace(/^\S+\s/, '')}</div>
           <div class="scene-count">${wishBottles.length}</div>
         </div>
       </div>
@@ -612,7 +631,7 @@ function homeShelfHTML() {
   const zh = currentLang === 'zh';
   const list = (window.cellar || []).filter(b => b.status !== 'wishlist').slice(0, 4);
   if (!list.length) {
-    return `<div class="spine-row spine-empty"><div class="empty-shelf">${zh ? '酒架還是空的<br>先拍下一瓶酒標，把它放上來。' : 'Your shelf is empty.<br>Scan a label to place your first bottle.'}</div></div><div class="shelf-beam"></div>`;
+    return `<div class="spine-row spine-empty"><div class="empty-shelf">${zh ? '酒架尚且空置<br>拍攝一瓶酒標，將它放上酒架。' : 'Your shelf is empty.<br>Scan a label to place your first bottle.'}</div></div><div class="shelf-beam"></div>`;
   }
   return shelfRowsHTML(list, 4, true);
 }
@@ -622,7 +641,7 @@ function guestBannerHTML() {
   return `
     <div class="guest-banner">
       <div>${zh ? '尚未登入：酒款目前只儲存在這部裝置。登入後可雲端備份，並在不同裝置同步。' : 'Not signed in: bottles are stored on this device only. Sign in to back up and sync.'}</div>
-      <button class="btn btn-primary btn-sm" onclick="renderSettings()">${zh ? '登入 / 註冊' : 'Sign in'}</button>
+      <button class="btn btn-primary btn-sm" onclick="openSettings('auth')">${zh ? '登入 / 註冊' : 'Sign in'}</button>
     </div>`;
 }
 
@@ -724,8 +743,8 @@ function attachSwipeListeners() {
 
 /* ---------------- 開 / 飲 / 藏 / 送：幫唔識酒嘅人決定 ---------------- */
 const VERDICTS = {
-  open:  { emoji: '🍾', zh: '開', en: 'Open',  ctaZh: '約朋友開瓶', ctaEn: 'Start a pour party',
-           headZh: '這瓶適合約朋友一起開', headEn: 'Best opened with friends',
+  open:  { emoji: '🍾', zh: '開', en: 'Open',  ctaZh: '邀約共飲', ctaEn: 'Start a pour party',
+           headZh: '這瓶適合邀約友人共享', headEn: 'Best opened with friends',
            whenZh: '找個聚會或生日一起開，氣氛最好', whenEn: 'Save it for a gathering' },
   drink: { emoji: '🥃', zh: '飲', en: 'Drink', ctaZh: '我現在開了，記錄一下', ctaEn: 'I opened it - log it',
            headZh: '這瓶適合自己慢慢品嚐', headEn: 'Great for enjoying yourself',
@@ -791,7 +810,7 @@ function renderVerdictCard(b) {
   });
   const party = b.party && !isVisitorMode ? `
     <div class="party-banner">
-      🍾 ${zh ? '開瓶局' : 'Pour party'}：${esc(b.party.date || '')} ${esc(b.party.place || '')}
+      🍾 ${zh ? '品鑑雅集' : 'Tasting gathering'}：${esc(b.party.date || '')} ${esc(b.party.place || '')}
       <button class="btn btn-primary btn-sm" onclick="finishPourParty('${esc(b.id)}')">${zh ? '活動結束，記錄這次' : 'Done - log it'}</button>
     </div>` : '';
   return `
@@ -835,7 +854,7 @@ async function verdictAct(id, key) {
     renderBottleDetail(id);
   } else if (key === 'gift') {
     openShareActionSheet(id);
-    showToast(currentLang === 'zh' ? '🎁 送出後，請在下方點選「送人」' : '🎁 Tap "Gifted" below once given');
+    showToast(currentLang === 'zh' ? '🎁 贈出後，請在下方將酒移至「贈禮台」' : '🎁 Tap "Gifted" below once given');
   }
 }
 
@@ -874,7 +893,7 @@ function collectionCardHTML() {
   return `
     <div class="collect-card">
       <div class="collect-head">
-        <div class="collect-title">🎴 ${zh ? '我的酒卡冊' : 'My collection'}</div>
+        <div class="collect-title">🎴 ${zh ? '我的珍藏圖鑑' : 'My collection'}</div>
         <div class="collect-count">${s.total} / ${next}</div>
       </div>
       <div class="collect-bar"><div class="collect-fill" style="width:${pct}%"></div></div>
@@ -899,7 +918,7 @@ function openPourParty(id) {
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="closeModal()">
       <div class="modal-card" role="dialog" aria-modal="true" style="max-width:370px; text-align:left;" onclick="event.stopPropagation()">
-        <div style="font-family:var(--serif); font-size:19px; font-weight:700; color:var(--gold); margin-bottom:4px;">🍾 ${zh ? '約朋友開瓶' : 'Pour party'}</div>
+        <div style="font-family:var(--serif); font-size:19px; font-weight:700; color:var(--gold); margin-bottom:4px;">🍾 ${zh ? '邀約共飲' : 'Tasting gathering'}</div>
         <div style="font-size:13px; color:var(--text-muted); margin-bottom:10px;">${esc(bottleName(b))}</div>
         <div style="font-size:12px; color:var(--text-faint);">${zh ? '日期同時間' : 'When'}</div>
         <input type="datetime-local" id="party-date" class="text-input" value="${d.toISOString().slice(0, 16)}">
@@ -951,7 +970,7 @@ async function finishPourParty(id) {
   }, 30);
 }
 
-/* ---------------- 回憶卡 ---------------- */
+/* ---------------- 品鑑紀念卡 ---------------- */
 function loadImageForCanvas(src) {
   return new Promise(resolve => {
     if (!src) return resolve(null);
@@ -1000,14 +1019,19 @@ async function drawMemoryCard(b, s, withPhoto) {
       y += h + 40; drawn = true;
     }
   }
-  if (!drawn) { ctx.font = '220px serif'; ctx.fillStyle = '#fff'; ctx.fillText(categoryEmoji(bottleCategory(b)), W / 2, y + 230); y += 300; }
+  if (!drawn) {
+    ctx.save(); ctx.translate(W / 2 - 130, y + 10); ctx.scale(10.8, 10.8);
+    ctx.strokeStyle = '#D4AF37'; ctx.lineWidth = 0.35; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.stroke(new Path2D('M10 3h4v4.2c0 .8.5 1.3 1.2 2A5 5 0 0 1 16.5 12.5V19a2 2 0 0 1-2 2h-5a2 2 0 0 1-2-2v-6.5a5 5 0 0 1 1.3-3.3c.7-.7 1.2-1.2 1.2-2zM8.5 14h7M8.5 17.5h7'));
+    ctx.restore(); y += 300;
+  }
   ctx.fillStyle = '#f5e8c8'; ctx.font = '700 54px serif';
   for (const ln of wrapCanvasText(ctx, bottleName(b), W - 220, 2)) { ctx.fillText(ln, W / 2, y + 50); y += 66; }
   y += 20;
-  ctx.fillStyle = '#D4AF37'; ctx.font = '48px sans-serif';
+  ctx.fillStyle = '#D4AF37'; ctx.font = '48px serif';
   ctx.fillText('★'.repeat(s.rating || 5), W / 2, y + 40); y += 90;
   ctx.fillStyle = '#e9dcc0'; ctx.font = '36px sans-serif';
-  const meta = [s.dateStr ? s.dateStr.slice(0, 10) : '', s.location ? '📍' + s.location : '', s.companions ? '👥' + s.companions : ''].filter(Boolean);
+  const meta = [s.dateStr ? s.dateStr.slice(0, 10) : '', s.location ? (zh ? '地點：' : 'At ') + s.location : '', s.companions ? (zh ? '同席：' : 'With ') + s.companions : ''].filter(Boolean);
   for (const m of meta) { ctx.fillText(m, W / 2, y + 30); y += 52; }
   if (s.notes) {
     y += 20; ctx.fillStyle = '#cdbf9f'; ctx.font = 'italic 36px serif';
@@ -1033,7 +1057,7 @@ async function openMemoryCard(bottleId, sessionId) {
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="closeModal()">
       <div class="modal-card" role="dialog" aria-modal="true" style="max-width:380px; text-align:center;" onclick="event.stopPropagation()">
-        <div style="font-family:var(--serif); font-size:18px; font-weight:700; color:var(--gold); margin-bottom:8px;">🖼️ ${zh ? '這次的回憶卡' : 'Memory card'}</div>
+        <div style="font-family:var(--serif); font-size:18px; font-weight:700; color:var(--gold); margin-bottom:8px;">🖼️ ${zh ? '這次的品鑑紀念卡' : 'Memory card'}</div>
         <img src="${cv.toDataURL('image/png')}" alt="" style="width:100%; border-radius:12px;">
         <div style="display:flex; gap:8px; margin-top:12px;">
           <button class="btn btn-ghost btn-block" onclick="closeModal()">${zh ? '關閉' : 'Close'}</button>
@@ -1171,7 +1195,7 @@ function renderBottleDetail(id) {
                       <button class="btn btn-ghost btn-sm" style="padding:3px 8px; font-size:11px;" onclick="togglePublishSession('${esc(b.id)}', '${esc(tItem.id)}')">
                         ${tItem.isPublic ? '↩️ 收回' : '🌐 發布'}
                       </button>
-                      <button class="btn btn-ghost btn-sm" style="padding:3px 8px; font-size:11px;" onclick="openMemoryCard('${esc(b.id)}', '${esc(tItem.id)}')">🖼️ ${currentLang==='zh'?'回憶卡':'Card'}</button>
+                      <button class="btn btn-ghost btn-sm" style="padding:3px 8px; font-size:11px;" onclick="openMemoryCard('${esc(b.id)}', '${esc(tItem.id)}')">🖼️ ${currentLang==='zh'?'紀念卡':'Card'}</button>
                       <button class="timeline-share-btn" onclick="openShareActionSheet('${esc(b.id)}', '${esc(tItem.id)}')" title="Share this pour">
                         ${TELEGRAM_PLANE_SVG}
                       </button>
@@ -1588,7 +1612,7 @@ async function publishToCommunityPool(bottleId, sessionId) {
   if (!b) return;
   if (!localStorage.getItem('bottlesense_account_bound')) {
     showToast(currentLang === 'zh' ? '🔒 請先登入帳號，先可以公開發布到探索' : '🔒 Please sign in to publish');
-    setTimeout(() => renderSettings(), 500);
+    setTimeout(() => openSettings('auth'), 500);
     return;
   }
   if (await uploadPhotoIfNeeded(b)) await saveBottleToDB(b);
@@ -1640,7 +1664,7 @@ async function publishCellarForShare() {
     const data = await res.json();
     if (res.ok && data.shareId) return data.shareId;
   } catch(e) {}
-  showToast(currentLang === 'zh' ? '分享連結建立失敗，請檢查網絡後重試' : 'Could not create share link, please retry');
+  showToast(currentLang === 'zh' ? '分享連結建立失敗，請檢查網路後重試' : 'Could not create share link, please retry');
   return null;
 }
 
@@ -2473,7 +2497,7 @@ async function renderRealWorldPinsAndFeed() {
                   </button>
                 ` : `
                   <button class="btn btn-ghost btn-sm" style="color:var(--gold); border-color:var(--gold-dim); font-size:11px; padding:2px 7px;" onclick="addExploreItemToWishlist('${esc(b.id)}')">
-                    🏷️ ${currentLang==='zh'?'加入想買清單':'Add to Wishlist'}
+                    🏷️ ${currentLang==='zh'?'加入願望清單':'Add to Wishlist'}
                   </button>
                 `}
                 
@@ -2681,7 +2705,7 @@ async function addExploreItemToWishlist(bottleId) {
   const b = currentExploreFeed.find(x => String(x.id) === String(bottleId));
   if (!b) return;
   if (isMyExploreItem(b, await getMyShareId(), localStorage.getItem('bottlesense_profile_name') || '', localStorage.getItem('bottlesense_account_bound') || '')) {
-    showToast(currentLang==='zh'?'這是你自己的分享':'This is your own share');
+    showToast(currentLang==='zh'?'這是您自己的分享':'This is your own share');
     return;
   }
 
@@ -2706,7 +2730,7 @@ async function addExploreItemToWishlist(bottleId) {
   window.cellar.unshift(newBottle);
   await saveBottleToDB(newBottle);
   sendDemandSignal('share_wishlist', newBottle);
-  showToast(currentLang==='zh'?'✓ 已成功加入你的「🏷️ 想買」空間！':'✓ Added to Wishlist!');
+  showToast(currentLang==='zh'?'✓ 已加入您的「願望清單」！':'✓ Added to Wishlist!');
 }
 
 function openSharedTastingModal(bottleId) {
@@ -3005,6 +3029,7 @@ async function identifyBottle(image, mediaType) {
   try { data = await res.json(); } catch {}
   if (!res.ok) throw new Error(apiErrorMessage(data.error, data) || `AI API Error (${res.status})`);
   if (data._quota) {
+    try { localStorage.setItem('bottlesense_quota', JSON.stringify({ tier: data._quota.tier, used: data._quota.used, limit: data._quota.limit, bonus: data._quota.bonus || 0 })); } catch (e) {}
     const left = (data._quota.limit - data._quota.used) + (data._quota.bonus || 0);
     if (left <= 2) showToast(currentLang === 'zh' ? `本月餘下 ${left} 次 AI 辨識${data._quota.tier === 'guest' ? '（登入後可獲更多）' : ''}` : `${left} AI scans left this month`);
   }
@@ -3117,9 +3142,13 @@ function switchSettingsTab(tab) {
   settingsActiveTab = tab;
   renderSettings();
 }
+function openSettings(page) {
+  settingsActiveTab = page || 'menu';
+  renderSettings();
+}
 
 function openLoginModal() {
-  renderSettings();
+  openSettings('auth');
 }
 
 // 2. 設定頁面：未登入呈現「電郵登入/註冊」；已登入呈現「個人資料」與「帳號管理」
@@ -3132,21 +3161,52 @@ function renderSettings() {
 
   let contentHTML = '';
 
+  const zhS = currentLang === 'zh';
+  let page = settingsActiveTab;
   if (boundAccount) {
-    // 【已登入狀態】：分頁拆分「個人資料」與「帳號設定」
-    const zhT = currentLang === 'zh';
-    if (!['collection', 'profile', 'account'].includes(settingsActiveTab)) settingsActiveTab = 'collection';
-    const tabBtn = (k, label) => `<button class="settings-tab ${settingsActiveTab === k ? 'on' : ''}" onclick="switchSettingsTab('${k}')">${label}</button>`;
-    const tabHeaderHTML = `<div class="settings-tabs">${tabBtn('collection', zhT ? '🎴 酒卡冊' : '🎴 Collection')}${tabBtn('profile', zhT ? '👤 個人資料' : '👤 Profile')}${tabBtn('account', zhT ? '⚙️ 帳號' : '⚙️ Account')}</div>`;
+    if (!['menu', 'collection', 'profile', 'credits', 'account', 'prefs'].includes(page)) page = 'menu';
+  } else if (authFlowState.step !== 'email') {
+    page = 'auth';
+  } else if (!['menu', 'auth', 'prefs'].includes(page)) {
+    page = 'menu';
+  }
+  const PAGE_TITLE = zhS
+    ? { collection: '珍藏圖鑑', profile: '個人資料', credits: '額度與邀請', account: '雲端與帳號', prefs: '偏好與資料', auth: '登入 / 註冊' }
+    : { collection: 'Collection', profile: 'Profile', credits: 'Credits & Invites', account: 'Cloud & Account', prefs: 'Preferences', auth: 'Sign in' };
+  const subHeader = (p) => `<div class="sub-head"><button class="sub-back" onclick="openSettings()">‹ ${zhS ? '設定' : 'Settings'}</button><div class="sub-title">${PAGE_TITLE[p] || ''}</div></div>`;
+  const menuRow = (icon, title, sub, onclick) => `<button class="menu-row" onclick="${onclick}"><span class="menu-ico">${icon}</span><span class="menu-text"><b>${title}</b><small>${sub}</small></span><span class="menu-chev">›</span></button>`;
+  const menuHTML = boundAccount
+    ? `<div class="menu-list">
+        ${menuRow('👤', zhS ? '個人資料' : 'Profile', zhS ? '姓名、性別、生日' : 'Name, gender, birthday', "openSettings('profile')")}
+        ${menuRow('🎴', zhS ? '珍藏圖鑑' : 'Collection', zhS ? '收藏進度與最愛酒款' : 'Progress and favorites', "openSettings('collection')")}
+        ${menuRow('🏷', zhS ? '額度與邀請' : 'Credits & Invites', zhS ? '鑑識額度、兌換碼、邀請好友' : 'Scans, codes, invitations', "openSettings('credits')")}
+        ${menuRow('☁', zhS ? '雲端與帳號' : 'Cloud & Account', zhS ? '備份狀態、登出、註銷' : 'Backup, sign out, delete', "openSettings('account')")}
+        ${menuRow('⚙', zhS ? '偏好與資料' : 'Preferences', zhS ? '購買建議、匯出、私隱政策' : 'Suggestions, export, privacy', "openSettings('prefs')")}
+        ${menuRow('📲', zhS ? '安裝教學' : 'Install guide', zhS ? '加入手機主畫面' : 'Add to home screen', 'showPwaInstallModal()')}
+      </div>`
+    : `<div class="menu-list">
+        ${menuRow('👤', zhS ? '登入 / 註冊' : 'Sign in', zhS ? '雲端備份與跨裝置同步' : 'Backup and sync', "openSettings('auth')")}
+        ${menuRow('⚙', zhS ? '偏好與資料' : 'Preferences', zhS ? '購買建議、匯出、私隱政策' : 'Suggestions, export, privacy', "openSettings('prefs')")}
+        ${menuRow('📲', zhS ? '安裝教學' : 'Install guide', zhS ? '加入手機主畫面' : 'Add to home screen', 'showPwaInstallModal()')}
+      </div>`;
+  const tabHeaderHTML = subHeader(page);
+  const zhT = zhS;
 
-    if (settingsActiveTab === 'collection') {
+  if (boundAccount) {
+    if (page === 'menu') {
+      contentHTML = menuHTML;
+    } else if (page === 'credits') {
+      contentHTML = `${tabHeaderHTML}${creditsCardHTML() || `<div class="collect-hint">${zhS ? '額度資料載入中，請稍後再開啟。' : 'Loading, please reopen shortly.'}</div>`}`;
+    } else if (page === 'prefs') {
+      contentHTML = `${tabHeaderHTML}${prefsCardHTML()}`;
+    } else if (page === 'collection') {
       contentHTML = `
         ${tabHeaderHTML}
-        ${collectionCardHTML() || `<div class="collect-card"><div class="collect-title">🎴 ${zhT ? '我的酒卡冊' : 'My collection'}</div><div class="collect-hint" style="margin-top:6px;">${zhT ? '酒架上有酒之後，這裡會顯示你的收藏進度。' : 'Your progress appears once bottles are on your shelf.'}</div></div>`}
+        ${collectionCardHTML() || `<div class="collect-card"><div class="collect-title">🎴 ${zhT ? '我的珍藏圖鑑' : 'My collection'}</div><div class="collect-hint" style="margin-top:6px;">${zhT ? '酒架上有酒之後，這裡會顯示您的收藏進度。' : 'Your progress appears once bottles are on your shelf.'}</div></div>`}
         ${favoritesSectionHTML()}
         <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="closeModal(); renderCellar();">${zhT ? '前往我的電子酒架' : 'Go to my shelf'}</button>
       `;
-    } else if (settingsActiveTab === 'profile') {
+    } else if (page === 'profile') {
       // 分頁 1: 個人名牌、稱號、性別、生日
       contentHTML = `
         ${tabHeaderHTML}
@@ -3204,7 +3264,6 @@ function renderSettings() {
       // 分頁 2: 雲端狀態、安裝至手機、登出、永久刪除
       contentHTML = `
         ${tabHeaderHTML}
-        ${creditsCardHTML()}
         <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px;">
           <div style="font-size:12.5px; font-weight:700; color:var(--gold); margin-bottom:8px;">
             ☁️ ${currentLang === 'zh' ? '酒窖備份狀態' : 'Cloud Status'}
@@ -3222,7 +3281,6 @@ function renderSettings() {
             🔐 ${currentLang === 'zh' ? '登出所有裝置並更換同步碼' : 'Sign out everywhere & rotate key'}
           </button>
         </div>
-        ${prefsCardHTML()}
 
         <details class="danger-fold"><summary>⚠️ ${currentLang === 'zh' ? '危險操作' : 'Danger zone'}</summary>
         <div style="background:rgba(239,68,68,0.04); border:1px solid rgba(239,68,68,0.2); border-radius:12px; padding:14px; margin-top:8px;">
@@ -3245,14 +3303,19 @@ function renderSettings() {
     }
   } else {
     // 【未登入狀態】：依據步驟流程顯示
-    if (authFlowState.step === 'email') {
+    if (page === 'menu') {
+      contentHTML = menuHTML;
+    } else if (page === 'prefs') {
+      contentHTML = `${tabHeaderHTML}${prefsCardHTML()}`;
+    } else if (authFlowState.step === 'email') {
       contentHTML = `
+        ${tabHeaderHTML}
         <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:14px; padding:18px 16px; margin-bottom:12px;">
           <div style="font-size:14px; font-weight:700; color:var(--gold); margin-bottom:6px;">
             👤 ${currentLang === 'zh' ? '酒窖登入 / 註冊' : 'Cellar Login / Register'}
           </div>
           <div style="font-size:12px; color:var(--text-faint); margin-bottom:14px; line-height:1.5;">
-            ${currentLang === 'zh' ? '輸入你的電郵地址即可快速登入或註冊酒窖：' : 'Enter your email address to sign in or register:'}
+            ${currentLang === 'zh' ? '輸入您的電郵地址即可快速登入或註冊酒窖：' : 'Enter your email address to sign in or register:'}
           </div>
 
 
@@ -3260,7 +3323,7 @@ function renderSettings() {
           <div style="font-size:11.5px; font-family:var(--mono); color:var(--text-faint); margin-bottom:4px;">
             ${currentLang === 'zh' ? '電郵地址 (Email)' : 'Email Address'}
           </div>
-          <input type="email" id="auth-email" class="text-input" style="margin-top:0; padding:11px 12px; font-size:14.5px;" value="${esc(authFlowState.email)}" placeholder="${currentLang === 'zh' ? '輸入你的電郵 (例如 user@gmail.com)' : 'Enter email (e.g. user@gmail.com)'}">
+          <input type="email" id="auth-email" class="text-input" style="margin-top:0; padding:11px 12px; font-size:14.5px;" value="${esc(authFlowState.email)}" placeholder="${currentLang === 'zh' ? '輸入您的電郵 (例如 user@gmail.com)' : 'Enter email (e.g. user@gmail.com)'}">
           
           <!-- 左邊：註冊帳號 (btn-ghost)；右邊：登入酒窖 (btn-primary) -->
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:16px;">
@@ -3357,16 +3420,8 @@ function renderSettings() {
   modalContainer.innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
       <div class="modal-card" role="dialog" aria-modal="true" style="max-width:390px; text-align:left;" onclick="event.stopPropagation()">
-        <h2 style="font-family:var(--serif); margin-bottom:14px; font-size:20px; color:var(--gold); text-align:center;">
-          ${t('settings_title')}
-        </h2>
+        ${page === 'menu' ? `<h2 style="font-family:var(--serif); margin-bottom:14px; font-size:22px; color:var(--gold); text-align:center;">${t('settings_title')}</h2>` : ''}
         ${contentHTML}
-        ${boundAccount ? '' : prefsCardHTML()}
-        <div style="text-align:center; margin-top:14px; margin-bottom:6px;">
-          <a href="javascript:void(0)" onclick="showPwaInstallModal()" style="display:inline-block; font-size:12.5px; color:var(--gold); text-decoration:none; font-weight:600; padding:6px 14px; border:1px solid var(--gold-dim); border-radius:8px; background:rgba(212,175,55,0.06);">
-            📲 ${currentLang === 'zh' ? '安裝教學' : 'Install Guide'}
-          </a>
-        </div>
         <button class="btn btn-ghost btn-block" style="padding:9px; font-size:13px; color:var(--text-faint); border-color:transparent;" onclick="closeModal()">
           ${t('btn_close')}
         </button>
@@ -3483,7 +3538,7 @@ async function handleStartLogin(overrideEmail) {
       }, 100);
       showToast(currentLang === 'zh' ? `⚠️ 測試驗證碼已自動填入：${data.devOtp}` : `⚠️ Test code auto-filled: ${data.devOtp}`);
     } else {
-      showToast(currentLang === 'zh' ? '✓ 驗證碼已發送至你的電郵信箱！' : '✓ Code sent to your inbox!');
+      showToast(currentLang === 'zh' ? '✓ 驗證碼已發送至您的電郵信箱！' : '✓ Code sent to your inbox!');
     }
     startLoginOtpCountdown();
   } catch (err) {
@@ -3508,7 +3563,7 @@ async function handleStartRegister() {
     });
     const checkData = await checkRes.json();
     if (checkData.exists) {
-      showToast(currentLang === 'zh' ? '⚠️ 此電郵已經註冊過！已自動為你切換至「登入模式」' : '⚠️ Email already registered! Switched to login mode.');
+      showToast(currentLang === 'zh' ? '⚠️ 此電郵已經註冊過！已自動為您切換至「登入模式」' : '⚠️ Email already registered! Switched to login mode.');
       authFlowState.email = email;
       handleStartLogin(email);
       return;
@@ -3563,7 +3618,7 @@ async function executeSendVerificationLink() {
       }, 100);
       showToast(currentLang === 'zh' ? `⚠️ 測試驗證碼已自動填入：${data.devOtp}` : `⚠️ Test code auto-filled: ${data.devOtp}`);
     } else {
-      showToast(currentLang === 'zh' ? '✓ 驗證碼已發送至你的信箱，請輸入完成註冊！' : '✓ Verification code sent to email!');
+      showToast(currentLang === 'zh' ? '✓ 驗證碼已發送至您的信箱，請輸入完成註冊！' : '✓ Verification code sent to email!');
     }
     startLoginOtpCountdown();
   } catch (err) {
@@ -3967,8 +4022,8 @@ async function loadOffersInto(bottleId) {
     document.getElementById('offers-slot').innerHTML = `
       <div class="offers-card">
         ${buy.length ? `<div class="offers-head"><span>🛒 ${zh ? '哪裡有得買' : 'Where to buy'}</span><span class="ad-tag">${zh ? '贊助' : 'Sponsored'}</span></div>${buy.map(row).join('')}` : ''}
-        ${sim.length ? `<div class="offers-head" style="${buy.length ? 'margin-top:12px;' : ''}"><span>✨ ${zh ? '你可能也喜歡' : 'You may also like'}</span><span class="ad-tag">${zh ? '贊助' : 'Sponsored'}</span></div>${sim.map(row).join('')}` : ''}
-        <div class="offers-foot">${zh ? '根據酒款資料配對，不涉及你的個人資料。' : 'Matched on bottle info only, not on personal data.'}
+        ${sim.length ? `<div class="offers-head" style="${buy.length ? 'margin-top:12px;' : ''}"><span>✨ ${zh ? '您可能也喜歡' : 'You may also like'}</span><span class="ad-tag">${zh ? '贊助' : 'Sponsored'}</span></div>${sim.map(row).join('')}` : ''}
+        <div class="offers-foot">${zh ? '根據酒款資料配對，不涉及您的個人資料。' : 'Matched on bottle info only, not on personal data.'}
           <a href="javascript:void(0)" onclick="toggleOffers(false); document.getElementById('offers-slot').innerHTML='';">${zh ? '關閉建議' : 'Turn off'}</a></div>
       </div>`;
   } catch (e) {}
@@ -3977,7 +4032,7 @@ async function loadOffersInto(bottleId) {
 /* ---------------- 匯出 CSV ---------------- */
 function exportCellarCSV() {
   const rows = [['名稱', '酒莊/品牌', '類別', '國家', '產區', '年份', '狀態', '收藏', '加入日期', '品飲次數', '最近評分', '最近品飲備註']];
-  const stName = { unopened: '未飲', opened: '已飲', finished: '飲完', gifted: '送出', sold: '售出', wishlist: '想買' };
+  const stName = { unopened: '未開封', opened: '品鑑中', finished: '已品畢', kept: '典藏', gifted: '已贈送', sold: '已售出', wishlist: '心儀' };
   (window.cellar || []).forEach(b => {
     const last = (b.tastings || [])[0] || {};
     rows.push([bottleName(b), (b.identification && b.identification.producer) || '', bottleCategory(b), bottleCountry(b), bottleRegion(b), bottleVintage(b),
@@ -4006,7 +4061,7 @@ function maybeShowOnboarding() {
         <div class="modal-card" role="dialog" aria-modal="true" style="max-width:360px; text-align:center;">
           <div style="font-size:42px; margin-bottom:6px;">🍷</div>
           <h2 style="font-family:var(--serif); color:var(--gold); font-size:20px; margin-bottom:10px;">${zh ? '年齡確認' : 'Age confirmation'}</h2>
-          <p style="font-size:13.5px; color:var(--text-muted); line-height:1.6; margin-bottom:16px;">${zh ? 'BottleSense 與酒類相關，只供年滿 18 歲（及符合所在地法定飲酒年齡）人士使用。你是否已年滿 18 歲？' : 'BottleSense is about alcoholic drinks and is for adults aged 18+ (and of legal drinking age where you live). Are you 18 or older?'}</p>
+          <p style="font-size:13.5px; color:var(--text-muted); line-height:1.6; margin-bottom:16px;">${zh ? 'BottleSense 與酒類相關，只供年滿 18 歲（及符合所在地法定飲酒年齡）人士使用。您是否已年滿 18 歲？' : 'BottleSense is about alcoholic drinks and is for adults aged 18+ (and of legal drinking age where you live). Are you 18 or older?'}</p>
           <button class="btn btn-primary btn-block" onclick="confirmAge(true)">${zh ? '我已年滿 18 歲' : 'I am 18 or older'}</button>
           <button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="confirmAge(false)">${zh ? '我未滿 18 歲' : 'I am under 18'}</button>
           <p style="font-size:11px; color:var(--text-faint); margin-top:12px;">${zh ? '請適量飲酒，飲酒不駕駛。' : 'Please drink responsibly.'}</p>
@@ -4019,8 +4074,8 @@ function maybeShowOnboarding() {
     <div class="modal-overlay">
       <div class="modal-card" role="dialog" aria-modal="true" style="max-width:360px; text-align:left;">
         <h2 style="font-family:var(--serif); color:var(--gold); font-size:20px; text-align:center; margin-bottom:14px;">${zh ? '歡迎使用 BottleSense' : 'Welcome to BottleSense'}</h2>
-        <div class="onb-step"><span>📷</span><div><strong>${zh ? '拍下酒標，AI 即時辨識' : 'Snap a label'}</strong><br>${zh ? '自動填寫酒款、產區與價值評分。' : 'AI fills in the bottle details and value profile.'}</div></div>
-        <div class="onb-step"><span>🗂️</span><div><strong>${zh ? '用電子酒架管理你的酒' : 'Four spaces'}</strong><br>${zh ? '未開瓶、飲用中、飲完、收藏、送人、想買。在酒款頁隨時切換。' : 'Unopened, Opened, Finished, Wishlist.'}</div></div>
+        <div class="onb-step"><span>📷</span><div><strong>${zh ? '拍攝酒標，AI 即時鑑識' : 'Snap a label'}</strong><br>${zh ? '自動填寫酒款、產區與價值評分。' : 'AI fills in the bottle details and value profile.'}</div></div>
+        <div class="onb-step"><span>🗂️</span><div><strong>${zh ? '以電子酒窖典藏您的酒' : 'Four spaces'}</strong><br>${zh ? '電子酒櫃、實木酒架、吧台、珍藏櫃、贈禮台與願望清單。可在酒款頁隨時移動。' : 'Unopened, Opened, Finished, Wishlist.'}</div></div>
         <div class="onb-step"><span>🌍</span><div><strong>${zh ? '探索酒友分享' : 'Explore'}</strong><br>${zh ? '在世界地圖上看看其他人在哪裡品嚐什麼酒。' : 'See what others are drinking around the world.'}</div></div>
         <div class="onb-step"><span>🎁</span><div><strong>${zh ? '登入有額外禮遇' : 'Perks when you sign in'}</strong><br>${zh ? '跨裝置同步、壽星送辨識額度、邀請朋友雙方有獎。' : 'Sync devices, birthday bonus, invite friends for rewards.'}</div></div>
         <button class="btn btn-primary btn-block" style="margin-top:14px;" onclick="try{localStorage.setItem('bottlesense_onboarded','1')}catch(e){}; closeModal();">${zh ? '開始使用' : 'Get started'}</button>
@@ -4090,8 +4145,8 @@ function captureRefParam() {
 function announceGrant(g) {
   const zh = currentLang === 'zh';
   if (!g) return;
-  if (g.src === 'birthday') showToast(zh ? `🎂 生日快樂！送你 ${g.n} 次 AI 辨識額度` : `🎂 Happy birthday! +${g.n} scans`);
-  else if (g.src === 'campaign') showToast(zh ? `🎁 ${g.name || '活動'}：送你 ${g.n} 次 AI 辨識額度` : `🎁 ${g.name || 'Promo'}: +${g.n} scans`);
+  if (g.src === 'birthday') showToast(zh ? `🎂 生日快樂！送您 ${g.n} 次 AI 辨識額度` : `🎂 Happy birthday! +${g.n} scans`);
+  else if (g.src === 'campaign') showToast(zh ? `🎁 ${g.name || '活動'}：送您 ${g.n} 次 AI 辨識額度` : `🎁 ${g.name || 'Promo'}: +${g.n} scans`);
   else if (g.src === 'referral') showToast(zh ? `🤝 邀請獎勵：+${g.n} 次 AI 辨識額度` : `🤝 Referral reward: +${g.n} scans`);
 }
 async function refreshMe() {
@@ -4145,7 +4200,7 @@ function prefsCardHTML() {
         <div style="background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-top:12px; margin-bottom:12px;">
           <label style="display:flex; align-items:flex-start; gap:8px; font-size:12.5px; color:var(--text); line-height:1.45; cursor:pointer;">
             <input type="checkbox" ${offersEnabled() ? 'checked' : ''} onchange="toggleOffers(this.checked)" style="margin-top:2px; accent-color:#D4AF37;">
-            <span>🛒 ${currentLang === 'zh' ? '顯示購買建議（贊助）並提供匿名需求統計' : 'Show purchase suggestions (sponsored) & anonymous demand stats'}<br><span style="color:var(--text-faint); font-size:11px;">${currentLang === 'zh' ? '只用酒款資料配對，不含你的身份。' : 'Matched on bottle info only; no identity is sent.'}</span></span>
+            <span>🛒 ${currentLang === 'zh' ? '顯示購買建議（贊助）並提供匿名需求統計' : 'Show purchase suggestions (sponsored) & anonymous demand stats'}<br><span style="color:var(--text-faint); font-size:11px;">${currentLang === 'zh' ? '只用酒款資料配對，不含您的身份。' : 'Matched on bottle info only; no identity is sent.'}</span></span>
           </label>
           <div style="display:flex; gap:8px; margin-top:10px;">
             <button class="btn btn-ghost btn-sm" style="flex:1; font-size:12px;" onclick="exportCellarCSV()">⬇️ ${currentLang === 'zh' ? '匯出 CSV' : 'Export CSV'}</button>
@@ -4189,7 +4244,7 @@ function creditsCardHTML() {
       <div style="border-top:1px solid var(--line); margin-top:12px; padding-top:10px;">
         <div style="font-size:12.5px; font-weight:700; color:var(--gold); margin-bottom:4px;">🤝 ${zh ? '邀請朋友，雙方有獎' : 'Invite friends'}</div>
         <div style="font-size:11.5px; color:var(--text-faint); line-height:1.5; margin-bottom:8px;">
-          ${zh ? `朋友使用你的連結註冊、完成首次辨識並滿 3 日，你們各得 10 次額度（每月上限 10 位）。已成功邀請 ${me.refCount || 0} 位。` : `Friends who join via your link, scan once and stay 3 days: you both get 10 scans. Invited: ${me.refCount || 0}.`}
+          ${zh ? `朋友使用您的連結註冊、完成首次辨識並滿 3 日，雙方各得 10 次額度（每月上限 10 位）。已成功邀請 ${me.refCount || 0} 位。` : `Friends who join via your link, scan once and stay 3 days: you both get 10 scans. Invited: ${me.refCount || 0}.`}
         </div>
         <button class="btn btn-ghost btn-sm btn-block" style="font-size:12px;" onclick="shareInvite()">📨 ${zh ? '分享邀請連結' : 'Share invite link'}</button>
       </div>
