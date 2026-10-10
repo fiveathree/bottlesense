@@ -2040,3 +2040,22 @@ select.text-input {
 .home-hero { padding-left: 28px !important; padding-right: 28px !important; }
 .home-hero h1.hero-en { font-size: clamp(19px, 6.6vw, 26px) !important; letter-spacing: 0.02em; }
 .home-hero h1.hero-zh { font-size: clamp(26px, 8vw, 33px) !important; }
+
+/* ---- elegant dialog ---- */
+.dlg-overlay { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(6,6,4,0.72); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: dlgFade .18s ease; }
+.dlg-overlay.out { opacity: 0; transition: opacity .16s ease; }
+.dlg-card { width: 100%; max-width: 340px; box-sizing: border-box; padding: 24px 22px 20px; text-align: center; border-radius: 20px; border: 1px solid rgba(212,175,55,0.38); background: radial-gradient(120% 90% at 50% 0%, #1d1b11 0%, #0e0d08 100%); box-shadow: 0 24px 60px -12px rgba(0,0,0,0.85), 0 0 40px rgba(212,175,55,0.07); animation: dlgPop .22s cubic-bezier(0.22,1,0.36,1); }
+.dlg-orn { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 14px; }
+.dlg-orn span { height: 1px; width: 38px; background: linear-gradient(90deg, transparent, rgba(212,175,55,0.7)); }
+.dlg-orn span:last-child { transform: scaleX(-1); }
+.dlg-orn i { width: 6px; height: 6px; transform: rotate(45deg); border: 1px solid #D4AF37; }
+.dlg-title { font-family: var(--serif); font-size: 19px; color: #f1e6c0; letter-spacing: 0.06em; margin-bottom: 10px; }
+.dlg-msg { font-size: 14px; line-height: 1.75; color: var(--text-muted); margin-bottom: 20px; text-wrap: balance; overflow-wrap: anywhere; }
+.dlg-actions { display: flex; gap: 10px; }
+.dlg-btn { flex: 1; padding: 11px 10px; border-radius: 999px; font-size: 14px; letter-spacing: 0.08em; cursor: pointer; border: 1px solid rgba(212,175,55,0.4); background: transparent; color: #cdb98a; }
+.dlg-btn.dlg-ok { background: linear-gradient(180deg, #E0BE52, #C9A22E); border-color: #D4AF37; color: #191A11; font-weight: 700; }
+.dlg-danger .dlg-ok { background: transparent; border-color: rgba(184,169,138,0.55); color: #d9c9a0; font-weight: 600; }
+.dlg-danger .dlg-ok:hover { background: rgba(184,169,138,0.12); }
+@keyframes dlgFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dlgPop { from { opacity: 0; transform: translateY(10px) scale(0.97); } to { opacity: 1; transform: none; } }
+.dlg-btn:focus { outline: none; box-shadow: 0 0 0 2px rgba(212,175,55,0.35); }

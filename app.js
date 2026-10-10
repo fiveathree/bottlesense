@@ -104,7 +104,7 @@ function handleAuthExpired() {
 }
 
 async function reportExploreItem(itemId) {
-  if (!confirm(currentLang === 'zh' ? '檢舉此分享內容不當 / 垃圾訊息？' : 'Report this share as inappropriate or spam?')) return;
+  if (!(await askConfirm(currentLang === 'zh' ? '檢舉此分享內容不當 / 垃圾訊息？' : 'Report this share as inappropriate or spam?', { title: currentLang === 'zh' ? '檢舉內容' : 'Report content', ok: currentLang === 'zh' ? '檢舉' : 'Report' }))) return;
   try {
     await apiFetch('/api/explore/report', { method: 'POST', body: JSON.stringify({ id: String(itemId) }) });
     showToast(currentLang === 'zh' ? '✓ 已收到檢舉，感謝您' : '✓ Report received');
@@ -112,7 +112,7 @@ async function reportExploreItem(itemId) {
 }
 
 async function logoutAllDevices() {
-  if (!confirm(currentLang === 'zh' ? '登出所有裝置並更換同步碼？\n其他裝置需重新登入；您之前分享出去的酒櫃連結會失效，需重新分享。' : 'Sign out all devices and rotate your sync key?\nOther devices must sign in again; previous share links will stop working.')) return;
+  if (!(await askConfirm(currentLang === 'zh' ? '登出所有裝置並更換同步碼？\n其他裝置需重新登入；您之前分享出去的酒櫃連結會失效，需重新分享。' : 'Sign out all devices and rotate your sync key?\nOther devices must sign in again; previous share links will stop working.', { title: currentLang === 'zh' ? '登出所有裝置' : 'Sign out everywhere', ok: currentLang === 'zh' ? '確認登出' : 'Sign out', danger: true }))) return;
   try {
     const res = await apiFetch('/api/auth/logout-all', { method: 'POST' });
     const data = await res.json();
@@ -316,6 +316,37 @@ function toggleLanguage() {
   if (settingsModal && (settingsModal.innerHTML.includes('auth-email') || settingsModal.innerHTML.includes('edit-profile-name') || settingsModal.innerHTML.includes('login-otp'))) {
     renderSettings();
   }
+}
+
+
+/* ---- elegant confirm dialog (replaces browser confirm/alert) ---- */
+function askConfirm(message, o) {
+  o = o || {};
+  const zh = currentLang === 'zh';
+  return new Promise(resolve => {
+    const old = document.getElementById('dlg-overlay'); if (old) old.remove();
+    const ov = document.createElement('div');
+    ov.id = 'dlg-overlay'; ov.className = 'dlg-overlay';
+    const msg = String(message || '').replace(/^\u26a0\ufe0f?\s*/, '');
+    ov.innerHTML = `
+      <div class="dlg-card ${o.danger ? 'dlg-danger' : ''}" role="alertdialog" aria-modal="true">
+        <div class="dlg-orn"><span></span><i></i><span></span></div>
+        <div class="dlg-title">${esc(o.title || (zh ? '請確認' : 'Please confirm'))}</div>
+        <div class="dlg-msg">${esc(msg).replace(/\n/g, '<br>')}</div>
+        <div class="dlg-actions">
+          ${o.single ? '' : `<button class="dlg-btn dlg-cancel">${esc(o.cancel || (zh ? '取消' : 'Cancel'))}</button>`}
+          <button class="dlg-btn dlg-ok">${esc(o.ok || (zh ? '確定' : 'OK'))}</button>
+        </div>
+      </div>`;
+    const done = v => { document.removeEventListener('keydown', onKey); ov.classList.add('out'); setTimeout(() => ov.remove(), 160); resolve(v); };
+    const onKey = e => { if (e.key === 'Escape') done(false); };
+    document.addEventListener('keydown', onKey);
+    ov.addEventListener('click', e => { if (e.target === ov && !o.single) done(false); });
+    ov.querySelector('.dlg-ok').onclick = () => done(true);
+    const c = ov.querySelector('.dlg-cancel'); if (c) c.onclick = () => done(false);
+    document.body.appendChild(ov);
+    setTimeout(() => { const b = ov.querySelector('.dlg-ok'); if (b) b.focus(); }, 30);
+  });
 }
 
 function showToast(msg) {
@@ -2904,7 +2935,7 @@ function exitRegionalMap() {
 
 // 8. 社群分享管理按鈕操作
 async function deleteMyExploreShare(itemId) {
-  if (!confirm(currentLang==='zh'?'確定要從酒友探索池收回並刪除此筆分享嗎？':'Remove this tasting share from explore feed?')) return;
+  if (!(await askConfirm(currentLang==='zh'?'確定要從酒友探索池收回並刪除此筆分享嗎？':'Remove this tasting share from the explore feed?', { title: currentLang==='zh'?'收回分享':'Retract share', ok: currentLang==='zh'?'收回':'Retract' }))) return;
   await apiFetch('/api/explore/delete', {
     method: 'POST',
     body: JSON.stringify({ ids: [String(itemId)], syncKey: getOrCreateSyncKey() })
@@ -3033,7 +3064,7 @@ async function loadPublicCellar(key, sharedShelf, sharedBottleId) {
       renderCellar();
     }
   } catch(e) {
-    alert(e.message || '無法載入公開酒櫃');
+    await askConfirm(e.message || (currentLang==='zh'?'無法載入公開酒櫃':'Unable to load this cellar'), { single: true, title: currentLang==='zh'?'無法載入':'Unable to load', ok: currentLang==='zh'?'返回':'Back' });
     exitVisitorMode();
   }
 }
@@ -3316,7 +3347,7 @@ async function toggleFavorite(id, rerender = false) {
 
 async function deleteBottle(id) {
   if (blockIfVisitor()) return;
-  if (!confirm(t('confirm_delete'))) return;
+  if (!(await askConfirm(t('confirm_delete'), { title: currentLang==='zh'?'從酒窖移除':'Remove from cellar', ok: currentLang==='zh'?'移除':'Remove', danger: true }))) return;
   const idx = (window.cellar || []).findIndex(x => String(x.id) === String(id));
   if (idx < 0) return;
   window.cellar.splice(idx, 1);
@@ -3951,7 +3982,7 @@ async function executeAccountLogout() {
   const confirmMsg = currentLang === 'zh'
     ? '確定要登出帳號？登出後將會清空本機暫存藏酒。雲端酒窖資料已安全備份，重新輸入電郵驗證即可再次載入查看。'
     : 'Are you sure you want to log out? Local data on this device will be cleared. Cloud data is safely backed up and can be restored anytime by verifying your email again.';
-  if (!confirm(confirmMsg)) return;
+  if (!(await askConfirm(confirmMsg, { title: currentLang==='zh'?'登出帳號':'Log out', ok: currentLang==='zh'?'登出':'Log out' }))) return;
 
   try { if (typeof syncToCloudKV === 'function') await syncToCloudKV(); } catch(e) {}
   try { await apiFetch('/api/auth/logout', { method: 'POST' }); } catch(e) {}
@@ -3985,7 +4016,7 @@ function toggleDeleteAccountButton(checked) {
 async function executeDeleteAccountPermanently() {
   const email = localStorage.getItem('bottlesense_account_bound');
   if (!email) return;
-  if (!confirm(currentLang === 'zh' ? '⚠️ 此操作將永久刪除帳號、清空雲端與本地所有藏酒，且無法復原！確定要執行嗎？' : '⚠️ Permanently delete account and all cellar data? This cannot be undone!')) return;
+  if (!(await askConfirm(currentLang === 'zh' ? '⚠️ 此操作將永久刪除帳號、清空雲端與本地所有藏酒，且無法復原！確定要執行嗎？' : '⚠️ Permanently delete account and all cellar data? This cannot be undone!', { title: currentLang === 'zh' ? '永久刪除帳號' : 'Delete account permanently', ok: currentLang === 'zh' ? '永久刪除' : 'Delete forever', danger: true }))) return;
 
   showToast(currentLang === 'zh' ? '正在註銷帳號…' : 'Deleting account...');
   try {
@@ -4425,7 +4456,7 @@ async function redeemCode() {
     if (d.scans) parts.push(zh ? `+${d.scans} 次辨識` : `+${d.scans} scans`);
     if (d.proDays) parts.push(zh ? `Pro ${d.proDays} 日` : `Pro ${d.proDays} days`);
     showToast('🎁 ' + (zh ? '兌換成功：' : 'Redeemed: ') + parts.join(' / '));
-    if (d.voucher) setTimeout(() => alert((d.voucher.title || '') + '\n' + (d.voucher.text || '') + (d.voucher.url ? '\n' + d.voucher.url : '')), 400);
+    if (d.voucher) setTimeout(() => askConfirm((d.voucher.text || '') + (d.voucher.url ? '\n' + d.voucher.url : ''), { single: true, title: d.voucher.title || (zh ? '禮遇' : 'Reward'), ok: zh ? '好的' : 'OK' }), 400);
     await refreshMe();
     renderSettings();
   } catch (e) { showToast(currentLang === 'zh' ? '兌換失敗，請稍後再試' : 'Failed'); }
