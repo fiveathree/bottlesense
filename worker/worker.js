@@ -1193,13 +1193,14 @@ export default {
         const fast = env.SCAN_MODEL_FAST || 'claude-haiku-5-5';
         let out = null, modelUsed = strong;
         try {
+          const ask = async (mdl) => { const txt = await callClaude(env, mdl, content, 4000); const j = extractJson(txt); if (!j) { const er = new Error('AI_BAD_JSON'); er.status = 200; er.model = mdl; er.body = 'PARSE FAIL, tail: ' + String(txt).slice(-200); throw er; } return j; };
           if (env.SCAN_FAST_FIRST === '1') {
-            out = extractJson(await callClaude(env, fast, content, 2000));
+            out = await ask(fast).catch(() => null);
             modelUsed = fast;
             const lowConf = !out || (!out.not_alcohol && Number(out.conf || 0) < envInt(env.SCAN_CONF_MIN, 75));
             if (lowConf) out = null;
           }
-          if (!out) { out = extractJson(await callClaude(env, strong, content, 2000)); modelUsed = strong; }
+          if (!out) { out = await ask(strong); modelUsed = strong; }
         } catch (er) {
           try { await kv.put('ailast', JSON.stringify({ t: Date.now(), status: er.status || 0, model: er.model || '', msg: String(er.body || er.message || '').slice(0, 300) }), { expirationTtl: 60 * 60 * 24 * 14 }); } catch (e) {}
           await bumpDay(kv, { ai_err: 1 });
