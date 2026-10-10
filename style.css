@@ -2038,5 +2038,5 @@ select.text-input {
 
 /* ---- home slogan breathing room ---- */
 .home-hero { padding-left: 28px !important; padding-right: 28px !important; }
-.home-hero h1.hero-en { font-size: clamp(17px, 5.3vw, 24px) !important; letter-spacing: 0.02em; }
-.home-hero h1.hero-zh { font-size: clamp(24px, 7.4vw, 31px) !important; }
+.home-hero h1.hero-en { font-size: clamp(19px, 6.6vw, 26px) !important; letter-spacing: 0.02em; }
+.home-hero h1.hero-zh { font-size: clamp(26px, 8vw, 33px) !important; }
