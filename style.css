@@ -2100,3 +2100,11 @@ select.text-input {
 
 .menu-logout { display: block; width: 100%; margin: 14px 0 4px; padding: 11px 0; background: transparent; border: 1px solid rgba(184,169,138,0.35); border-radius: 999px; color: #cdb98a; font-size: 13.5px; letter-spacing: 0.14em; cursor: pointer; }
 .menu-logout:hover { border-color: rgba(184,169,138,0.6); }
+
+/* deals + community price */
+.deal-tag { display: inline-block; font-size: 10px; padding: 0 6px; margin-right: 6px; border-radius: 8px; background: #d4af37; color: #111; font-weight: 700; vertical-align: 1px; }
+.deal-was { color: var(--text-faint); font-size: 11px; }
+.pc-comm { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.pc-comm:empty { display: none; }
+.pc-comm-k { font-size: 11px; color: var(--text-faint); margin-bottom: 2px; }
+.pc-comm-dim { font-size: 11px; color: var(--text-faint); margin-left: 6px; }

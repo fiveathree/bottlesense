@@ -912,8 +912,26 @@ function setBuyPrice(id) {
   const b = (window.cellar || []).find(x => String(x.id) === String(id)); if (!b) return;
   const el = document.getElementById('buy-input'); if (!el) return;
   const v = parseFloat(String(el.value).replace(/,/g, ''));
-  if (!isFinite(v) || v <= 0) { delete b.buy; } else { b.buy = { amt: v, cur: priceCur() }; }
+  if (!isFinite(v) || v <= 0) { delete b.buy; } else { b.buy = { amt: v, cur: priceCur() }; reportCommunityPrice(b); }
   saveBottleToDB(b).then(() => renderBottleDetail(id));
+}
+// 社群成交價：只送酒款屬性與換算成美元的買入價，不含身份；需開啟購買建議/匿名統計
+function reportCommunityPrice(b) {
+  if (!offersEnabled() || isVisitorMode || !b || !b.buy || !CUR_RATE[b.buy.cur]) return;
+  const usd = Number(b.buy.amt) / CUR_RATE[b.buy.cur];
+  const v = String(bottleVintage(b) || '').match(/(19|20)\d{2}/);
+  try { fetch(`${WORKER_API_URL}/api/price/report`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...bottleQueryAttrs(b), vintage: v ? v[0] : '', usd }), keepalive: true }).then(() => loadCommunityPrice(b)).catch(() => {}); } catch (e) {}
+}
+async function loadCommunityPrice(b) {
+  const slot = document.getElementById('pc-comm'); if (!slot || !offersEnabled() || isVisitorMode || !b) return;
+  try {
+    const v = String(bottleVintage(b) || '').match(/(19|20)\d{2}/);
+    const res = await fetch(`${WORKER_API_URL}/api/price/community`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...bottleQueryAttrs(b), vintage: v ? v[0] : '' }) });
+    if (!res.ok) return;
+    const o = await res.json(); const zh = currentLang === 'zh'; const cur = priceCur();
+    if (!o.med) { slot.innerHTML = o.n ? `<span class="pc-comm-dim">${zh ? '社群成交價：記錄人數未足，暫不顯示' : 'Community prices: not enough reports yet'}</span>` : ''; return; }
+    slot.innerHTML = `<div class="pc-comm-k">${zh ? `社群成交價 (${o.n} 人記錄)` : `Community paid (${o.n} reports)`}</div><div class="pc-v">${fmtMoney(o.lo, cur)} - ${fmtMoney(o.hi, cur).replace(CUR_SYM[cur], '')} <span class="pc-comm-dim">${zh ? '中位' : 'median'} ${fmtMoney(o.med, cur)}</span></div>`;
+  } catch (e) {}
 }
 function priceCardHTML(b) {
   const zh = currentLang === 'zh';
@@ -927,6 +945,7 @@ function priceCardHTML(b) {
     const t = k === 'up' ? (zh ? '已升值' : 'Appreciated') : k === 'down' ? (zh ? '低於買入價' : 'Below cost') : (zh ? '相若' : 'About par');
     badge = `<span class="pc-badge pc-${k}">${pi.ratio.toFixed(1)}x ・ ${t}</span>`;
   }
+  if (offersEnabled() && !isVisitorMode) setTimeout(() => loadCommunityPrice(b), 60);
   const info = zh
     ? '價格由 AI 依酒標與一般市場資料估算，僅供參考；實際價格因地區、年份、保存狀況與真偽而異。買入價由您自行輸入。溢價比 = 市價中位數 ÷ 買入價。市價優先採用二手 / 拍賣行情，沒有則用零售價。'
     : 'Prices are AI estimates from the label and general market knowledge, for reference only; real prices vary by region, vintage, condition and authenticity. Your purchase price is entered by you. Ratio = market midpoint / purchase price (secondary / auction price if known, else retail).';
@@ -944,6 +963,7 @@ function priceCardHTML(b) {
         <div><div class="pc-k">${zh ? '零售參考價' : 'Retail'}</div><div class="pc-v">${rng(pi.retail)}</div></div>
         <div><div class="pc-k">${zh ? '市場行情' : 'Market'}</div><div class="pc-v">${rng(pi.market)}</div></div>
       </div>
+      ${(offersEnabled() && !isVisitorMode) ? `<div id="pc-comm" class="pc-comm"></div>` : ''}
       ${(!pi.retail && !pi.market) ? `<div class="pc-none">${zh ? '此酒款尚無 AI 價格參考，重新掃描可取得。' : 'No AI price estimate for this bottle yet - rescan to get one.'}</div>` : `<div class="pc-tag">${zh ? 'AI 估算' : 'AI estimate'}${pi.conf ? ' ・ ' + (pi.conf === 'high' ? (zh ? '信心高' : 'high confidence') : pi.conf === 'low' ? (zh ? '信心低' : 'low confidence') : (zh ? '信心中' : 'medium confidence')) : ''}</div>`}
       ${isVisitorMode ? '' : `<div class="pc-buy">
         <label for="buy-input">${zh ? '買入價' : 'You paid'} (${cur})</label>
@@ -4434,8 +4454,8 @@ async function loadOffersInto(bottleId) {
     const sim = o.similar || [];
     if (!buy.length && !sim.length) return;
     const row = (x) => `<a class="offer-row" href="${esc(x.go)}" target="_blank" rel="noopener sponsored nofollow">
-        <span class="offer-main"><span class="offer-title">${esc(x.title)}</span><span class="offer-shop">${esc(x.merchant)}</span></span>
-        <span class="offer-price">${esc(x.price || (zh ? '查看' : 'View'))} &rsaquo;</span></a>`;
+        <span class="offer-main"><span class="offer-title">${x.deal ? `<span class="deal-tag">${zh ? '特價' : 'Deal'}</span>` : ''}${esc(x.title)}</span><span class="offer-shop">${esc(x.merchant)}${x.deal && x.until ? ` ・ ${zh ? '至' : 'until'} ${esc(x.until)}` : ''}</span></span>
+        <span class="offer-price">${x.deal && x.was ? `<s class="deal-was">${esc(x.was)}</s> ` : ''}${esc(x.price || (zh ? '查看' : 'View'))} &rsaquo;</span></a>`;
     if (!document.getElementById('offers-slot')) return;
     document.getElementById('offers-slot').innerHTML = `
       <div class="offers-card">

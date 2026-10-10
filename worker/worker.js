@@ -937,12 +937,13 @@ export default {
         for (const m of merchants) {
           (m.products || []).forEach((p, i) => {
             const { s, exact } = scoreProduct(p, q);
-            const item = { m: m.id, i, merchant: m.name, title: p.n, price: p.p || '', s };
+            const deal = !!(p.was && (!p.until || p.until >= hkday()));
+            const item = { m: m.id, i, merchant: m.name, title: p.n, price: p.p || '', s, deal, was: deal ? p.was : '', until: deal ? (p.until || '') : '' };
             if (exact) buy.push(item); else if (s >= 5) similar.push(item);
           });
         }
-        const top = a => a.sort((x, y) => y.s - x.s).slice(0, 2).map(x => ({
-          merchant: x.merchant, title: x.title, price: x.price,
+        const top = a => a.sort((x, y) => (y.s + (y.deal ? 0.5 : 0)) - (x.s + (x.deal ? 0.5 : 0))).slice(0, 2).map(x => ({
+          merchant: x.merchant, title: x.title, price: x.price, deal: x.deal, was: x.was, until: x.until,
           go: `${url.origin}/api/offers/click?m=${encodeURIComponent(x.m)}&i=${x.i}`
         }));
         const out = { sponsored: true, buy: top(buy), similar: top(similar) };
@@ -957,6 +958,32 @@ export default {
         if (!dest || !/^https:\/\//.test(dest)) return new Response('Not Found', { status: 404, headers: corsHeaders });
         ctx.waitUntil(bumpStat(kv, mid, 'click'));
         return new Response(null, { status: 302, headers: { Location: dest, 'Referrer-Policy': 'no-referrer', 'Cache-Control': 'no-store' } });
+      }
+      // ---------- 社群成交價 (匿名、須 3 人以上才顯示) ----------
+      if ((path === '/api/price/report' || path === '/api/price/community') && request.method === 'POST') {
+        const b = await readJson(request, 3_000);
+        const name = clip(b.name, 120).trim().toLowerCase().replace(/\s+/g, ' ');
+        if (!name) throw new HttpError(400, 'MISSING_NAME');
+        const vin = /^(19|20)\d{2}$/.test(String(b.vintage || '')) ? String(b.vintage) : 'nv';
+        const pk = 'px:' + (await sha256hex(name + '|' + vin)).slice(0, 20);
+        if (path === '/api/price/report') {
+          const usd = Number(b.usd);
+          if (!isFinite(usd) || usd < 1 || usd > 2_000_000) throw new HttpError(400, 'BAD_PRICE');
+          await limitOrThrow(kv, `rl:px:${ip}:${ymd()}`, 40, 86400);
+          const dk = `pxd:${pk}:${(await ipHash(ip)).slice(0, 16)}`;
+          if (await kv.get(dk)) return json({ success: true, dup: true });
+          await kv.put(dk, '1', { expirationTtl: 60 * 60 * 24 * 90 });
+          const cur = JSON.parse(await kv.get(pk) || 'null') || { vals: [] };
+          cur.vals.push(Math.round(usd)); cur.vals = cur.vals.slice(-40);
+          await kv.put(pk, JSON.stringify(cur), { expirationTtl: 60 * 60 * 24 * 365 });
+          await bumpDay(kv, { price_report: 1 });
+          return json({ success: true });
+        }
+        const cur = JSON.parse(await kv.get(pk) || 'null');
+        const v = cur ? cur.vals.slice().sort((x, y) => x - y) : [];
+        if (v.length < 3) return json({ n: v.length });
+        const q = f => v[Math.min(v.length - 1, Math.floor((v.length - 1) * f))];
+        return json({ n: v.length, lo: q(0.25), med: q(0.5), hi: q(0.75) });
       }
       // 匿名需求訊號：只記錄「酒款屬性 + 次數」，不記錄是誰
       if (path === '/api/signal' && request.method === 'POST') {
@@ -1006,12 +1033,17 @@ export default {
           if (!/^https:\/\//.test(String(m.url || ''))) throw new HttpError(400, 'MERCHANT_URL_MUST_BE_HTTPS');
           const products = (Array.isArray(m.products) ? m.products : []).slice(0, 500).map(p => ({
             n: clip(p.n, 160), u: /^https:\/\//.test(String(p.u || '')) ? clip(p.u, 500) : '',
-            p: clip(p.p, 40), cat: clip(p.cat, 30), country: clip(p.country, 40), region: clip(p.region, 60),
+            p: clip(p.p, 40), was: clip(p.was, 40), until: /^\d{4}-\d{2}-\d{2}$/.test(String(p.until || '')) ? p.until : '', cat: clip(p.cat, 30), country: clip(p.country, 40), region: clip(p.region, 60),
             tags: (Array.isArray(p.tags) ? p.tags : []).slice(0, 10).map(t => clip(String(t), 40))
           })).filter(p => p.n);
           await kv.put('merchant:' + m.id, JSON.stringify({ id: m.id, name: clip(m.name, 80), url: clip(m.url, 500), active: m.active !== false, products }));
           merchantCache.t = 0;
           return json({ success: true, products: products.length });
+        }
+        if (path === '/api/admin/merchants' && request.method === 'GET') {
+          const l = await kv.list({ prefix: 'merchant:', limit: 100 }); const out = [];
+          for (const k of l.keys) { const v = await kv.get(k.name); if (v) { try { out.push(JSON.parse(v)); } catch (e) {} } }
+          return json(out);
         }
         if (path === '/api/admin/merchant/delete' && request.method === 'POST') {
           const { id } = await readJson(request, 1000);

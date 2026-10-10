@@ -38,6 +38,11 @@ svg{width:100%;height:auto;max-height:200px;display:block}
 <div class="card"><h2>AI 成本估算</h2><div class="row">每次掃描單價 US$ <input id="unit" type="number" step="0.001" value="0.012" style="width:90px" oninput="cost()"><span id="costv"></span></div><div class="dim" style="font-size:12px;margin-top:6px" id="mdl"></div></div>
 <div class="card"><h2>內容審核 <span class="tag" id="modn"></span></h2><div id="mod"></div></div>
 <div class="card"><h2>封鎖用戶</h2><div class="row"><input id="bem" placeholder="email" style="flex:1;min-width:200px"><input id="brs" placeholder="原因 (選填)"><button class="dng" onclick="ban(0)">封鎖</button><button onclick="ban(1)">解封</button></div><p class="dim" id="bmsg"></p></div>
+<div class="card"><h2>商家與特價產品</h2>
+<div class="row" style="margin-bottom:8px"><select id="msel" onchange="mfill()" style="min-width:160px"></select><input id="mid" placeholder="商家代號 a-z0-9_-" style="width:150px"><input id="mnm" placeholder="商家名稱"><input id="murl" placeholder="https://官網" style="flex:1;min-width:180px"></div>
+<textarea id="mcsv" rows="8" style="width:100%;background:#0f0f12;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px;font:12px/1.5 monospace" placeholder="每行一款，用 Tab 或逗號分隔：&#10;酒名, 產品連結, 現價, 原價(特價才填), 特價到期 YYYY-MM-DD, 類別, 國家, 產區"></textarea>
+<div class="row" style="margin-top:8px"><button onclick="msave()">儲存商家</button><button class="dng" onclick="mdel()">刪除商家</button><span class="dim" id="mmsg"></span></div>
+<div class="dim" style="font-size:12px;margin-top:6px">填了「原價」就會顯示特價標籤；到期日過後自動回復一般價。</div></div>
 <div class="two">
 <div class="card"><h2>商家曝光 / 點擊 (本月)</h2><div id="mer"></div></div>
 <div class="card"><h2>用戶需求 (本月)</h2><div id="dem"></div></div>
@@ -64,7 +69,14 @@ const agg=p=>{const r={};s.forEach(x=>{for(const k in x)if(k.startsWith(p))r[k.s
 bars('cat',agg('c:'));bars('cty',agg('k:'),10);const m=agg('mdl:');$('mdl').textContent='模型分佈：'+(Object.entries(m).map(([k,v])=>k+' '+v).join('、')||'暫無');cost();
 $('modn').textContent=fl.length+' 項';$('mod').innerHTML=fl.length?fl.map(i=>`<div class="it"><div><span class="tag">${i._flag==='pending'?'待審':'被舉報 '+i._reports}</span> <b>${E(i.name||i.title||i.id)}</b><div class="dim">${E([i.country,i.region,i.place||i.city].filter(Boolean).join(' · '))}</div></div><div class="row"><button class="sm" onclick="mod('approve','${E(i.id)}')">通過</button><button class="sm dng" onclick="mod('remove','${E(i.id)}')">移除</button></div></div>`).join(''):'<span class="dim">沒有待處理項目</span>';
 const me=st.merchants||{};$('mer').innerHTML=Object.keys(me).length?Object.entries(me).map(([k,v])=>`<div class="bar"><span>${E(k)}</span><em>${Object.entries(v).map(([a,b])=>E(a)+' '+b).join(' / ')}</em></div>`).join(''):'<span class="dim">暫無數據</span>';
-$('dem').innerHTML=(st.demand||[]).slice(0,10).map(x=>`<div class="bar"><span>${E(x.name||x.k||x.type)} <span class="tag">${({wishlist:'想買',scan:'掃描',share_wishlist:'分享想買'})[x.type]||E(x.type)}</span></span><em>${x.c}</em></div>`).join('')||'<span class="dim">暫無數據</span>'}
+mload();$('dem').innerHTML=(st.demand||[]).slice(0,10).map(x=>`<div class="bar"><span>${E(x.name||x.k||x.type)} <span class="tag">${({wishlist:'想買',scan:'掃描',share_wishlist:'分享想買'})[x.type]||E(x.type)}</span></span><em>${x.c}</em></div>`).join('')||'<span class="dim">暫無數據</span>'}
+
+let MER=[];
+async function mload(){MER=await api('/api/admin/merchants').catch(()=>[]);$('msel').innerHTML='<option value="">+ 新商家</option>'+MER.map(m=>`<option value="${E(m.id)}">${E(m.name)} (${m.products.length})</option>`).join('')}
+function mfill(){const m=MER.find(x=>x.id===$('msel').value);$('mid').value=m?m.id:'';$('mid').disabled=!!m;$('mnm').value=m?m.name:'';$('murl').value=m?m.url:'';$('mcsv').value=m?m.products.map(p=>[p.n,p.u,p.p,p.was||'',p.until||'',p.cat,p.country,p.region].join('\t')).join('\n'):''}
+async function msave(){const products=$('mcsv').value.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const c=l.split(l.includes('\t')?'\t':',').map(x=>x.trim());return{n:c[0],u:c[1]||'',p:c[2]||'',was:c[3]||'',until:c[4]||'',cat:c[5]||'',country:c[6]||'',region:c[7]||''}});
+try{const r=await api('/api/admin/merchant',{method:'POST',body:JSON.stringify({id:$('mid').value.trim(),name:$('mnm').value.trim(),url:$('murl').value.trim(),products})});$('mmsg').textContent='已儲存 '+r.products+' 款';await mload();$('msel').value=$('mid').value.trim();}catch(e){$('mmsg').textContent='失敗 '+e.message+' (代號 / https 網址要正確)'}}
+async function mdel(){const id=$('msel').value;if(!id||!confirm('刪除商家 '+id+'？'))return;await api('/api/admin/merchant/delete',{method:'POST',body:JSON.stringify({id})});await mload();mfill()}
 async function mod(a,id){if(a==='remove'&&!confirm('確定移除？'))return;await api('/api/admin/explore/'+a,{method:'POST',body:JSON.stringify({id})});load()}
 async function ban(off){const e=$('bem').value.trim();if(!e)return;try{await api('/api/admin/ban',{method:'POST',body:JSON.stringify({email:e,reason:$('brs').value,off:!!off})});$('bmsg').textContent=(off?'已解封 ':'已封鎖 ')+e}catch(x){$('bmsg').textContent='失敗 '+x.message}}
 if(T){$('tok').value=T;go()}
