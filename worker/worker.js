@@ -180,6 +180,16 @@ function isStrongKey(k) { return /^BTL-[0-9A-F]{32}$/.test(String(k || '')); }
 function clientIp(request) { return request.headers.get('CF-Connecting-IP') || 'unknown'; }
 function clip(v, n) { return typeof v === 'string' ? v.slice(0, n) : ''; }
 function isEmail(e) { return typeof e === 'string' && e.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+// ---- 使用統計：每日一個 JSON 計數 (香港時間 UTC+8)，只記數量，不記個人內容 ----
+function hkday(off = 0) { return new Date(Date.now() + 8 * 3600e3 - off * 86400e3).toISOString().slice(0, 10); }
+async function bumpDay(kv, fields) {
+  try {
+    const k = 'm:' + hkday();
+    const cur = JSON.parse(await kv.get(k) || '{}');
+    for (const f in fields) cur[f] = (cur[f] || 0) + fields[f];
+    await kv.put(k, JSON.stringify(cur), { expirationTtl: 60 * 60 * 24 * 400 });
+  } catch (e) {}
+}
 function ymd() { return new Date().toISOString().slice(0, 10).replace(/-/g, ''); }
 function ym() { return new Date().toISOString().slice(0, 7).replace('-', ''); }
 function envInt(v, d) { const n = parseInt(v, 10); return Number.isFinite(n) ? n : d; }
@@ -644,6 +654,7 @@ export default {
           const m = mergeCellars(existing.cellar, incoming, existing.deleted, localDeleted);
           cellar = m.cellar; deleted = m.deleted;
           await kv.put('user:' + userKey, JSON.stringify({ profile: profileData, cellar, deleted }));
+          await bumpDay(kv, { signup: 1 });
           const rc = String(ref || '').toUpperCase();
           if (/^[0-9A-F]{8}$/.test(rc) && !(await kv.get('refclaimed:' + e))) {
             const refOwner = await kv.get('refowner:' + rc);
@@ -654,6 +665,7 @@ export default {
           }
         }
         await kv.put('lastip:' + e, await ipHash(ip), { expirationTtl: 60 * 60 * 24 * 90 });
+        await bumpDay(kv, { login: 1 });
         const token = await createSession(kv, e);
         const grantedNow = await grantDue(kv, env, e, profileData);
         const pl = await planOf(kv, e);
@@ -688,6 +700,10 @@ export default {
       // 讀取目前身分的 AI 辨識額度 (訪客 / 免費 / Pro 皆可；只讀，不計次)
       if (path === '/api/quota' && request.method === 'GET') {
         const tier = await scanTier(request, kv, env);
+        try {
+          const ak = `act:${hkday()}:${await ipHash(ip)}`;
+          if (!(await kv.get(ak))) { await kv.put(ak, '1', { expirationTtl: 172800 }); await bumpDay(kv, { active: 1 }); }
+        } catch (e) {}
         const used = parseInt(await kv.get(`quota:${tier.id}:${ym()}`) || '0', 10);
         return json({ tier: tier.tier, used, limit: tier.limit, bonus: tier.email ? await bonusBalance(kv, tier.email) : 0 });
       }
@@ -834,6 +850,7 @@ export default {
         if (mod.v === 'not_alcohol') throw new HttpError(422, 'NOT_ALCOHOL_IMAGE');
         const status = mod.v === 'ok' ? 'live' : 'pending';
         await kv.put('exp:' + id, JSON.stringify(clean), { metadata: { t: clean.publishedAt, o: share, ...(status === 'pending' ? { h: 2 } : {}) }, expirationTtl: EXP_TTL });
+        await bumpDay(kv, status === 'pending' ? { publish: 1, publish_pending: 1 } : { publish: 1 });
         return json({ success: true, status });
       }
 
@@ -860,6 +877,7 @@ export default {
         const ck = 'repcount:' + id;
         const n = parseInt(await kv.get(ck) || '0', 10) + 1;
         await kv.put(ck, String(n), { expirationTtl: 60 * 60 * 24 * 90 });
+        await bumpDay(kv, n === 3 ? { report: 1, report_hidden: 1 } : { report: 1 });
         if (n >= 3) {
           const cur = await kv.getWithMetadata('exp:' + id);
           if (cur.value) await kv.put('exp:' + id, cur.value, { metadata: { ...(cur.metadata || {}), h: 1 }, expirationTtl: EXP_TTL });
@@ -1069,6 +1087,27 @@ export default {
           await kv.put('user:' + key, JSON.stringify(r));
           return json({ success: true });
         }
+        if (path === '/api/admin/overview' && request.method === 'GET') {
+          const days = Math.max(1, Math.min(30, parseInt(url.searchParams.get('days') || '30', 10)));
+          const series = [];
+          for (let i = days - 1; i >= 0; i--) { const d = hkday(i); const v = JSON.parse(await kv.get('m:' + d) || '{}'); series.push({ d, ...v }); }
+          const count = async (prefix, filter) => { let n = 0, cur; for (let i = 0; i < 10; i++) { const l = await kv.list({ prefix, limit: 1000, cursor: cur }); for (const k of l.keys) if (!filter || filter(k)) n++; if (l.list_complete) break; cur = l.cursor; } return n; };
+          const totals = {
+            users: await count('account:'),
+            banned: await count('ban:'),
+            merchants: await count('merchant:'),
+            exp_live: await count('exp:', k => !(k.metadata && k.metadata.h)),
+            exp_pending: await count('exp:', k => k.metadata && k.metadata.h === 2),
+            exp_hidden: await count('exp:', k => k.metadata && k.metadata.h === 1)
+          };
+          return json({ tz: 'UTC+8', days, series, totals });
+        }
+        if (path === '/api/admin/explore/flagged' && request.method === 'GET') {
+          const l = await kv.list({ prefix: 'exp:', limit: 500 });
+          const out = [];
+          for (const k of l.keys) if (k.metadata && (k.metadata.h === 1 || k.metadata.h === 2)) { const v = await kv.get(k.name); if (v) { const it = JSON.parse(v); it._flag = k.metadata.h === 1 ? 'reported' : 'pending'; it._reports = parseInt(await kv.get('repcount:' + it.id) || '0', 10); out.push(it); } }
+          return json(out);
+        }
         if (path === '/api/admin/explore/pending' && request.method === 'GET') {
           const l = await kv.list({ prefix: 'exp:', limit: 500 });
           const out = [];
@@ -1107,7 +1146,7 @@ export default {
         let viaBonus = false;
         if (used >= tier.limit) {
           if (tier.email && (await bonusBalance(kv, tier.email)) > 0) viaBonus = true;
-          else throw new HttpError(429, 'QUOTA_EXCEEDED', { tier: tier.tier, limit: tier.limit, used });
+          else { await bumpDay(kv, { quota_out: 1 }); throw new HttpError(429, 'QUOTA_EXCEEDED', { tier: tier.tier, limit: tier.limit, used }); }
         }
         await limitOrThrow(kv, `rl:scanip:${ip}:${ymd()}`, envInt(env.SCAN_IP_DAILY, 60), 86400, 'RATE_LIMITED_IP');
         await limitOrThrow(kv, `rl:scanall:${ymd()}`, envInt(env.SCAN_GLOBAL_DAILY, 1500), 86400, 'SERVICE_BUSY');
@@ -1137,11 +1176,13 @@ export default {
           const n = parseInt(await kv.get(sk) || '0', 10) + 1;
           await kv.put(sk, String(n), { expirationTtl: 86400 });
           if (n >= 5) await kv.put('scanblock:' + tier.id, '1', { expirationTtl: 86400 });
+          await bumpDay(kv, { not_alcohol: 1 });
           throw new HttpError(422, 'NOT_ALCOHOL');
         }
         if (viaBonus) await consumeBonus(kv, tier.email);
         else await kv.put(mk, String(used + 1), { expirationTtl: 60 * 60 * 24 * 40 });
         if (tier.email) await kv.put('scanned:' + tier.email, '1', { expirationTtl: 60 * 60 * 24 * 400 });
+        await bumpDay(kv, { scan: 1, [tier.tier === 'guest' ? 'scan_guest' : 'scan_user']: 1, ['c:' + String(out.category || '其他').slice(0, 12)]: 1, ['k:' + String(out.country || '未知').slice(0, 12)]: 1, ['mdl:' + modelUsed]: 1 });
         out._quota = { tier: tier.tier, used: viaBonus ? used : used + 1, limit: tier.limit, bonus: tier.email ? await bonusBalance(kv, tier.email) : 0 };
         out._model = modelUsed;
         return new Response(JSON.stringify(out), { headers: jsonHeaders });
