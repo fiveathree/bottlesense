@@ -2145,3 +2145,16 @@ html { background: #0b0b0a; color-scheme: dark; }
 .sess-card .sess-status { margin-top: 0; }
 
 .tl-actions .tl-del { border-color: rgba(255,255,255,0.18); color: var(--text-faint); }
+
+/* pour log v3: icon tools beside the title, stars on their own row */
+.sess-top { margin-bottom: 14px; }
+.sess-tools { display: flex; align-items: center; gap: 0; }
+.sess-tools .sess-photo-btns { display: flex; gap: 14px; margin-right: 22px; }
+.sess-tools .sess-photo-btns button { width: 38px; height: 38px; padding: 0; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--gold); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.sess-tools .sess-photo-prev { width: 38px; height: 38px; margin: 0 22px 0 0; border-radius: 10px; }
+.sess-tools .sess-photo-prev img { width: 38px; height: 38px; max-height: 38px; object-fit: cover; }
+.sess-tools .sess-photo-prev button { top: -6px; right: -6px; width: 18px; height: 18px; font-size: 13px; }
+.sess-stars { display: flex; justify-content: space-between; margin: 0 4px 10px; }
+.sess-stars .star-btn { font-size: 34px; }
+.sess-status button { padding: 11px 6px; font-size: 15px; }
+.sess-card .sess-status { margin-bottom: 10px; }

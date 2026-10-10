@@ -1654,26 +1654,22 @@ function openAddSessionModal(bottleId, editId) {
       <div class="modal-card sess-card" role="dialog" aria-modal="true" onclick="event.stopPropagation()">
         <div class="sess-top">
           <div class="sess-title">${t('btn_add_log')}</div>
-          <button type="button" class="sess-x" aria-label="close" onclick="closeModal()">&times;</button>
-        </div>
-
-        <div class="sess-row1">
-          <div class="sess-photo-col">
+          <div class="sess-tools">
             <div class="sess-photo-prev" id="sess-photo-prev" style="display:none;"></div>
             <div class="sess-photo-btns" id="sess-photo-btns">
-              <button type="button" onclick="document.getElementById('sess-cam').click()" aria-label="camera"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span>${currentLang==='zh' ? '拍照' : 'Photo'}</span></button>
-              <button type="button" onclick="document.getElementById('sess-pick').click()" aria-label="gallery"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m4 16 4-4 4 4 3-3 5 5"/></svg><span>${currentLang==='zh' ? '相簿' : 'Gallery'}</span></button>
+              <button type="button" onclick="document.getElementById('sess-cam').click()" aria-label="${currentLang==='zh' ? '拍照' : 'Take photo'}"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
+              <button type="button" onclick="document.getElementById('sess-pick').click()" aria-label="${currentLang==='zh' ? '相簿' : 'Gallery'}"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m4 16 4-4 4 4 3-3 5 5"/></svg></button>
             </div>
-            <input type="file" id="sess-cam" accept="image/*" capture="environment" hidden onchange="onSessionPhoto(this)">
-            <input type="file" id="sess-pick" accept="image/*" hidden onchange="onSessionPhoto(this)">
+            <button type="button" class="sess-x" aria-label="close" onclick="closeModal()">&times;</button>
           </div>
-          <div class="sess-rate-col">
-            <div class="star-row">${[1,2,3,4,5].map(n => `<button type="button" class="star-btn filled" id="sess-star-${n}" onclick="setModalRating(${n})">&#9733;</button>`).join('')}</div>
-            <div class="sess-status" id="sess-status">
-              <button type="button" class="on" data-st="opened" onclick="setSessStatus('opened')">${t('space_wood')}<small>${currentLang==='zh' ? '仍有餘酒' : 'some left'}</small></button>
-              <button type="button" data-st="finished" onclick="setSessStatus('finished')">${t('space_bar')}<small>${currentLang==='zh' ? '已經喝完' : 'all gone'}</small></button>
-            </div>
-          </div>
+          <input type="file" id="sess-cam" accept="image/*" capture="environment" hidden onchange="onSessionPhoto(this)">
+          <input type="file" id="sess-pick" accept="image/*" hidden onchange="onSessionPhoto(this)">
+        </div>
+
+        <div class="star-row sess-stars">${[1,2,3,4,5].map(n => `<button type="button" class="star-btn filled" id="sess-star-${n}" onclick="setModalRating(${n})">&#9733;</button>`).join('')}</div>
+        <div class="sess-status" id="sess-status">
+          <button type="button" class="on" data-st="opened" onclick="setSessStatus('opened')">${t('space_wood')}</button>
+          <button type="button" data-st="finished" onclick="setSessStatus('finished')">${t('space_bar')}</button>
         </div>
 
         <input type="text" id="sess-loc" class="text-input" placeholder="${currentLang==='zh' ? '地點，例如：中環 酒吧' : 'Where, e.g. Central bar'}">
