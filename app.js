@@ -864,6 +864,95 @@ function actionLabel(a) {
   return currentLang === 'zh' ? v.zh : v.en;
 }
 
+
+/* ---------------- 價格參考：AI 估算市價 + 自填買入價 + 溢價比 ---------------- */
+const CUR_RATE = { HKD: 7.8, TWD: 32, USD: 1 };
+const CUR_SYM = { HKD: 'HK$', TWD: 'NT$', USD: 'US$' };
+function priceCur() {
+  let c = ''; try { c = localStorage.getItem('bottlesense_cur') || ''; } catch (e) {}
+  return CUR_RATE[c] ? c : (currentLang === 'zh' ? 'HKD' : 'USD');
+}
+function cycleCurrency(id) {
+  const keys = Object.keys(CUR_RATE);
+  const next = keys[(keys.indexOf(priceCur()) + 1) % keys.length];
+  try { localStorage.setItem('bottlesense_cur', next); } catch (e) {}
+  renderBottleDetail(id);
+}
+function fmtMoney(usd, cur) {
+  const n = usd * CUR_RATE[cur];
+  const step = n < 100 ? 5 : n < 1000 ? 10 : n < 10000 ? 50 : 100;
+  return CUR_SYM[cur] + (Math.round(n / step) * step).toLocaleString('en-US');
+}
+function priceRange(r) {
+  if (!Array.isArray(r) || r.length < 2) return null;
+  const lo = Number(r[0]), hi = Number(r[1]);
+  if (!isFinite(lo) || !isFinite(hi) || lo <= 0 || hi < lo) return null;
+  return [lo, hi];
+}
+function priceInfo(b) {
+  const pr = (b.scan && b.scan.price) || safeIdentification(b).price || {};
+  const retail = priceRange(pr.retail_usd), market = priceRange(pr.market_usd);
+  const mid = (market || retail) ? (((market || retail)[0] + (market || retail)[1]) / 2) : null;
+  let ratio = null;
+  if (mid && b.buy && Number(b.buy.amt) > 0 && CUR_RATE[b.buy.cur]) ratio = mid / (Number(b.buy.amt) / CUR_RATE[b.buy.cur]);
+  return { retail, market, mid, ratio, conf: pr.conf || '' };
+}
+function priceNote(b) {
+  const zh = currentLang === 'zh';
+  const pi = priceInfo(b);
+  if (pi.ratio == null) return '';
+  const vm = bottleVM(b);
+  const cv = Number(vm.cv || 0);
+  if (pi.ratio >= 1.5) return zh ? `市價約為買入價的 ${pi.ratio.toFixed(1)} 倍，${cv >= 50 ? '具增值空間，可考慮繼續珍藏。' : '已有溢價，可考慮出讓或趁機品飲。'}` : `Market is about ${pi.ratio.toFixed(1)}x what you paid - ${cv >= 50 ? 'room to appreciate, worth keeping.' : 'a premium already; sell or enjoy it.'}`;
+  if (pi.ratio < 0.9) return zh ? '市價低於買入價，不宜為回本而久藏，可自己飲用或贈予。' : 'Market is below what you paid - no point keeping it just to break even; drink or gift it.';
+  return zh ? '市價與買入價相若，按喜好處理即可。' : 'Market is close to what you paid - decide by taste.';
+}
+function setBuyPrice(id) {
+  if (blockIfVisitor()) return;
+  const b = (window.cellar || []).find(x => String(x.id) === String(id)); if (!b) return;
+  const el = document.getElementById('buy-input'); if (!el) return;
+  const v = parseFloat(String(el.value).replace(/,/g, ''));
+  if (!isFinite(v) || v <= 0) { delete b.buy; } else { b.buy = { amt: v, cur: priceCur() }; }
+  saveBottleToDB(b).then(() => renderBottleDetail(id));
+}
+function priceCardHTML(b) {
+  const zh = currentLang === 'zh';
+  const cur = priceCur();
+  const pi = priceInfo(b);
+  const rng = r => r ? `${fmtMoney(r[0], cur)} - ${fmtMoney(r[1], cur).replace(CUR_SYM[cur], '')}` : (zh ? '暫無資料' : 'n/a');
+  const buyLocal = b.buy && CUR_RATE[b.buy.cur] ? Number(b.buy.amt) / CUR_RATE[b.buy.cur] * CUR_RATE[cur] : null;
+  let badge = '';
+  if (pi.ratio != null) {
+    const k = pi.ratio >= 1.5 ? 'up' : pi.ratio < 0.9 ? 'down' : 'flat';
+    const t = k === 'up' ? (zh ? '已升值' : 'Appreciated') : k === 'down' ? (zh ? '低於買入價' : 'Below cost') : (zh ? '相若' : 'About par');
+    badge = `<span class="pc-badge pc-${k}">${pi.ratio.toFixed(1)}x ・ ${t}</span>`;
+  }
+  const info = zh
+    ? '價格由 AI 依酒標與一般市場資料估算，僅供參考；實際價格因地區、年份、保存狀況與真偽而異。買入價由您自行輸入。溢價比 = 市價中位數 ÷ 買入價。市價優先採用二手 / 拍賣行情，沒有則用零售價。'
+    : 'Prices are AI estimates from the label and general market knowledge, for reference only; real prices vary by region, vintage, condition and authenticity. Your purchase price is entered by you. Ratio = market midpoint / purchase price (secondary / auction price if known, else retail).';
+  return `
+    <div class="info-block price-card">
+      <div class="pc-head">
+        <h3>${zh ? '價格參考' : 'Price Reference'}</h3>
+        <div class="pc-tools">
+          <button class="pc-cur" onclick="cycleCurrency('${esc(b.id)}')" title="${zh ? '切換貨幣' : 'Switch currency'}">${cur}</button>
+          <button class="radar-info-btn" aria-label="info" onclick="this.closest('.price-card').querySelector('.pc-info').classList.toggle('open')">!</button>
+        </div>
+      </div>
+      <div class="pc-info">${info}</div>
+      <div class="pc-grid">
+        <div><div class="pc-k">${zh ? '零售參考價' : 'Retail'}</div><div class="pc-v">${rng(pi.retail)}</div></div>
+        <div><div class="pc-k">${zh ? '市場行情' : 'Market'}</div><div class="pc-v">${rng(pi.market)}</div></div>
+      </div>
+      ${(!pi.retail && !pi.market) ? `<div class="pc-none">${zh ? '此酒款尚無 AI 價格參考，重新掃描可取得。' : 'No AI price estimate for this bottle yet - rescan to get one.'}</div>` : `<div class="pc-tag">${zh ? 'AI 估算' : 'AI estimate'}${pi.conf ? ' ・ ' + (pi.conf === 'high' ? (zh ? '信心高' : 'high confidence') : pi.conf === 'low' ? (zh ? '信心低' : 'low confidence') : (zh ? '信心中' : 'medium confidence')) : ''}</div>`}
+      ${isVisitorMode ? '' : `<div class="pc-buy">
+        <label for="buy-input">${zh ? '買入價' : 'You paid'} (${cur})</label>
+        <input id="buy-input" type="number" inputmode="decimal" min="0" placeholder="${zh ? '選填' : 'optional'}" value="${buyLocal ? Math.round(buyLocal) : ''}" onchange="setBuyPrice('${esc(b.id)}')">
+        ${badge}
+      </div>`}
+    </div>`;
+}
+
 function partyBannerHTML(b) {
   const zh = currentLang === 'zh';
   return b.party && !isVisitorMode ? `
@@ -911,6 +1000,7 @@ function renderVerdictCard(b) {
         </div>
       </div>
       ${d.reason ? `<div class="verdict-reason">${esc(d.reason)}</div>` : ''}
+      ${priceNote(b) ? `<div class="verdict-reason verdict-price">${esc(priceNote(b))}</div>` : ''}
       <details class="verdict-others" open>
         <summary>${zh ? '其他選擇' : 'Other options'}</summary>
         ${others.map(o => `
@@ -1234,6 +1324,9 @@ function renderBottleDetail(id) {
 
       <!-- 2. 八維價值地圖 (數據先行) -->
       ${(() => { const r = renderRadar(vm); return r ? `${r}` : ''; })()}
+
+      <!-- 價格參考 -->
+      ${priceCardHTML(b)}
 
       <!-- 3. 建議 -->
       ${renderVerdictCard(b)}

@@ -94,6 +94,7 @@ const SCAN_PROMPT = `你是一個世界頂級侍酒師與酒類數據庫專家�
   "region": "產區",
   "country_en": "Country name in English",
   "region_en": "Region name in English",
+  "price": { "retail_usd": [35, 55], "market_usd": [40, 70], "conf": "medium" },
   "vintage": "年份（若無年份寫無年份）",
   "abv": "酒精度（如 43%）",
   "vol": "容量（如 700ml）",
@@ -121,6 +122,8 @@ const SCAN_PROMPT = `你是一個世界頂級侍酒師與酒類數據庫專家�
     ]
   }
 }
+
+【price 規則】price 為該酒款（標準容量）目前一般市場價格的估算，以美元計：retail_usd = 正常零售價區間 [低, 高]；market_usd = 二手／拍賣／炒價行情區間 [低, 高]（若與零售價相近可相同）。conf 為 high / medium / low 表示你對估價的把握。你只能根據自己對該酒款的認識估算；若是冷門、無法確認的酒款，retail_usd 與 market_usd 請填 null，conf 填 low，絕對不可編造。
 
 【rec 建議規則】用戶多數不懂酒，你要幫他決定「這瓶酒該如何處理」：
 - verdict 只能四選一：open（開瓶，適合約朋友一起開來分享）、drink（自己平日飲用）、keep（收藏，等待熟成或升值）、gift（送禮）。選最合適的一個。
