@@ -159,7 +159,7 @@ const I18N = {
     nav_scan: "鑑識",
     nav_cellar: "酒窖",
     nav_explore: "探索",
-    hero_title: "一瓶在手，自有定奪",
+    hero_title: "識酒，更識珍酒",
     hero_desc: "拍攝酒標，AI 即時鑑識<br>該開、該飲、該藏或是該贈，為您決定",
     choose_album: "從相簿選照片",
     spaces_title: "我的電子酒架",
@@ -564,15 +564,13 @@ function renderCellar() {
         </div>
       </div>
 
-      ${filterOptions.length > 1 ? `
-        <div class="filter-row">
+      <div class="filter-row">${filterOptions.length > 1 ? `
           ${filterOptions.map(opt => `
             <div class="filter-chip ${activeFilter===opt?'active':''}" onclick="setShelfFilter('${esc(opt)}')">
               ${opt === 'all' ? t('filter_all') : esc(opt)}
             </div>
           `).join('')}
-        </div>
-      ` : ''}
+      ` : ''}</div>
 
       <div class="shelf-container shelf-${shelfKey}">
         <div style="font-family:var(--serif); font-size:16px; font-weight:700; margin-bottom:10px;">${shelfTitle}</div>
@@ -1147,7 +1145,7 @@ function renderBottleDetail(id) {
       </div>
 
       <!-- 2. 八維價值地圖 (數據先行) -->
-      ${(() => { const r = renderRadar(vm); return r ? `<div class="info-block radar-card">${r}</div>` : ''; })()}
+      ${(() => { const r = renderRadar(vm); return r ? `${r}` : ''; })()}
 
       <!-- 3. 建議 -->
       ${renderVerdictCard(b)}
@@ -1165,60 +1163,7 @@ function renderBottleDetail(id) {
       </div>`}
 
       <!-- 5. 品鑑紀錄：所有互動集中於此 -->
-      <div class="info-block" id="tasting-timeline-block">
-        <h3 style="margin-bottom:6px;">${t('timeline_title')}</h3>
-        <div style="font-size:13px; color:var(--text-faint); margin-bottom:12px;">${t('timeline_hint')}</div>
-        ${isVisitorMode ? '' : `<div class="log-actions">
-          <button class="btn btn-primary btn-sm" onclick="openAddSessionModal('${esc(b.id)}')">${t('btn_add_log')}</button>
-          ${(['unopened','opened','kept'].includes(b.status)) ? `<button class="btn btn-ghost btn-sm" onclick="openPourParty('${esc(b.id)}')">🍾 ${currentLang==='zh'?'邀約共飲':'Invite to pour'}</button>` : ''}
-        </div>`}
-        ${partyBannerHTML(b)}
-          <div class="timeline-list" style="position:relative; padding-left:14px; border-left:2px solid var(--gold-dim);">
-            ${(() => {
-              const list = b.tastings || [];
-              if (!list.length) return `<div style="font-size:14px; color:var(--text-faint); text-align:center; padding:18px 0;">${t('no_logs')}</div>`;
-
-              const isExpanded = window['timeline_expanded_' + b.id];
-              const displayList = isExpanded ? list : list.slice(0, 3);
-
-              const cardsHTML = displayList.map((tItem, idx) => `
-                <div class="timeline-card" style="margin-bottom:12px; position:relative;">
-                  <div style="position:absolute; left:-21px; top:6px; width:10px; height:10px; border-radius:50%; background:var(--gold); border:2px solid #000;"></div>
-                  <div class="timeline-header">
-                    <div>
-                      <span class="timeline-time" style="font-family:var(--mono); color:var(--gold); font-size:12px;">#${idx+1} · ${esc(tItem.dateStr || tItem.date || '')}</span>
-                      <div style="color:var(--gold); font-size:13.5px; margin-top:2px;">${'★'.repeat(tItem.rating || 5)}</div>
-                    </div>
-                    <div style="display:flex; gap:6px;${isVisitorMode ? ' display:none;' : ''}">
-                      <button class="btn btn-ghost btn-sm" style="padding:3px 8px; font-size:11px;" onclick="togglePublishSession('${esc(b.id)}', '${esc(tItem.id)}')">
-                        ${tItem.isPublic ? '↩️ 收回' : '🌐 發布'}
-                      </button>
-                      <button class="btn btn-ghost btn-sm" style="padding:3px 8px; font-size:11px;" onclick="openMemoryCard('${esc(b.id)}', '${esc(tItem.id)}')">🖼️ ${currentLang==='zh'?'紀念卡':'Card'}</button>
-                      <button class="timeline-share-btn" onclick="openShareActionSheet('${esc(b.id)}', '${esc(tItem.id)}')" title="Share this pour">
-                        ${TELEGRAM_PLANE_SVG}
-                      </button>
-                    </div>
-                  </div>
-                  <div class="timeline-meta" style="font-size:12px; color:var(--text-muted); margin-top:4px;">
-                    ${tItem.location ? `<span>📍 ${esc(tItem.location)}</span>` : ''}
-                    ${tItem.companions ? `<span>👥 ${esc(tItem.companions)}</span>` : ''}
-                  </div>
-                  ${tItem.notes ? `<div class="timeline-notes" style="font-size:13px; color:var(--text); margin-top:6px; line-height:1.5;">"${esc(tItem.notes)}"</div>` : ''}
-                </div>
-              `).join('');
-
-              const expandBtnHTML = (list.length > 3 && !isExpanded) ? `
-                <div style="text-align:center; margin-top:8px;">
-                  <button class="btn btn-ghost btn-sm" onclick="expandTimeline('${esc(b.id)}')" style="font-size:12px; color:var(--gold);">
-                    ▼ ${currentLang==='zh'?'展開更多品飲記錄 ('+list.length+' 筆)':'Expand All ('+list.length+')'}
-                  </button>
-                </div>
-              ` : '';
-
-              return cardsHTML + expandBtnHTML;
-            })()}
-          </div>
-        </div>
+      ${timelineHTML(b)}
 
       ${isVisitorMode ? '' : `<div id="offers-slot"></div>`}
 
@@ -1228,6 +1173,63 @@ function renderBottleDetail(id) {
     </div>
   `;
   loadOffersInto(b.id);
+}
+
+function timelineHTML(b) {
+  const zh = currentLang === 'zh';
+  const list = b.tastings || [];
+  const isExpanded = window['timeline_expanded_' + b.id];
+  const shown = isExpanded ? list : list.slice(0, 4);
+  const vis = isVisitorMode;
+  const canInvite = !vis && ['unopened','opened','kept'].includes(b.status);
+  const party = (b.party && !vis) ? `
+    <div class="tl-item tl-party">
+      <span class="tl-dot tl-dot-party"></span>
+      <div class="tl-card tl-card-party">
+        <div class="tl-party-tag">${zh ? '共飲邀約' : 'Pour invitation'}</div>
+        <div class="tl-party-info">${esc(b.party.date || '')} ${esc(b.party.place || '')}</div>
+        <button class="btn btn-primary btn-sm" onclick="finishPourParty('${esc(b.id)}')">${zh ? '活動結束，記錄這次' : 'Done - log it'}</button>
+      </div>
+    </div>` : '';
+  const items = shown.map((x, idx) => {
+    const side = idx % 2 === 0 ? 'tl-left' : 'tl-right';
+    const op = Math.max(0.42, 1 - idx * 0.13).toFixed(2);
+    return `
+    <div class="tl-item ${side}" style="opacity:${op}">
+      <span class="tl-dot"></span>
+      <div class="tl-card">
+        <div class="tl-date">${esc(x.dateStr || x.date || '')}</div>
+        <div class="tl-stars">${'&#9733;'.repeat(x.rating || 5)}</div>
+        ${x.location ? `<div class="tl-meta">📍 ${esc(x.location)}</div>` : ''}
+        ${x.companions ? `<div class="tl-meta">👥 ${esc(x.companions)}</div>` : ''}
+        ${x.notes ? `<div class="tl-notes">&ldquo;${esc(x.notes)}&rdquo;</div>` : ''}
+        ${vis ? '' : `<div class="tl-actions">
+          <button onclick="openMemoryCard('${esc(b.id)}', '${esc(x.id)}')">${zh ? '紀念卡' : 'Card'}</button>
+          <button onclick="togglePublishSession('${esc(b.id)}', '${esc(x.id)}')">${x.isPublic ? (zh ? '撤回' : 'Retract') : (zh ? '發布' : 'Publish')}</button>
+          <button onclick="openShareActionSheet('${esc(b.id)}', '${esc(x.id)}')">${zh ? '分享' : 'Share'}</button>
+        </div>`}
+      </div>
+    </div>`;
+  }).join('');
+  const more = (list.length > 4 && !isExpanded)
+    ? `<div class="tl-more"><button class="btn btn-ghost btn-sm" onclick="expandTimeline('${esc(b.id)}')">${zh ? '展開全部 ' + list.length + ' 筆' : 'Show all ' + list.length}</button></div>` : '';
+  const empty = (!list.length && !party)
+    ? `<div class="tl-empty">${t('no_logs')}</div>` : '';
+  return `
+      <div class="info-block tl-block" id="tasting-timeline-block">
+        <h3 style="margin-bottom:4px;">${t('timeline_title')}</h3>
+        <div style="font-size:13px; color:var(--text-faint); margin-bottom:12px;">${t('timeline_hint')}</div>
+        ${vis ? '' : `<div class="log-actions">
+          <button class="btn btn-primary btn-sm" onclick="openAddSessionModal('${esc(b.id)}')">${t('btn_add_log')}</button>
+          ${canInvite ? `<button class="btn btn-ghost btn-sm" onclick="openPourParty('${esc(b.id)}')">${zh ? '邀約共飲' : 'Invite to pour'}</button>` : ''}
+        </div>`}
+        ${empty}
+        <div class="tl">
+          ${party}${items}
+          ${more}
+          <div class="tl-end"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v16M6 14l6 6 6-6"/></svg><span>${zh ? '期待無盡時光' : 'Endless moments await'}</span></div>
+        </div>
+      </div>`;
 }
 
 function renderRadar(vm) {
@@ -1253,14 +1255,24 @@ function renderRadar(vm) {
   });
 
   const polygon = points.map(p=>p.join(',')).join(' ');
+  const zhL = currentLang === 'zh';
+  const total = Math.round(vals.reduce((a, v) => a + v, 0) / vals.length);
+  const grade = total >= 80 ? { k: 'a', t: zhL ? '優秀' : 'Excellent' } : total >= 60 ? { k: 'b', t: zhL ? '及格' : 'Pass' } : { k: 'c', t: zhL ? '未及格' : 'Below pass' };
+  const dimDescZh = { mv:'市場行情與稀缺程度', ql:'產區、釀造工藝與風味完成度', dv:'入口表現與易飲程度', pv:'搭配不同餐飲的彈性', sv:'適合分享、帶動話題', gv:'作為禮物的分量與體面', cv:'保值、升值與紀念意義', sto:'可存放年期與陳年潛力' };
+  const dimDescEn = { mv:'Market price and scarcity', ql:'Terroir, craft and flavour finish', dv:'Approachability and enjoyment', pv:'Flexibility with food', sv:'Good for sharing and conversation', gv:'Weight and prestige as a gift', cv:'Value retention and sentiment', sto:'Cellaring years and ageing potential' };
+  const dd = zhL ? dimDescZh : dimDescEn;
+  const infoHTML = `
+    <div class="ri-rule">${zhL ? '每項滿分 100。60 分為及格線(圖中虛線),80 分以上為優秀。綜合分為八項平均。' : 'Each axis is scored out of 100. 60 is the pass mark (dashed ring), 80+ is excellent. Overall is the average of the eight.'}</div>
+    ${dimKeys.map(k => `<div class="ri-row"><b>${labels[k]}</b><span>${dd[k]}</span></div>`).join('')}
+    <div class="ri-foot">${zhL ? '分數由 AI 依酒標資訊評估,僅供參考。' : 'Scores are AI estimates from the label, for reference only.'}</div>`;
   
   // 同心圓刻度線 (50 與 100)
-  const rings = [0.5, 1.0].map(f => {
+  const rings = [0.6, 1.0].map(f => {
     const ringPts = dimKeys.map((k,i)=>{
       const angle = (Math.PI*2*i/n) - Math.PI/2;
       return [cx + R*f*Math.cos(angle), cy + R*f*Math.sin(angle)].join(',');
     }).join(' ');
-    return `<polygon points="${ringPts}" fill="none" stroke="#2a2e1d" stroke-dasharray="${f===0.5?'3,3':'none'}" stroke-width="1"/>`;
+    return `<polygon points="${ringPts}" fill="none" stroke="#2a2e1d" stroke-dasharray="${f===0.6?'3,3':'none'}" stroke-width="1"/>`;
   }).join('');
 
   const axes = axisPoints.map(p => `<line x1="${cx}" y1="${cy}" x2="${p[0]}" y2="${p[1]}" stroke="#333722" stroke-width="1"/>`).join('');
@@ -1285,8 +1297,13 @@ function renderRadar(vm) {
 
   return `
     <div class="radar-wrap" style="text-align:center;">
-      <h3 style="margin-bottom:6px;">${currentLang === 'zh' ? '八維價值地圖' : 'Eight-Dimension Value Map'}</h3>
-      <svg width="280" height="280" viewBox="0 0 280 280" style="overflow:visible; margin:0 auto; display:block;">
+      <div class="radar-head">
+        <h3>${currentLang === 'zh' ? '八維價值地圖' : 'Eight-Dimension Value Map'}</h3>
+        <button class="radar-info-btn" aria-label="info" onclick="this.closest('.radar-wrap').querySelector('.radar-info').classList.toggle('open')">!</button>
+      </div>
+      <div class="radar-total"><span class="rt-score">${total}</span><span class="rt-grade rt-${grade.k}">${grade.t}</span><span class="rt-note">${currentLang === 'zh' ? '綜合分 ・ 及格線 60' : 'Overall ・ pass mark 60'}</span></div>
+      <div class="radar-info">${infoHTML}</div>
+      <svg width="100%" viewBox="-44 -6 368 292" style="max-width:380px; margin:0 auto; display:block;">
         ${rings}
         ${axes}
         <polygon points="${polygon}" fill="rgba(212,175,55,0.25)" stroke="#D4AF37" stroke-width="2"/>
@@ -2222,7 +2239,8 @@ async function renderExplore() {
       <div class="section-head" style="margin-top:4px; margin-bottom:8px;">
         <h2>${currentLang==='zh'?'酒友最新公開品飲':'Public Tasting Feed'}</h2>
       </div>
-      <div id="explore-feed" style="text-align:center; padding:6px 2px; color:var(--text-muted); font-size:14px;">
+      <div id="feed-tags" class="feed-tags"></div>
+      <div id="explore-feed" class="explore-feed" style="text-align:center; padding:6px 2px; color:var(--text-muted); font-size:14px;">
         載入中...
       </div>
     </div>
@@ -2371,6 +2389,7 @@ async function renderRealWorldPinsAndFeed() {
         {
           id: 'demo-spain',
           author: 'Carlos (西班牙巡酒)',
+          tastingLocation: '香港 中環',
           isMine: false,
           personalRating: 5,
           image: '',
@@ -2425,6 +2444,7 @@ async function renderRealWorldPinsAndFeed() {
         {
           id: 'demo-napa',
           author: 'Rachel (加州酒莊巡禮)',
+          tastingLocation: '香港 尖沙咀',
           isMine: false,
           personalRating: 4.8,
           image: '',
@@ -2434,6 +2454,7 @@ async function renderRealWorldPinsAndFeed() {
         {
           id: 'demo-taiwan',
           author: 'Evelyn (台灣威士忌俱樂部)',
+          tastingLocation: '台北 信義',
           isMine: false,
           personalRating: 4.9,
           image: '',
@@ -2467,21 +2488,114 @@ async function renderRealWorldPinsAndFeed() {
     }
 
     // 酒友公開動態卡片
-    const hidden = getHiddenFeed();
-    const shown = publicFeed.filter(x => !hidden.includes(String(x.id)));
-    if (!shown.length) {
-      feedEl.innerHTML = `<div class="empty-shelf">${currentLang==='zh'?'暫無更多酒友動態':'No more tastings to show'}</div>`;
-      return;
-    }
-    feedEl.innerHTML = shown.map((b, idx) => {
-      const c = bottleCountry(b);
-      const r = bottleRegion(b);
-      const isMine = isMyExploreItem(b, myShareId, myProfileName, myBoundEmail);
-      const place = tastingPlaceOf(b);
-      const zh = currentLang === 'zh';
+    exploreCtx = { myShareId, myProfileName, myBoundEmail };
+    renderFeedView();
+  } catch(e) {
+    const feedEl = document.getElementById('explore-feed');
+    if (feedEl) feedEl.innerHTML = `<div class="empty-shelf">${currentLang==='zh'?'暫時無法載入酒友動態。':'Unable to load public feed.'}</div>`;
+  }
+}
 
-      return `
-        <div class="feed-swipe${idx === 0 ? ' nudge' : ''}" data-id="${esc(b.id)}" data-mine="${isMine ? 1 : 0}">
+/* ---- explore feed view: location tags, status tabs, swipe ---- */
+let exploreCtx = {};
+let exploreFilter = { city: null, sub: null, mode: 'all' };
+const CITY_LIST = ['香港','澳門','台北','新北','台中','台南','高雄','東京','大阪','京都','首爾','新加坡','上海','北京','深圳','廣州','曼谷','倫敦','巴黎','紐約','悉尼'];
+const DISTRICT_CITY = { '中環':'香港','上環':'香港','灣仔':'香港','銅鑼灣':'香港','尖沙咀':'香港','旺角':'香港','佐敦':'香港','金鐘':'香港','荃灣':'香港','沙田':'香港','信義':'台北','大安':'台北','中山':'台北','松山':'台北','銀座':'東京','新宿':'東京','澀谷':'東京','六本木':'東京' };
+function placeParts(place) {
+  const raw = String(place || '').trim();
+  if (!raw) return null;
+  for (const c of CITY_LIST) {
+    if (raw.startsWith(c)) return { city: c, sub: raw.slice(c.length).replace(/^[\s,，、·\-\/]+/, '').trim() };
+  }
+  for (const d in DISTRICT_CITY) {
+    if (raw.includes(d)) return { city: DISTRICT_CITY[d], sub: d };
+  }
+  const toks = raw.split(/[\s,，、·\-\/]+/).filter(Boolean);
+  return { city: toks[0], sub: toks.slice(1).join(' ') };
+}
+function getStarred() { try { return JSON.parse(localStorage.getItem('bottlesense_feed_starred') || '{}'); } catch (e) { return {}; } }
+function setStarred(o) { try { localStorage.setItem('bottlesense_feed_starred', JSON.stringify(o)); } catch (e) {} }
+function unhideFeedItem(id) {
+  const h = getHiddenFeed().filter(x => x !== String(id));
+  try { localStorage.setItem('bottlesense_feed_hidden', JSON.stringify(h)); } catch (e) {}
+  renderFeedView();
+}
+async function unstarFeedItem(id) {
+  const st = getStarred(); const wid = st[String(id)];
+  delete st[String(id)]; setStarred(st);
+  if (wid) {
+    const idx = (window.cellar || []).findIndex(x => String(x.id) === String(wid) && x.status === 'wishlist');
+    if (idx >= 0) { window.cellar.splice(idx, 1); await deleteBottleFromDB(wid); }
+  }
+  showToast(currentLang==='zh'?'已取消加星':'Star removed');
+  renderFeedView();
+}
+function setExploreMode(m) { exploreFilter.mode = m; renderFeedView(); }
+function setExploreCity(c) {
+  if (exploreFilter.city === c) { exploreFilter = { ...exploreFilter, city: null, sub: null }; renderFeedView(); return; }
+  exploreFilter.city = c; exploreFilter.sub = null;
+  const hit = (currentExploreFeed || []).find(x => { const pp = placeParts(tastingPlaceOf(x)); return pp && pp.city === c; });
+  if (hit) flyToBottleRegion(hit.id);
+  renderFeedView();
+}
+function setExploreSub(sv) { exploreFilter.sub = (exploreFilter.sub === sv) ? null : sv; renderFeedView(); }
+
+function renderFeedView() {
+  const feedEl = document.getElementById('explore-feed');
+  const tagsEl = document.getElementById('feed-tags');
+  if (!feedEl) return;
+  const zh = currentLang === 'zh';
+  const { myShareId, myProfileName, myBoundEmail } = exploreCtx;
+  const hidden = getHiddenFeed();
+  const starred = getStarred();
+  const all = currentExploreFeed || [];
+  const isHid = x => hidden.includes(String(x.id));
+  const isStar = x => starred[String(x.id)] !== undefined;
+  const cities = {};
+  all.forEach(x => {
+    const pp = placeParts(tastingPlaceOf(x));
+    if (!pp || !pp.city) return;
+    (cities[pp.city] = cities[pp.city] || { n: 0, subs: {} }).n++;
+    if (pp.sub) cities[pp.city].subs[pp.sub] = (cities[pp.city].subs[pp.sub] || 0) + 1;
+  });
+  const cityNames = Object.keys(cities);
+  if (exploreFilter.city && !cities[exploreFilter.city]) exploreFilter.city = exploreFilter.sub = null;
+  const nHid = all.filter(isHid).length, nStar = all.filter(isStar).length;
+  const mode = exploreFilter.mode;
+
+  let list = all.filter(x => mode === 'hidden' ? isHid(x) : mode === 'starred' ? isStar(x) : !isHid(x));
+  if (exploreFilter.city) list = list.filter(x => { const pp = placeParts(tastingPlaceOf(x)); return pp && pp.city === exploreFilter.city && (!exploreFilter.sub || pp.sub === exploreFilter.sub); });
+
+  if (tagsEl) {
+    const subs = exploreFilter.city ? Object.keys(cities[exploreFilter.city].subs) : [];
+    tagsEl.innerHTML = `
+      <div class="ftag-row">
+        <span class="ftag ${mode==='all'?'on':''}" onclick="setExploreMode('all')">${zh?'全部':'All'}</span>
+        <span class="ftag ${mode==='starred'?'on':''}" onclick="setExploreMode('starred')">${zh?'已加星':'Starred'} ${nStar}</span>
+        <span class="ftag ${mode==='hidden'?'on':''}" onclick="setExploreMode('hidden')">${zh?'已隱藏':'Hidden'} ${nHid}</span>
+      </div>
+      <div class="ftag-row">
+        ${cityNames.length ? cityNames.map(c => `<span class="ftag ftag-loc ${exploreFilter.city===c?'on':''}" onclick="setExploreCity('${esc(c)}')">${esc(c)} ${cities[c].n}</span>`).join('') : `<span class="ftag-none">${zh?'暫無品飲地點':'No tasting places yet'}</span>`}
+      </div>
+      <div class="ftag-sub ${subs.length ? 'open' : ''}">
+        ${subs.map(sv => `<span class="ftag ftag-s ${exploreFilter.sub===sv?'on':''}" onclick="setExploreSub('${esc(sv)}')">${esc(sv)} ${cities[exploreFilter.city].subs[sv]}</span>`).join('')}
+      </div>`;
+  }
+
+  if (!list.length) {
+    feedEl.innerHTML = `<div class="empty-shelf">${mode==='hidden' ? (zh?'沒有隱藏的動態':'Nothing hidden') : mode==='starred' ? (zh?'尚未加星任何動態':'Nothing starred yet') : (zh?'暫無符合的動態':'No tastings match')}</div>`;
+    return;
+  }
+  feedEl.innerHTML = list.map((b, idx) => {
+    const c = bottleCountry(b), r = bottleRegion(b);
+    const isMine = isMyExploreItem(b, myShareId, myProfileName, myBoundEmail);
+    const place = tastingPlaceOf(b);
+    const swipeable = mode === 'all';
+    const undo = mode === 'hidden'
+      ? `<button class="feed-undo" onclick="event.stopPropagation(); unhideFeedItem('${esc(b.id)}')">${zh?'還原':'Restore'}</button>`
+      : mode === 'starred' ? `<button class="feed-undo" onclick="event.stopPropagation(); unstarFeedItem('${esc(b.id)}')">${zh?'取消加星':'Unstar'}</button>` : '';
+    return `
+        <div class="feed-swipe${swipeable && idx === 0 ? ' nudge' : ''}${swipeable ? '' : ' no-swipe'}" data-id="${esc(b.id)}" data-mine="${isMine ? 1 : 0}">
           <div class="feed-swipe-bg">
             <span class="fs-star">&#9733; ${zh ? '加星' : 'Star'}</span>
             <span class="fs-del">${isMine ? (zh ? '收回' : 'Remove') : (zh ? '隱藏' : 'Hide')} &#10005;</span>
@@ -2491,27 +2605,23 @@ async function renderRealWorldPinsAndFeed() {
             <div class="bottle-info" style="flex:1; min-width:0;">
               <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:4px;">
                 <div class="bottle-name">${esc(bottleName(b))}</div>
-                ${isMine ? `<span style="font-size:10px; font-family:var(--mono); color:#D4AF37; background:rgba(212,175,55,0.15); border:1px solid rgba(212,175,55,0.3); padding:1px 6px; border-radius:4px; white-space:nowrap;">${zh?'我的分享':'Mine'}</span>` : ''}
+                ${isMine ? `<span style="font-size:10px; font-family:var(--mono); color:#D4AF37; background:rgba(212,175,55,0.15); border:1px solid rgba(212,175,55,0.3); padding:1px 6px; border-radius:4px; white-space:nowrap;">${zh?'我的分享':'Mine'}</span>` : (isStar(b) ? `<span class="feed-starred">&#9733;</span>` : '')}
               </div>
               <div style="font-size:12.5px; color:var(--gold); margin-top:2px;">&#9733; ${b.personalRating||5}/5 ・ ${esc(b.author||'品飲同好')}</div>
               ${place ? `<div class="feed-place">📍 ${esc(place)}</div>` : ''}
               <div style="font-size:13px; color:var(--text-muted); margin-top:4px;">"${esc(b.diary?.notes || (zh ? '無額外筆記' : 'No notes'))}"</div>
               <div style="font-size:11.5px; color:var(--text-faint); margin-top:8px; display:flex; align-items:center; justify-content:space-between; gap:6px;">
                 <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;">🍷 ${esc((c + ' ' + (r || '')).trim())}</span>
+                ${undo}
                 <button class="feed-detail-link" onclick="event.stopPropagation(); openSharedTastingModal('${esc(b.id)}')" title="${zh?'查看分享內容':'View'}">
                   <span>${zh?'詳細':'Detail'}</span><span style="font-family:monospace; font-size:12px; margin-left:1px;">&gt;</span>
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      `;
-    }).join('');
-    attachFeedSwipe(feedEl);
-  } catch(e) {
-    const feedEl = document.getElementById('explore-feed');
-    if (feedEl) feedEl.innerHTML = `<div class="empty-shelf">${currentLang==='zh'?'暫時無法載入酒友動態。':'Unable to load public feed.'}</div>`;
-  }
+        </div>`;
+  }).join('');
+  attachFeedSwipe(feedEl);
 }
 
 // ---- 探索動態：左右滑動 (右滑加星 / 左滑刪除或隱藏) ----
@@ -2523,7 +2633,7 @@ function hideFeedItem(id) {
   try { localStorage.setItem('bottlesense_feed_hidden', JSON.stringify(h.slice(-300))); } catch (e) {}
 }
 function attachFeedSwipe(root) {
-  root.querySelectorAll('.feed-swipe').forEach(wrap => {
+  root.querySelectorAll('.feed-swipe:not(.no-swipe)').forEach(wrap => {
     const card = wrap.querySelector('.bottle-card');
     let sx = 0, sy = 0, dx = 0, drag = false, lock = null;
     wrap.addEventListener('touchstart', e => {
@@ -2548,10 +2658,11 @@ function attachFeedSwipe(root) {
       const id = wrap.dataset.id, mine = wrap.dataset.mine === '1';
       if (lock === 'x' && dx > 70) {
         if (mine) showToast(currentLang==='zh'?'這是您自己的分享':'This is your own share');
+        else if (getStarred()[String(id)] !== undefined) showToast(currentLang==='zh'?'已加星':'Already starred');
         else addExploreItemToWishlist(id);
       } else if (lock === 'x' && dx < -70) {
         if (mine) deleteMyExploreShare(id);
-        else { hideFeedItem(id); wrap.style.display = 'none'; showToast(currentLang==='zh'?'已隱藏此則動態':'Hidden'); }
+        else { hideFeedItem(id); showToast(currentLang==='zh'?'已隱藏，可在「已隱藏」標籤還原':'Hidden - restore from the Hidden tag'); renderFeedView(); }
       }
       if (lock === 'x' && Math.abs(dx) > 8) { wrap.dataset.swiped = '1'; setTimeout(() => { delete wrap.dataset.swiped; }, 350); }
     };
@@ -2775,7 +2886,9 @@ async function addExploreItemToWishlist(bottleId) {
   window.cellar.unshift(newBottle);
   await saveBottleToDB(newBottle);
   sendDemandSignal('share_wishlist', newBottle);
-  showToast(currentLang==='zh'?'✓ 已加入您的「願望清單」！':'✓ Added to Wishlist!');
+  const st = getStarred(); st[String(bottleId)] = newBottle.id; setStarred(st);
+  showToast(currentLang==='zh'?'已加星並放入「願望」，可在「已加星」標籤取消':'Starred and added to Wishlist');
+  if (currentView === 'explore') renderFeedView();
 }
 
 function openSharedTastingModal(bottleId) {
