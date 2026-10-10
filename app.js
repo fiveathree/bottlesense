@@ -2517,6 +2517,14 @@ let exploreCtx = {};
 let exploreFilter = { city: null, sub: null, mode: 'all' };
 const CITY_LIST = ['香港','澳門','台北','新北','台中','台南','高雄','東京','大阪','京都','首爾','新加坡','上海','北京','深圳','廣州','曼谷','倫敦','巴黎','紐約','悉尼'];
 const DISTRICT_CITY = { '中環':'香港','上環':'香港','灣仔':'香港','銅鑼灣':'香港','尖沙咀':'香港','旺角':'香港','佐敦':'香港','金鐘':'香港','荃灣':'香港','沙田':'香港','信義':'台北','大安':'台北','中山':'台北','松山':'台北','銀座':'東京','新宿':'東京','澀谷':'東京','六本木':'東京' };
+const PLACE_EN = { '香港':'Hong Kong','澳門':'Macau','台北':'Taipei','新北':'New Taipei','台中':'Taichung','台南':'Tainan','高雄':'Kaohsiung','東京':'Tokyo','大阪':'Osaka','京都':'Kyoto','首爾':'Seoul','新加坡':'Singapore','上海':'Shanghai','北京':'Beijing','深圳':'Shenzhen','廣州':'Guangzhou','曼谷':'Bangkok','倫敦':'London','巴黎':'Paris','紐約':'New York','悉尼':'Sydney','中環':'Central','上環':'Sheung Wan','灣仔':'Wan Chai','銅鑼灣':'Causeway Bay','尖沙咀':'Tsim Sha Tsui','旺角':'Mong Kok','佐敦':'Jordan','金鐘':'Admiralty','荃灣':'Tsuen Wan','沙田':'Sha Tin','信義':'Xinyi','大安':'Da'an','中山':'Zhongshan','松山':'Songshan','銀座':'Ginza','新宿':'Shinjuku','澀谷':'Shibuya','六本木':'Roppongi','家中':'Home' };
+function placeLabel(txt) {
+  const x = String(txt || '');
+  if (currentLang === 'zh') return x;
+  let out = x;
+  Object.keys(PLACE_EN).sort((a, b) => b.length - a.length).forEach(k => { out = out.split(k).join(PLACE_EN[k] + ' '); });
+  return out.replace(/\s+/g, ' ').trim();
+}
 function placeParts(place) {
   const raw = String(place || '').trim();
   if (!raw) return null;
@@ -2599,10 +2607,10 @@ function renderFeedView() {
     const subs = exploreFilter.city ? Object.keys(cities[exploreFilter.city].subs) : [];
     tagsEl.innerHTML = `
       <div class="ftag-row">
-        ${cityNames.length ? cityNames.map(c => `<span class="ftag ftag-loc ${exploreFilter.city===c?'on':''}" onclick="setExploreCity('${esc(c)}')">${esc(c)} ${cities[c].n}</span>`).join('') : `<span class="ftag-none">${zh?'暫無品飲地點':'No tasting places yet'}</span>`}
+        ${cityNames.length ? cityNames.map(c => `<span class="ftag ftag-loc ${exploreFilter.city===c?'on':''}" onclick="setExploreCity('${esc(c)}')">${esc(placeLabel(c))} ${cities[c].n}</span>`).join('') : `<span class="ftag-none">${zh?'暫無品飲地點':'No tasting places yet'}</span>`}
       </div>
       <div class="ftag-sub ${subs.length ? 'open' : ''}">
-        ${subs.map(sv => `<span class="ftag ftag-s ${exploreFilter.sub===sv?'on':''}" onclick="setExploreSub('${esc(sv)}')">${esc(sv)} ${cities[exploreFilter.city].subs[sv]}</span>`).join('')}
+        ${subs.map(sv => `<span class="ftag ftag-s ${exploreFilter.sub===sv?'on':''}" onclick="setExploreSub('${esc(sv)}')">${esc(placeLabel(sv))} ${cities[exploreFilter.city].subs[sv]}</span>`).join('')}
       </div>`;
   }
 
@@ -2632,7 +2640,7 @@ function renderFeedView() {
                 ${isMine ? `<span style="font-size:10px; font-family:var(--mono); color:#D4AF37; background:rgba(212,175,55,0.15); border:1px solid rgba(212,175,55,0.3); padding:1px 6px; border-radius:4px; white-space:nowrap;">${zh?'我的分享':'Mine'}</span>` : (isStar(b) ? `<span class="feed-starred">&#9733;</span>` : '')}
               </div>
               <div style="font-size:12.5px; color:var(--gold); margin-top:2px;">&#9733; ${b.personalRating||5}/5 ・ ${esc(b.author||'品飲同好')}</div>
-              ${place ? `<div class="feed-place">📍 ${esc(place)}</div>` : ''}
+              ${place ? `<div class="feed-place">📍 ${esc(placeLabel(place))}</div>` : ''}
               <div style="font-size:13px; color:var(--text-muted); margin-top:4px;">"${esc(b.diary?.notes || (zh ? '無額外筆記' : 'No notes'))}"</div>
               <div style="font-size:11.5px; color:var(--text-faint); margin-top:8px; display:flex; align-items:center; justify-content:space-between; gap:6px;">
                 <span style="flex:1;"></span>
