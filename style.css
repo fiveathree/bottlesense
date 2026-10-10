@@ -2169,3 +2169,11 @@ html { background: #0b0b0a; color-scheme: dark; }
 .pc-row2 .pc-buy { flex-direction: row; align-items: center; gap: 8px; }
 .pc-row2 .pc-buy label { white-space: nowrap; flex: none; }
 .pc-row2 .pc-buy input { flex: 1; min-width: 0; width: auto; }
+
+/* price card v3: compact buy-price row aligned with the AI-estimate line */
+.pc-row2 { align-items: start; }
+.pc-row2 .pc-tag, .pc-row2 .pc-none { line-height: 28px; font-size: 11px; }
+.pc-row2 .pc-buy { align-self: start; height: 28px; align-items: center; }
+.pc-row2 .pc-buy label { font-size: 11px; color: var(--text-faint); }
+.pc-row2 .pc-buy input { height: 28px; padding: 0 10px; font-size: 12.5px; border-radius: 9px; }
+.pc-row2 .pc-buy input::placeholder { color: var(--text-faint); font-size: 11px; }

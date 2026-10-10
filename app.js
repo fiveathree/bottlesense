@@ -970,8 +970,8 @@ function priceCardHTML(b) {
           ${badge}
         </div>
         ${isVisitorMode ? '' : `<div class="pc-buy">
-          <label for="buy-input">${zh ? '買入價' : 'You paid'} (${cur})</label>
-          <input id="buy-input" type="number" inputmode="decimal" min="0" placeholder="${zh ? '選填' : 'optional'}" value="${buyLocal ? Math.round(buyLocal) : ''}" onchange="setBuyPrice('${esc(b.id)}')">
+          <label for="buy-input">${zh ? '買入價' : 'You paid'}</label>
+          <input id="buy-input" type="number" inputmode="decimal" min="0" placeholder="${cur}" value="${buyLocal ? Math.round(buyLocal) : ''}" onchange="setBuyPrice('${esc(b.id)}')">
         </div>`}
       </div>
     </div>`;
