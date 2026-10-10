@@ -3596,7 +3596,7 @@ function renderSettings() {
         ${menuRow('👤', zhS ? '個人資料' : 'Profile', zhS ? '姓名、性別、生日' : 'Name, gender, birthday', "openSettings('profile')")}
         ${menuRow('🎴', zhS ? '珍藏圖鑑' : 'Collection', zhS ? '收藏進度與最愛酒款' : 'Progress and favorites', "openSettings('collection')")}
         ${menuRow('🏷', zhS ? '額度與邀請' : 'Credits & Invites', zhS ? '鑑識額度、兌換碼、邀請好友' : 'Scans, codes, invitations', "openSettings('credits')")}
-        ${menuRow('☁', zhS ? '雲端與帳號' : 'Cloud & Account', zhS ? '備份狀態、登出、註銷' : 'Backup, sign out, delete', "openSettings('account')")}
+        ${menuRow('☁', zhS ? '雲端與帳號' : 'Cloud & Account', zhS ? '備份狀態、所有裝置登出、註銷' : 'Backup, sign out everywhere, delete', "openSettings('account')")}
         ${menuRow('⚙', zhS ? '偏好與資料' : 'Preferences', zhS ? '購買建議、匯出、私隱政策' : 'Suggestions, export, privacy', "openSettings('prefs')")}
         ${menuRow('📲', zhS ? '安裝教學' : 'Install guide', zhS ? '加入手機主畫面' : 'Add to home screen', 'showPwaInstallModal()')}
       </div>`
@@ -3690,10 +3690,7 @@ function renderSettings() {
 
 
 
-          <button class="btn btn-wine btn-block" style="padding:10px; font-size:13px;" onclick="executeAccountLogout()">
-            ${currentLang === 'zh' ? '登出帳號' : 'Logout'}
-          </button>
-          <button class="btn btn-ghost btn-block" style="padding:9px; font-size:12px; margin-top:8px;" onclick="logoutAllDevices()">
+          <button class="btn btn-ghost btn-block" style="padding:9px; font-size:12px;" onclick="logoutAllDevices()">
             🔐 ${currentLang === 'zh' ? '登出所有裝置並更換同步碼' : 'Sign out everywhere & rotate key'}
           </button>
         </div>
@@ -3838,6 +3835,7 @@ function renderSettings() {
       <div class="modal-card" role="dialog" aria-modal="true" style="max-width:390px; text-align:left;" onclick="event.stopPropagation()">
         ${page === 'menu' ? `<h2 style="font-family:var(--serif); margin-bottom:14px; font-size:22px; color:var(--gold); text-align:center;">${t('settings_title')}</h2>` : ''}
         ${contentHTML}
+        ${(boundAccount && page === 'menu') ? `<button class="menu-logout" onclick="executeAccountLogout()">${zhS ? '登出' : 'Log out'}</button>` : ''}
         <button class="btn btn-ghost btn-block" style="padding:9px; font-size:13px; color:var(--text-faint); border-color:transparent;" onclick="closeModal()">
           ${t('btn_close')}
         </button>

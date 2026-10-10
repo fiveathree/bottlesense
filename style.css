@@ -2097,3 +2097,6 @@ select.text-input {
 .pc-note { margin-top: 10px; font-size: 13px; line-height: 1.7; color: var(--text); }
 .verdict-price { margin-top: 6px; color: #E8D48A; }
 .pc-v { white-space: nowrap; font-size: 16px; }
+
+.menu-logout { display: block; width: 100%; margin: 14px 0 4px; padding: 11px 0; background: transparent; border: 1px solid rgba(184,169,138,0.35); border-radius: 999px; color: #cdb98a; font-size: 13.5px; letter-spacing: 0.14em; cursor: pointer; }
+.menu-logout:hover { border-color: rgba(184,169,138,0.6); }
