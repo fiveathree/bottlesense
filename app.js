@@ -4441,22 +4441,8 @@ async function togglePublishSession(bottleId, sessionId) {
 
 
 /* ---- 手機鍵盤彈出時，彈窗跟隨可視範圍並自動捲到輸入框 ---- */
-(function setupKeyboardSafeModals() {
-  const vv = window.visualViewport;
-  const apply = () => {
-    if (!vv) return;
-    document.documentElement.style.setProperty('--vvh', vv.height + 'px');
-    document.documentElement.style.setProperty('--vvt', vv.offsetTop + 'px');
-    document.documentElement.classList.toggle('kb-open', window.innerHeight - vv.height > 140);
-  };
-  if (vv) { vv.addEventListener('resize', apply); vv.addEventListener('scroll', apply); apply(); }
-  document.addEventListener('focusin', (e) => {
-    const el = e.target;
-    if (!el || !el.closest || !el.closest('.modal-card')) return;
-    if (!/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
-    setTimeout(() => { try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch(e) {} }, 320);
-  });
-})();
+// 彈窗不再用 JS 追蹤鍵盤高度（會與 iOS 鍵盤互相干擾）；版面改由 CSS 處理
+
 
 
 /* ---------------- PWA service worker ---------------- */

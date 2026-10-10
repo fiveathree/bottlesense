@@ -998,18 +998,8 @@ select.text-input {
   z-index: 999;
   padding: 20px;
 }
-/* keep modals inside the visible area when the mobile keyboard is open */
-@supports (height: 1dvh) {
-  .modal-overlay {
-    inset: auto;
-    top: var(--vvt, 0px);
-    left: 0;
-    right: 0;
-    height: var(--vvh, 100dvh);
-  }
-}
 .modal-card {
-  max-height: calc(var(--vvh, 100dvh) - 40px);
+  max-height: calc(100dvh - 40px);
   overflow-y: auto;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -2168,8 +2158,14 @@ html { background: #0b0b0a; color-scheme: dark; }
 .pc-row2 .pc-buy input { width: 100%; }
 /* pour log: let the card scroll (never overflow), compact while the keyboard is open */
 .sess-card { overflow-y: auto; -webkit-overflow-scrolling: touch; }
-.kb-open .sess-chips, .kb-open .sess-date { display: none; }
 .pc-row2 { gap: 10px; }
 .pc-row2 .pc-buy { align-items: stretch; text-align: left; }
 .pc-row2 .pc-buy label { text-align: left; }
 .pc-row2 .pc-buy input { text-align: left; }
+
+/* modals: no JS-driven resizing (it fought the iOS keyboard); pour log is top-anchored so inputs stay visible */
+.modal-overlay:has(.sess-card) { align-items: flex-start; padding-top: max(16px, env(safe-area-inset-top)); }
+.sess-card { max-height: calc(100dvh - 32px); }
+.pc-row2 .pc-buy { flex-direction: row; align-items: center; gap: 8px; }
+.pc-row2 .pc-buy label { white-space: nowrap; flex: none; }
+.pc-row2 .pc-buy input { flex: 1; min-width: 0; width: auto; }
