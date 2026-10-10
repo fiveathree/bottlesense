@@ -1068,7 +1068,7 @@ export default {
           for (const k of sl.keys) { const [, mid, mo, kind] = k.name.split(':'); if (mo !== month) continue; (stats[mid] ||= {})[kind] = parseInt(await kv.get(k.name) || '0', 10); }
           const dl = await kv.list({ prefix: `demand:${month}:`, limit: 1000 });
           const demand = [];
-          for (const k of dl.keys) { const v = JSON.parse(await kv.get(k.name) || 'null'); if (v && v.c >= 3) demand.push({ ...v, type: k.name.split(':')[2] }); }
+          for (const k of dl.keys) { const v = JSON.parse(await kv.get(k.name) || 'null'); if (v) demand.push({ ...v, type: k.name.split(':')[2] }); }
           demand.sort((a, b) => b.c - a.c);
           return json({ month, merchants: stats, demand: demand.slice(0, 100) });
         }
