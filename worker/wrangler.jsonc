@@ -5,6 +5,9 @@
   "workers_dev": true,
   // keep GAS_URL / DEV_MODE and other variables you set in the dashboard
   "keep_vars": true,
+  // Anthropic API rejects requests that egress from some Asian data centers (403 "Request not allowed").
+  // Run the Worker next to the API in the US so every user, wherever they are, reaches it from a supported region.
+  "placement": { "region": "aws:us-east-1" },
   "kv_namespaces": [
     { "binding": "CELLAR_KV", "id": "2156c87518404b7d9bda22982f2ad518" }
   ]
