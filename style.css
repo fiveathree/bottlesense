@@ -2011,3 +2011,20 @@ select.text-input {
 .guest-banner { margin: 6px 0 10px; padding: 7px 10px; font-size: 11.5px; line-height: 1.45; }
 .filter-row { min-height: 38px; flex-wrap: nowrap; padding-bottom: 6px; margin-bottom: 6px; align-items: center; }
 .shelf-container { min-height: max(230px, calc(100dvh - 470px)); margin-bottom: 14px; }
+
+/* ---- round 17 ---- */
+.btn-quiet { background: transparent; border: 1px solid rgba(184,169,138,0.35); color: #a89c80; }
+.btn-quiet:hover { border-color: rgba(184,169,138,0.6); color: #cdb98a; }
+.tl-titlebar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+.tl-titlebar h3 { margin: 0 !important; }
+.tl-tools { display: flex; gap: 6px; flex: none; }
+.tl-invite { display: inline-flex; align-items: center; gap: 5px; }
+.tl-invite svg { width: 13px; height: 13px; fill: currentColor; }
+.tl-click { cursor: pointer; }
+.tl-card-party { position: relative; z-index: 2; background: linear-gradient(rgba(212,175,55,0.09), rgba(212,175,55,0.09)), #12110b; }
+.tl-card { position: relative; z-index: 1; background: linear-gradient(rgba(255,255,255,0.03), rgba(255,255,255,0.03)), #0f0e0a; }
+.tl-end { color: rgba(212,175,55,0.55); }
+.tl-end svg { background: none; }
+.feed-modes { display: flex; gap: 12px; align-items: center; font-size: 12.5px; }
+.fm { color: var(--text-faint); cursor: pointer; letter-spacing: 0.04em; padding: 2px 0; border-bottom: 1px solid transparent; }
+.fm.on { color: var(--gold); border-bottom-color: rgba(212,175,55,0.6); }

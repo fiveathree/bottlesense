@@ -804,7 +804,25 @@ function partyBannerHTML(b) {
     </div>` : '';
 }
 
+function scoreReason(k, vm, zh) {
+  const n = x => { const v = Number(x); return isFinite(v) && v > 0 ? v : 60; };
+  const band = (v, hi, mid) => v >= hi ? 0 : v >= mid ? 1 : 2;
+  const T = {
+    gift: [['包裝、名氣與價位足以體面送禮','Label, name and price suit a proper gift'],['可作心意小禮，送予相熟朋友','A modest gift for close friends'],['不建議作禮物，較適合與朋友一同開來喝','Not a gift - better opened together with friends']],
+    keep: [['具收藏與陳放價值，值得留待更好時機','Collectible and cellar-worthy - keep for later'],['略具收藏價值，可短期存放','Some keeping value - short-term storage'],['不具收藏價值，宜趁新鮮早飲','No keeping value - best drunk fresh']],
+    drink: [['入口表現佳，適合自己慢慢品嚐','Drinks well - enjoy it at your own pace'],['表現中規中矩，日常小酌即可','Decent - fine for everyday sipping'],['入口表現一般，可留作料理或調飲','Average - use for cooking or mixing']],
+    open: [['適合邀約友人共享，帶動話題','Great to open with friends and spark talk'],['小聚分享皆宜','Fine for a small gathering'],['話題性較低，宜自行品飲','Low talking-point - enjoy it alone']]
+  };
+  let i;
+  if (k === 'gift') i = band(n(vm.gv), 70, 50);
+  else if (k === 'keep') i = band(Math.max(n(vm.cv), n(vm.sto)), 65, 45);
+  else if (k === 'drink') i = band(n(vm.dv), 70, 50);
+  else i = band(n(vm.sv), 70, 50);
+  return T[k][i][zh ? 0 : 1];
+}
+
 function renderVerdictCard(b) {
+  const vmScore = bottleVM(b);
   const d = deriveVerdict(b);
   const v = VERDICTS[d.key];
   const zh = currentLang === 'zh';
@@ -829,7 +847,7 @@ function renderVerdictCard(b) {
         ${others.map(o => `
           <div class="verdict-other-row">
             <span class="verdict-other-tag">${VERDICTS[o.k].emoji} ${zh ? VERDICTS[o.k].zh : VERDICTS[o.k].en}</span>
-            <span>${esc(o.reason || (zh ? VERDICTS[o.k].headZh : VERDICTS[o.k].headEn))}</span>
+            <span>${esc(scoreReason(o.k, vmScore, zh))}</span>
           </div>`).join('')}
       </details>
     </div>`;
@@ -1168,7 +1186,7 @@ function renderBottleDetail(id) {
       ${isVisitorMode ? '' : `<div id="offers-slot"></div>`}
 
       ${isVisitorMode ? `<div style="margin-top:24px; text-align:center;"><button class="btn btn-primary btn-block" onclick="exitVisitorMode()">${currentLang==='zh'?'返回我的酒窖':'Back to my cellar'}</button></div>` : `<div style="margin-top:24px;">
-        <button class="btn btn-wine btn-block" onclick="deleteBottle('${esc(b.id)}')">${t('btn_remove')}</button>
+        <button class="btn btn-quiet btn-block" onclick="deleteBottle('${esc(b.id)}')">${t('btn_remove')}</button>
       </div>`}
     </div>
   `;
@@ -1197,16 +1215,15 @@ function timelineHTML(b) {
     return `
     <div class="tl-item ${side}" style="opacity:${op}">
       <span class="tl-dot"></span>
-      <div class="tl-card">
+      <div class="tl-card ${vis ? '' : 'tl-click'}" ${vis ? '' : `onclick="openMemoryCard('${esc(b.id)}', '${esc(x.id)}')"`}>
         <div class="tl-date">${esc(x.dateStr || x.date || '')}</div>
         <div class="tl-stars">${'&#9733;'.repeat(x.rating || 5)}</div>
         ${x.location ? `<div class="tl-meta">📍 ${esc(x.location)}</div>` : ''}
         ${x.companions ? `<div class="tl-meta">👥 ${esc(x.companions)}</div>` : ''}
         ${x.notes ? `<div class="tl-notes">&ldquo;${esc(x.notes)}&rdquo;</div>` : ''}
         ${vis ? '' : `<div class="tl-actions">
-          <button onclick="openMemoryCard('${esc(b.id)}', '${esc(x.id)}')">${zh ? '紀念卡' : 'Card'}</button>
-          <button onclick="togglePublishSession('${esc(b.id)}', '${esc(x.id)}')">${x.isPublic ? (zh ? '撤回' : 'Retract') : (zh ? '發布' : 'Publish')}</button>
-          <button onclick="openShareActionSheet('${esc(b.id)}', '${esc(x.id)}')">${zh ? '分享' : 'Share'}</button>
+          <button onclick="event.stopPropagation(); togglePublishSession('${esc(b.id)}', '${esc(x.id)}')">${x.isPublic ? (zh ? '撤回' : 'Retract') : (zh ? '發布' : 'Publish')}</button>
+          <button onclick="event.stopPropagation(); openShareActionSheet('${esc(b.id)}', '${esc(x.id)}')">${zh ? '分享' : 'Share'}</button>
         </div>`}
       </div>
     </div>`;
@@ -1217,17 +1234,19 @@ function timelineHTML(b) {
     ? `<div class="tl-empty">${t('no_logs')}</div>` : '';
   return `
       <div class="info-block tl-block" id="tasting-timeline-block">
-        <h3 style="margin-bottom:4px;">${t('timeline_title')}</h3>
-        <div style="font-size:13px; color:var(--text-faint); margin-bottom:12px;">${t('timeline_hint')}</div>
-        ${vis ? '' : `<div class="log-actions">
-          <button class="btn btn-primary btn-sm" onclick="openAddSessionModal('${esc(b.id)}')">${t('btn_add_log')}</button>
-          ${canInvite ? `<button class="btn btn-ghost btn-sm" onclick="openPourParty('${esc(b.id)}')">${zh ? '邀約共飲' : 'Invite to pour'}</button>` : ''}
-        </div>`}
+        <div class="tl-titlebar">
+          <h3>${t('timeline_title')}</h3>
+          ${vis ? '' : `<div class="tl-tools">
+            <button class="btn btn-primary btn-sm" onclick="openAddSessionModal('${esc(b.id)}')">${zh ? '記錄' : 'Log'}</button>
+            ${canInvite ? `<button class="btn btn-ghost btn-sm tl-invite" onclick="openPourParty('${esc(b.id)}')">${TELEGRAM_PLANE_SVG}<span>${zh ? '約飲' : 'Invite'}</span></button>` : ''}
+          </div>`}
+        </div>
+        <div style="font-size:13px; color:var(--text-faint); margin-bottom:14px;">${t('timeline_hint')}</div>
         ${empty}
         <div class="tl">
           ${party}${items}
           ${more}
-          <div class="tl-end"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v16M6 14l6 6 6-6"/></svg><span>${zh ? '期待無盡時光' : 'Endless moments await'}</span></div>
+          <div class="tl-end"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 20 3 6h18z"/></svg><span>${zh ? '期待無盡時光' : 'Endless moments await'}</span></div>
         </div>
       </div>`;
 }
@@ -2238,6 +2257,7 @@ async function renderExplore() {
 
       <div class="section-head" style="margin-top:4px; margin-bottom:8px;">
         <h2>${currentLang==='zh'?'酒友最新公開品飲':'Public Tasting Feed'}</h2>
+        <div id="feed-modes" class="feed-modes"></div>
       </div>
       <div id="feed-tags" class="feed-tags"></div>
       <div id="explore-feed" class="explore-feed" style="text-align:center; padding:6px 2px; color:var(--text-muted); font-size:14px;">
@@ -2552,7 +2572,8 @@ function renderFeedView() {
   const isHid = x => hidden.includes(String(x.id));
   const isStar = x => starred[String(x.id)] !== undefined;
   const cities = {};
-  all.forEach(x => {
+  const base = all.filter(x => exploreFilter.mode === 'hidden' ? isHid(x) : exploreFilter.mode === 'starred' ? isStar(x) : !isHid(x));
+  base.forEach(x => {
     const pp = placeParts(tastingPlaceOf(x));
     if (!pp || !pp.city) return;
     (cities[pp.city] = cities[pp.city] || { n: 0, subs: {} }).n++;
@@ -2566,14 +2587,14 @@ function renderFeedView() {
   let list = all.filter(x => mode === 'hidden' ? isHid(x) : mode === 'starred' ? isStar(x) : !isHid(x));
   if (exploreFilter.city) list = list.filter(x => { const pp = placeParts(tastingPlaceOf(x)); return pp && pp.city === exploreFilter.city && (!exploreFilter.sub || pp.sub === exploreFilter.sub); });
 
+  const modesEl = document.getElementById('feed-modes');
+  if (modesEl) {
+    const nAll = all.filter(x => !isHid(x)).length;
+    modesEl.innerHTML = `<span class="fm ${mode==='all'?'on':''}" onclick="setExploreMode('all')">${zh?'全部':'All'}</span><span class="fm ${mode==='starred'?'on':''}" onclick="setExploreMode('starred')">${zh?'已加星':'Starred'}${nStar ? ' ' + nStar : ''}</span><span class="fm ${mode==='hidden'?'on':''}" onclick="setExploreMode('hidden')">${zh?'已隱藏':'Hidden'}${nHid ? ' ' + nHid : ''}</span>`;
+  }
   if (tagsEl) {
     const subs = exploreFilter.city ? Object.keys(cities[exploreFilter.city].subs) : [];
     tagsEl.innerHTML = `
-      <div class="ftag-row">
-        <span class="ftag ${mode==='all'?'on':''}" onclick="setExploreMode('all')">${zh?'全部':'All'}</span>
-        <span class="ftag ${mode==='starred'?'on':''}" onclick="setExploreMode('starred')">${zh?'已加星':'Starred'} ${nStar}</span>
-        <span class="ftag ${mode==='hidden'?'on':''}" onclick="setExploreMode('hidden')">${zh?'已隱藏':'Hidden'} ${nHid}</span>
-      </div>
       <div class="ftag-row">
         ${cityNames.length ? cityNames.map(c => `<span class="ftag ftag-loc ${exploreFilter.city===c?'on':''}" onclick="setExploreCity('${esc(c)}')">${esc(c)} ${cities[c].n}</span>`).join('') : `<span class="ftag-none">${zh?'暫無品飲地點':'No tasting places yet'}</span>`}
       </div>
