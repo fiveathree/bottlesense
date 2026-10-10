@@ -3270,13 +3270,13 @@ function showQuotaExhausted(data) {
   const reset = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const resetStr = zh ? `${reset.getMonth() + 1} 月 1 日` : reset.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
   const desc = tier === 'guest'
-    ? (zh ? `未登入每月可免費鑑識 ${limit} 次，本月額度已全數使用。登入後每月可獲更多額度，並可雲端備份酒窖。` : `Guests get ${limit} free appraisals a month and this month's are used. Sign in for a larger allowance and cloud backup.`)
-    : (zh ? `本月 ${limit} 次鑑識額度已全數使用。可邀請朋友獲取額外額度，或等待下月重置。` : `Your ${limit} appraisals for this month are used. Invite friends for extra credits, or wait for the monthly reset.`);
+    ? (zh ? `未登入每月可免費鑑識 ${limit} 次<br>本月額度已全數使用<br>登入後可獲更多額度，並可雲端備份酒窖` : `Guests get ${limit} free appraisals a month.<br>This month's allowance is used up.<br>Sign in for more, plus cloud backup.`)
+    : (zh ? `本月 ${limit} 次鑑識額度已全數使用<br>可邀請朋友獲取額外額度<br>或等待下月重置` : `Your ${limit} appraisals for this month are used.<br>Invite friends for extra credits,<br>or wait for the monthly reset.`);
   main.innerHTML = `
     <div class="loading-view quota-out">
       <div class="quota-out-ring"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9s8 4 8 9"/></svg></div>
       <h2 style="font-family:var(--serif); font-size:22px; margin-top:6px;">${zh ? '本月鑑識額度已用完' : 'Monthly appraisals used up'}</h2>
-      <p style="color:var(--text-muted); font-size:14px; line-height:1.7; margin:12px 24px 6px;">${desc}</p>
+      <p style="color:var(--text-muted); font-size:14px; line-height:1.9; margin:12px 20px 8px; text-wrap:balance;">${desc}</p>
       <p style="color:var(--text-faint); font-size:12.5px; margin:0 24px 22px;">${zh ? '額度將於 ' + resetStr + ' 重置' : 'Resets on ' + resetStr}</p>
       ${tier === 'guest'
         ? `<button class="btn btn-primary" style="min-width:210px;" onclick="goHome(); openSettings('auth')">${zh ? '登入 / 註冊，獲取更多額度' : 'Sign in for more'}</button>`
