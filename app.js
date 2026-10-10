@@ -4138,6 +4138,10 @@ async function initApp() {
       return;
     }
     renderHome();
+    if (params.get('debug') === 'quota') {
+      const dt = params.get('tier') === 'guest' ? 'guest' : (params.get('tier') === 'free' ? 'free' : (localStorage.getItem('bottlesense_account_bound') ? 'free' : 'guest'));
+      showQuotaExhausted({ tier: dt, limit: dt === 'guest' ? 8 : 40 });
+    }
     schedulePhotoMigration();
     setTimeout(maybeShowOnboarding, 900);
     if (getSessionToken()) setTimeout(refreshMe, 1500);
