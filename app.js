@@ -170,7 +170,7 @@ const I18N = {
     empty_recent_loggedin: "尚未有最近加入的酒款<br>拍一瓶酒標，開始建立您的酒窖。",
     space_cooler: "未開",
     space_wood: "已飲",
-    space_bar: "盡飲",
+    space_bar: "飲盡",
     space_kept: "珍藏",
     space_gift: "饋贈",
     space_wish: "願望",
@@ -178,7 +178,7 @@ const I18N = {
     space_random: "🎲 隨機賞味",
     shelf_cooler_title: "⚡ 電子恆溫酒櫃（未開封）",
     shelf_wood_title: "🪵 梨花實木酒架（品鑑中）",
-    shelf_bar_title: "🥃 紀念空瓶牆（盡飲留念）",
+    shelf_bar_title: "🥃 紀念空瓶牆（飲盡留念）",
     shelf_kept_title: "💎 珍藏展示櫃（典藏）",
     shelf_gift_title: "🎁 緞帶禮盒櫃（已饋贈）",
     shelf_wish_title: "🏷️ 願望清單（心儀酒款）",
@@ -1200,16 +1200,18 @@ function timelineHTML(b) {
   const shown = isExpanded ? list : list.slice(0, 4);
   const vis = isVisitorMode;
   const canInvite = !vis && ['unopened','opened','kept'].includes(b.status);
-  const party = (b.party && !vis) ? `
-    <div class="tl-item tl-party">
+  const hasParty = !!(b.party && !vis);
+  const party = hasParty ? `
+    <div class="tl-item tl-left">
       <span class="tl-dot tl-dot-party"></span>
       <div class="tl-card tl-card-party">
         <div class="tl-party-tag">${zh ? '共飲邀約' : 'Pour invitation'}</div>
-        <div class="tl-party-info">${esc(b.party.date || '')} ${esc(b.party.place || '')}</div>
-        <button class="btn btn-primary btn-sm" onclick="finishPourParty('${esc(b.id)}')">${zh ? '活動結束，記錄這次' : 'Done - log it'}</button>
+        <div class="tl-party-info">${esc(b.party.date || '')}<br>${esc(b.party.place || '')}</div>
+        <button class="btn btn-primary btn-sm" onclick="finishPourParty('${esc(b.id)}')">${zh ? '記錄這次' : 'Log it'}</button>
       </div>
     </div>` : '';
-  const items = shown.map((x, idx) => {
+  const items = shown.map((x, i0) => {
+    const idx = i0 + (hasParty ? 1 : 0);
     const side = idx % 2 === 0 ? 'tl-left' : 'tl-right';
     const op = Math.max(0.42, 1 - idx * 0.13).toFixed(2);
     return `
@@ -4254,7 +4256,7 @@ function maybeShowOnboarding() {
       <div class="modal-card" role="dialog" aria-modal="true" style="max-width:360px; text-align:left;">
         <h2 style="font-family:var(--serif); color:var(--gold); font-size:20px; text-align:center; margin-bottom:14px;">${zh ? '歡迎使用 BottleSense' : 'Welcome to BottleSense'}</h2>
         <div class="onb-step"><span>📷</span><div><strong>${zh ? '拍攝酒標，AI 即時鑑識' : 'Snap a label'}</strong><br>${zh ? '自動填寫酒款、產區與價值評分。' : 'AI fills in the bottle details and value profile.'}</div></div>
-        <div class="onb-step"><span>🗂️</span><div><strong>${zh ? '以電子酒窖典藏您的酒' : 'Four spaces'}</strong><br>${zh ? '未開、已飲、盡飲、珍藏、饋贈與願望六處空間。可在酒款頁隨時移動。' : 'Unopened, Opened, Finished, Wishlist.'}</div></div>
+        <div class="onb-step"><span>🗂️</span><div><strong>${zh ? '以電子酒窖典藏您的酒' : 'Four spaces'}</strong><br>${zh ? '未開、已飲、飲盡、珍藏、饋贈與願望六處空間。可在酒款頁隨時移動。' : 'Unopened, Opened, Finished, Wishlist.'}</div></div>
         <div class="onb-step"><span>🌍</span><div><strong>${zh ? '探索酒友分享' : 'Explore'}</strong><br>${zh ? '在世界地圖上看看其他人在哪裡品嚐什麼酒。' : 'See what others are drinking around the world.'}</div></div>
         <div class="onb-step"><span>🎁</span><div><strong>${zh ? '登入有額外禮遇' : 'Perks when you sign in'}</strong><br>${zh ? '跨裝置同步、壽星送辨識額度、邀請朋友雙方有獎。' : 'Sync devices, birthday bonus, invite friends for rewards.'}</div></div>
         <button class="btn btn-primary btn-block" style="margin-top:14px;" onclick="try{localStorage.setItem('bottlesense_onboarded','1')}catch(e){}; closeModal();">${zh ? '開始使用' : 'Get started'}</button>

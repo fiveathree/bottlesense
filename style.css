@@ -2028,3 +2028,8 @@ select.text-input {
 .feed-modes { display: flex; gap: 12px; align-items: center; font-size: 12.5px; }
 .fm { color: var(--text-faint); cursor: pointer; letter-spacing: 0.04em; padding: 2px 0; border-bottom: 1px solid transparent; }
 .fm.on { color: var(--gold); border-bottom-color: rgba(212,175,55,0.6); }
+
+.tl-party-info { font-size: 12.5px; line-height: 1.5; }
+.tl-card-party { text-align: left; }
+.tl-card-party .btn { margin-top: 2px; }
+.tl-dot-party { background: #E8D48A; box-shadow: 0 0 10px rgba(232,212,138,0.7); }
