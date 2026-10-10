@@ -207,7 +207,7 @@ const I18N = {
     btn_close: "關閉",
     copied_toast: "✓ 已複製專屬連結至剪貼簿！",
     published_toast: "✓ 已成功發布至酒友探索池！",
-    explore_title: "世界名釀・金線地圖",
+    explore_title: "世界名釀・品酒地圖",
     explore_hint: "地圖已釘選各款名釀產地與同好分享地點，可上下左右拖曳與縮放！",
     confirm_delete: "確定要從酒庫移除這瓶酒？",
     no_random_bottle: "酒窖目前暫無藏酒，無法隨機抽選！",
@@ -270,7 +270,7 @@ const I18N = {
     published_toast: "✓ Published to Community Feed!",
     confirm_delete: "Are you sure you want to remove this bottle from cellar?",
     no_random_bottle: "No bottles in cellar to pick randomly!",
-    explore_title: "World Map & Tasting Feed",
+    explore_title: "World Wines · Tasting Map",
     explore_hint: "Pinch or drag to explore world wine regions and member tasting posts!",
     btn_cancel: "Cancel",
     btn_full_scan: "📷 Full Scan",
@@ -2140,7 +2140,7 @@ function tastingPlaceOf(b) {
 
 function resolveRegionalTarget(b) {
   if (!b) return null;
-  const loc = String(b.location || b.diary?.location || '').toLowerCase();
+  const loc = String(b.tastingLocation || b.location || b.diary?.location || '').toLowerCase();
   const origin = `${bottleRegion(b) || ''} ${bottleCountry(b) || ''} ${bottleName(b) || ''} ${b.identification?.producer || ''}`.toLowerCase();
   for (const text of [loc, origin]) {
     if (!text.trim()) continue;
@@ -2167,7 +2167,7 @@ function resolveRealImagePinPos(country, region, b = null) {
   const bName = b ? bottleName(b) : '';
   const bCat = b ? (b.category || b.identification?.category || '') : '';
   const bProd = b ? (b.identification?.producer || '') : '';
-  const bLoc = b ? (b.location || b.diary?.location || '') : '';
+  const bLoc = b ? (b.tastingLocation || b.location || b.diary?.location || '') : '';
 
   // 1. 優先以「品飲地點」定位 (例如在沖繩飲 → 釘在沖繩)
   const locText = String(bLoc || '').toLowerCase();
@@ -2251,14 +2251,8 @@ async function renderExplore() {
         </div>
       </div>
 
-      <!-- 下方操作指引 -->
-      <div style="font-size:11.5px; color:var(--text-faint); margin-top:4px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
-        <span>💡 ${currentLang==='zh'?'支援雙指縮放平移世界地圖':'Pinch/Drag to explore world map'}</span>
-        <span style="color:var(--gold-dim); font-size:11px;">${currentLang==='zh'?'點擊品飲卡片鏡頭自動飛航聚焦':'Tap card to focus region'}</span>
-      </div>
-
       <div class="section-head" style="margin-top:4px; margin-bottom:8px;">
-        <h2>${currentLang==='zh'?'酒友最新公開品飲':'Public Tasting Feed'}</h2>
+        <h2>${currentLang==='zh'?'酒友公開品飲地點':'Public Tasting Places'}</h2>
         <div id="feed-modes" class="feed-modes"></div>
       </div>
       <div id="feed-tags" class="feed-tags"></div>
@@ -2560,7 +2554,14 @@ function setExploreCity(c) {
   if (hit) flyToBottleRegion(hit.id);
   renderFeedView();
 }
-function setExploreSub(sv) { exploreFilter.sub = (exploreFilter.sub === sv) ? null : sv; renderFeedView(); }
+function setExploreSub(sv) {
+  exploreFilter.sub = (exploreFilter.sub === sv) ? null : sv;
+  if (exploreFilter.sub) {
+    const hit = (currentExploreFeed || []).find(x => { const pp = placeParts(tastingPlaceOf(x)); return pp && pp.city === exploreFilter.city && pp.sub === sv; });
+    if (hit) flyToBottleRegion(hit.id);
+  }
+  renderFeedView();
+}
 
 function renderFeedView() {
   const feedEl = document.getElementById('explore-feed');
@@ -2634,7 +2635,7 @@ function renderFeedView() {
               ${place ? `<div class="feed-place">📍 ${esc(place)}</div>` : ''}
               <div style="font-size:13px; color:var(--text-muted); margin-top:4px;">"${esc(b.diary?.notes || (zh ? '無額外筆記' : 'No notes'))}"</div>
               <div style="font-size:11.5px; color:var(--text-faint); margin-top:8px; display:flex; align-items:center; justify-content:space-between; gap:6px;">
-                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;">🍷 ${esc((c + ' ' + (r || '')).trim())}</span>
+                <span style="flex:1;"></span>
                 ${undo}
                 <button class="feed-detail-link" onclick="event.stopPropagation(); openSharedTastingModal('${esc(b.id)}')" title="${zh?'查看分享內容':'View'}">
                   <span>${zh?'詳細':'Detail'}</span><span style="font-family:monospace; font-size:12px; margin-left:1px;">&gt;</span>
