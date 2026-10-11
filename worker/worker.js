@@ -292,6 +292,37 @@ async function scanTier(request, kv, env) {
   return { tier: 'guest', id: gid, email: null, limit: envInt(env.SCAN_GUEST_MONTHLY, 8) };
 }
 
+// ============ AI 下一支推薦 ============
+const RECO_PROMPT = `你是一位世界級侍酒師。下面是用戶酒窖的摘要（只含酒款屬性，不含任何個人資料）。
+請分析他的口味偏好（品類、產地、風格）、價格帶與評分，推薦他「下一支值得試」的 4 支酒。
+
+規則：
+1. 只推薦真實存在、市面上買得到的具體酒款（寫出完整名稱與酒莊/品牌），不要虛構。
+2. 不可推薦他已擁有或已在願望清單內的酒款。
+3. 4 支的組合：2 支「安全牌」(貼近他已喜歡的風格)、1 支「小跳躍」(同風格但換產區或品類，擴闊口味)、1 支「高性價比」(同類裡價錢明顯較低而品質好)。
+4. 價格要落在他現有酒款的價格帶附近，除非 tag 係「小跳躍」；price_usd 為零售參考價範圍 [低, 高]（美元整數）。
+5. why：一句話說明為何適合他，要引用他酒窖裡的具體線索（例如「你收藏了 3 支蘇格蘭威士忌」）。
+
+只輸出嚴格純 JSON，不要 markdown：
+{"summary":"一句話總結他的口味畫像","picks":[{"tag":"安全牌|小跳躍|高性價比","name":"完整酒名","producer":"酒莊/品牌","category":"品類","country":"國家(繁體中文)","region":"產區(繁體中文)","country_en":"English","region_en":"English","vintage":"年份或NV","why":"一句話","price_usd":[低,高]}]}`;
+const RECO_EN = `
+
+[LANGUAGE] The user reads English. Write "summary" and every "why" in plain, elegant English (one sentence each). Keep category, country, region in Traditional Chinese as specified, and still fill country_en / region_en.`;
+function cleanReco(o) {
+  if (!o || !Array.isArray(o.picks)) return null;
+  const picks = o.picks.slice(0, 5).map(p => {
+    const pr = Array.isArray(p.price_usd) ? p.price_usd.map(Number).filter(x => isFinite(x) && x > 0) : [];
+    return {
+      tag: clip(String(p.tag || ''), 12), name: clip(String(p.name || ''), 140), producer: clip(String(p.producer || ''), 80),
+      category: clip(String(p.category || ''), 30), country: clip(String(p.country || ''), 40), region: clip(String(p.region || ''), 60),
+      country_en: clip(String(p.country_en || ''), 40), region_en: clip(String(p.region_en || ''), 60),
+      vintage: clip(String(p.vintage || ''), 12), why: clip(String(p.why || ''), 200),
+      price_usd: pr.length >= 2 ? [Math.round(pr[0]), Math.round(pr[1])] : null
+    };
+  }).filter(p => p.name);
+  return picks.length ? { summary: clip(String(o.summary || ''), 200), picks } : null;
+}
+
 // ============ 探索池 ============
 const EXP_TTL = 60 * 60 * 24 * 90;
 function sanitizeExploreItem(b, id, ownerShareId, origin) {
@@ -1166,6 +1197,36 @@ export default {
           return json({ success: true });
         }
         throw new HttpError(404, 'NOT_FOUND');
+      }
+
+      // ---------- AI 下一支推薦 (只收酒款屬性摘要) ----------
+      if (path === '/api/recommend' && request.method === 'POST') {
+        if (!env.ANTHROPIC_API_KEY) throw new HttpError(503, 'AI_NOT_CONFIGURED');
+        const b = await readJson(request, 60_000);
+        const tier = await scanTier(request, kv, env);
+        if (tier.email && await kv.get('ban:' + tier.email)) throw new HttpError(403, 'BANNED');
+        const daily = tier.tier === 'pro' ? 10 : tier.tier === 'free' ? 4 : 2;
+        const list = (Array.isArray(b.bottles) ? b.bottles : []).slice(0, 80).map(x => ({
+          n: clip(String(x.n || ''), 100), c: clip(String(x.c || ''), 24), k: clip(String(x.k || ''), 30), r: clip(String(x.r || ''), 40),
+          v: clip(String(x.v || ''), 8), s: clip(String(x.s || ''), 12), star: Math.max(0, Math.min(5, Number(x.star) || 0)),
+          usd: Number(x.usd) > 0 ? Math.round(Number(x.usd)) : 0, nt: Math.max(0, Math.min(99, Number(x.nt) || 0))
+        })).filter(x => x.n);
+        if (list.length < 2) throw new HttpError(400, 'NOT_ENOUGH_DATA');
+        const wish = (Array.isArray(b.wish) ? b.wish : []).slice(0, 40).map(x => clip(String(x), 100)).filter(Boolean);
+        await limitOrThrow(kv, `rl:reco:${tier.id}:${ymd()}`, daily, 86400, 'RATE_LIMITED');
+        await limitOrThrow(kv, `rl:recoall:${ymd()}`, envInt(env.RECO_GLOBAL_DAILY, 800), 86400, 'SERVICE_BUSY');
+        const body = `${b.lang === 'en' ? RECO_PROMPT + RECO_EN : RECO_PROMPT}\n\n【酒窖摘要】(n=名稱 c=品類 k=國家 r=產區 v=年份 s=狀態 star=個人評分1-5 usd=買入價美元 nt=品飲次數)\n${JSON.stringify(list)}\n【願望清單】${JSON.stringify(wish)}`;
+        let out = null;
+        try {
+          const txt = await callClaude(env, env.SCAN_MODEL_STRONG || 'claude-sonnet-5-5', [{ type: 'text', text: body }], 3000);
+          out = cleanReco(extractJson(txt));
+        } catch (er) {
+          try { await kv.put('ailast', JSON.stringify({ t: Date.now(), status: er.status || 0, model: er.model || '', msg: 'reco: ' + String(er.body || er.message || '').slice(0, 280) }), { expirationTtl: 60 * 60 * 24 * 14 }); } catch (e) {}
+          throw new HttpError(502, 'AI_UPSTREAM_ERROR');
+        }
+        if (!out) throw new HttpError(502, 'AI_UPSTREAM_ERROR');
+        await bumpDay(kv, { reco: 1 });
+        return json(out);
       }
 
       // ---------- AI 酒標辨識 (有配額、限大小) ----------

@@ -543,6 +543,83 @@ function openScene(scene) {
 }
 
 /* ---------------- 5 大空間酒窖渲染 ---------------- */
+/* ---------------- AI 下一支推薦 ---------------- */
+function recoPayload() {
+  const c = window.cellar || [];
+  const usd = b => (b.buy && Number(b.buy.amt) > 0 && CUR_RATE[b.buy.cur]) ? Number(b.buy.amt) / CUR_RATE[b.buy.cur] : 0;
+  const owned = c.filter(b => b.status !== 'wishlist');
+  return {
+    lang: currentLang,
+    bottles: owned.slice(0, 80).map(b => ({
+      n: bottleName(b), c: bottleCategory(b), k: bottleCountry(b), r: bottleRegion(b),
+      v: (String(bottleVintage(b)).match(/(19|20)\d{2}/) || [''])[0], s: b.status,
+      star: b.personalRating || 0, usd: usd(b), nt: (b.tastings || []).length
+    })),
+    wish: c.filter(b => b.status === 'wishlist').map(b => bottleName(b))
+  };
+}
+function recoSig(pl) { return pl.lang + '|' + pl.bottles.length + '|' + pl.wish.length + '|' + pl.bottles.map(b => b.s + b.star).join('').length + '|' + (window.cellar || []).reduce((m, b) => Math.max(m, b.addedAt || 0), 0); }
+async function openRecommend(force) {
+  if (blockIfVisitor()) return;
+  const zh = currentLang === 'zh';
+  const pl = recoPayload();
+  if (pl.bottles.length < 2) { showToast(zh ? '酒窖至少要有 2 支酒，AI 才能分析口味' : 'Add at least 2 bottles so AI can learn your taste'); return; }
+  const sig = recoSig(pl);
+  let cached = null;
+  try { cached = JSON.parse(localStorage.getItem('bottlesense_reco') || 'null'); } catch (e) {}
+  if (!force && cached && cached.sig === sig && cached.data) { showRecoModal(cached.data); return; }
+  modalContainer.innerHTML = `<div class="modal-overlay"><div class="modal-card reco-card" role="dialog" aria-modal="true"><div class="reco-loading"><div class="reco-spin"></div><div>${zh ? 'AI 正在分析你的酒窖…' : 'Analysing your cellar…'}</div><small>${zh ? '約需 10 至 20 秒' : 'about 10-20 seconds'}</small></div></div></div>`;
+  try {
+    const res = await apiFetch('/api/recommend', { method: 'POST', body: JSON.stringify(pl) });
+    let data = {}; try { data = await res.json(); } catch (e) {}
+    if (!res.ok) throw new Error(apiErrorMessage(data.error, data) || `Error (${res.status})`);
+    try { localStorage.setItem('bottlesense_reco', JSON.stringify({ sig, t: Date.now(), data })); } catch (e) {}
+    showRecoModal(data);
+  } catch (err) {
+    if (cached && cached.data) { showRecoModal(cached.data); showToast(err.message || (zh ? '分析失敗' : 'Failed')); return; }
+    modalContainer.innerHTML = `<div class="modal-overlay" onclick="closeModal()"><div class="modal-card reco-card" onclick="event.stopPropagation()"><div class="reco-loading"><div>${esc(err.message || (zh ? '分析失敗，請稍後再試' : 'Something went wrong'))}</div></div><button class="btn btn-ghost btn-block" onclick="closeModal()">${zh ? '關閉' : 'Close'}</button></div></div>`;
+  }
+}
+function showRecoModal(d) {
+  const zh = currentLang === 'zh', cur = priceCur();
+  window._recoPicks = d.picks || [];
+  const tagTxt = t0 => ({ '安全牌': zh ? '安全牌' : 'Safe bet', '小跳躍': zh ? '小跳躍' : 'Stretch', '高性價比': zh ? '高性價比' : 'Best value' })[t0] || esc(t0);
+  const place = p => [currentLang === 'en' ? (p.country_en || dz(p.country)) : p.country, currentLang === 'en' ? (p.region_en || dz(p.region)) : p.region].filter(Boolean).join(' ・ ');
+  const added = new Set((window.cellar || []).filter(b => b.status === 'wishlist').map(b => bottleName(b).toLowerCase()));
+  modalContainer.innerHTML = `
+    <div class="modal-overlay" onclick="closeModal()">
+      <div class="modal-card reco-card" role="dialog" aria-modal="true" onclick="event.stopPropagation()">
+        <div class="reco-top"><div class="reco-title">${zh ? '下一支，試這些' : 'Try these next'}</div><button type="button" class="sess-x" aria-label="close" onclick="closeModal()">&times;</button></div>
+        ${d.summary ? `<div class="reco-sum">${esc(d.summary)}</div>` : ''}
+        ${(d.picks || []).map((p, i) => `
+          <div class="reco-pick">
+            <div class="reco-pick-head"><span class="reco-tag reco-tag-${i}">${tagTxt(p.tag)}</span>${p.price_usd ? `<span class="reco-price">${fmtMoney(p.price_usd[0], cur)} - ${fmtMoney(p.price_usd[1], cur).replace(CUR_SYM[cur], '')}</span>` : ''}</div>
+            <div class="reco-name">${esc(p.name)}${p.vintage && p.vintage !== 'NV' ? ` <span class="reco-vin">${esc(p.vintage)}</span>` : ''}</div>
+            <div class="reco-meta">${esc([p.producer, place(p)].filter(Boolean).join(' ・ '))}</div>
+            <div class="reco-why">${esc(p.why)}</div>
+            <button class="btn btn-ghost btn-sm reco-add" id="reco-add-${i}" ${added.has(String(p.name).toLowerCase()) ? 'disabled' : ''} onclick="addRecoToWishlist(${i})">${added.has(String(p.name).toLowerCase()) ? (zh ? '已在願望清單' : 'In wishlist') : (zh ? '加入願望清單' : 'Add to wishlist')}</button>
+          </div>`).join('')}
+        <div class="reco-foot">${zh ? 'AI 依你的酒窖屬性推薦，價格僅供參考。' : 'AI suggestions from your cellar attributes; prices are estimates.'} <a href="javascript:void(0)" onclick="openRecommend(true)">${zh ? '重新分析' : 'Re-analyse'}</a></div>
+      </div>
+    </div>`;
+}
+async function addRecoToWishlist(i) {
+  const p = (window._recoPicks || [])[i]; if (!p) return;
+  const ident = { name: p.name, producer: p.producer, category: p.category, country: p.country, region: p.region, country_en: p.country_en, region_en: p.region_en, vintage: p.vintage || 'NV' };
+  const nb = normalizeBottle({
+    id: uid(), identification: ident,
+    scan: { ...ident, price: p.price_usd ? { retail_usd: p.price_usd, conf: 'low' } : undefined },
+    tags: { category: p.category, vintage: p.vintage || 'NV', country: p.country, region: p.region },
+    tastings: [], isFavorite: false, status: 'wishlist', addedAt: Date.now()
+  });
+  window.cellar.unshift(nb);
+  await saveBottleToDB(nb);
+  sendDemandSignal('wishlist', nb);
+  const btn = document.getElementById('reco-add-' + i);
+  if (btn) { btn.disabled = true; btn.textContent = currentLang === 'zh' ? '已在願望清單' : 'In wishlist'; }
+  showToast(currentLang === 'zh' ? '✓ 已加入願望清單' : '✓ Added to wishlist');
+}
+
 function renderCellar() {
   window._detailId = null;
   currentView = 'cellar';
@@ -597,6 +674,12 @@ function renderCellar() {
       </div>
 
       ${guestBannerHTML()}
+
+      ${isVisitorMode ? '' : `<button class="reco-entry" onclick="openRecommend()">
+        <span class="reco-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18.5 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></svg></span>
+        <span class="reco-tx"><b>${currentLang === 'zh' ? 'AI 推薦下一支' : 'What to try next'}</b><small>${currentLang === 'zh' ? '按你的酒窖口味與價位分析' : 'Based on your cellar taste and budget'}</small></span>
+        <span class="reco-go">&rsaquo;</span>
+      </button>`}
 
       <div class="cellar-scene-tabs">
         <div class="scene-tab ${currentScene==='cooler'?'active-cooler':''}" onclick="switchScene('cooler')">
