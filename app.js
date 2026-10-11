@@ -593,21 +593,40 @@ function showRecoModal(d) {
         ${d.summary ? `<div class="reco-sum">${esc(d.summary)}</div>` : ''}
         ${(d.picks || []).map((p, i) => `
           <div class="reco-pick">
+            <div class="reco-row">
+            <div class="reco-img" id="reco-img-${i}">${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy">` : `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3h4v4.2c0 .8.5 1.3 1.2 2A5 5 0 0 1 16.5 12.5V19a2 2 0 0 1-2 2h-5a2 2 0 0 1-2-2v-6.5a5 5 0 0 1 1.3-3.3c.7-.7 1.2-1.2 1.2-2z"/><path d="M8.5 14h7M8.5 17.5h7"/></svg>`}</div>
+            <div class="reco-body">
             <div class="reco-pick-head"><span class="reco-tag reco-tag-${i}">${tagTxt(p.tag)}</span>${p.price_usd ? `<span class="reco-price">${fmtMoney(p.price_usd[0], cur)} - ${fmtMoney(p.price_usd[1], cur).replace(CUR_SYM[cur], '')}</span>` : ''}</div>
             <div class="reco-name">${esc(p.name)}${p.vintage && p.vintage !== 'NV' ? ` <span class="reco-vin">${esc(p.vintage)}</span>` : ''}</div>
             <div class="reco-meta">${esc([p.producer, place(p)].filter(Boolean).join(' ・ '))}</div>
             <div class="reco-why">${esc(p.why)}</div>
+            </div></div>
             <button class="btn btn-ghost btn-sm reco-add" id="reco-add-${i}" ${added.has(String(p.name).toLowerCase()) ? 'disabled' : ''} onclick="addRecoToWishlist(${i})">${added.has(String(p.name).toLowerCase()) ? (zh ? '已在願望清單' : 'In wishlist') : (zh ? '加入願望清單' : 'Add to wishlist')}</button>
           </div>`).join('')}
         <div class="reco-foot">${zh ? 'AI 依你的酒窖屬性推薦，價格僅供參考。' : 'AI suggestions from your cellar attributes; prices are estimates.'} <a href="javascript:void(0)" onclick="openRecommend(true)">${zh ? '重新分析' : 'Re-analyse'}</a></div>
       </div>
     </div>`;
+  loadRecoImages();
+}
+async function loadRecoImages() {
+  const picks = window._recoPicks || [];
+  await Promise.all(picks.map(async (p, i) => {
+    if (p.img !== undefined) return;
+    try {
+      const res = await fetch(`${WORKER_API_URL}/api/bottle-image`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: p.name, producer: p.producer }) });
+      const o = res.ok ? await res.json() : {};
+      p.img = o.url || '';
+    } catch (e) { p.img = ''; }
+    const box = document.getElementById('reco-img-' + i);
+    if (box && p.img) box.innerHTML = `<img src="${esc(p.img)}" alt="">`;
+  }));
+  try { const c = JSON.parse(localStorage.getItem('bottlesense_reco') || 'null'); if (c && c.data) { c.data.picks = picks; localStorage.setItem('bottlesense_reco', JSON.stringify(c)); } } catch (e) {}
 }
 async function addRecoToWishlist(i) {
   const p = (window._recoPicks || [])[i]; if (!p) return;
   const ident = { name: p.name, producer: p.producer, category: p.category, country: p.country, region: p.region, country_en: p.country_en, region_en: p.region_en, vintage: p.vintage || 'NV' };
   const nb = normalizeBottle({
-    id: uid(), identification: ident,
+    id: uid(), identification: ident, image: p.img || '',
     scan: { ...ident, price: p.price_usd ? { retail_usd: p.price_usd, conf: 'low' } : undefined },
     tags: { category: p.category, vintage: p.vintage || 'NV', country: p.country, region: p.region },
     tastings: [], isFavorite: false, status: 'wishlist', addedAt: Date.now()

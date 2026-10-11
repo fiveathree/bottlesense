@@ -1199,6 +1199,35 @@ export default {
         throw new HttpError(404, 'NOT_FOUND');
       }
 
+      // ---------- 酒款參考圖：Wikimedia Commons 搜尋，嚴格比對名稱，找不到就回傳 null ----------
+      if (path === '/api/bottle-image' && request.method === 'POST') {
+        const b = await readJson(request, 2_000);
+        const name = clip(String(b.name || ''), 120).trim(), producer = clip(String(b.producer || ''), 80).trim();
+        if (!name) throw new HttpError(400, 'MISSING_NAME');
+        await limitOrThrow(kv, `rl:bimg:${ip}:${ymd()}`, 80, 86400);
+        const ck = 'bimg:' + (await sha256hex((name + '|' + producer).toLowerCase())).slice(0, 24);
+        const hitc = await kv.get(ck);
+        if (hitc !== null) return json({ url: hitc === '-' ? null : hitc });
+        const stop = new Set(['year', 'years', 'old', 'the', 'single', 'malt', 'whisky', 'whiskey', 'wine', 'and', 'de', 'la', 'le', 'des', 'du', 'of', 'nv', 'limited', 'edition', 'reserve', 'cask', 'strength']);
+        const toks = s2 => String(s2).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').split(/[^a-z0-9]+/).filter(x => x.length >= 3 && !stop.has(x));
+        const want = [...new Set(toks(name + ' ' + producer))].slice(0, 5);
+        let found = null;
+        try {
+          const q = encodeURIComponent(`${name} ${producer && !name.toLowerCase().includes(producer.toLowerCase()) ? producer : ''} bottle`.trim());
+          const r = await fetch(`https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${q}&gsrnamespace=6&gsrlimit=10&prop=imageinfo&iiprop=url|mime&iiurlwidth=260&format=json&origin=*`, { headers: { 'User-Agent': 'BottleSense/1.0 (https://fiveathree.github.io/bottlesense)' } });
+          const j = r.ok ? await r.json() : null;
+          const pages = j && j.query && j.query.pages ? Object.values(j.query.pages).sort((x, y) => (x.index || 0) - (y.index || 0)) : [];
+          const need = Math.max(1, Math.min(2, want.length));
+          for (const pg of pages) {
+            const ii = pg.imageinfo && pg.imageinfo[0]; if (!ii || !/^image\/(jpeg|png|webp)$/.test(ii.mime || '')) continue;
+            const tt = new Set(toks(pg.title || ''));
+            if (want.filter(w => tt.has(w)).length >= need && ii.thumburl && /^https:\/\/upload\.wikimedia\.org\//.test(ii.thumburl)) { found = ii.thumburl; break; }
+          }
+        } catch (e) {}
+        await kv.put(ck, found || '-', { expirationTtl: found ? 60 * 60 * 24 * 30 : 60 * 60 * 24 * 3 });
+        return json({ url: found });
+      }
+
       // ---------- AI 下一支推薦 (只收酒款屬性摘要) ----------
       if (path === '/api/recommend' && request.method === 'POST') {
         if (!env.ANTHROPIC_API_KEY) throw new HttpError(503, 'AI_NOT_CONFIGURED');
