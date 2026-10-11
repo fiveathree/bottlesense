@@ -668,18 +668,14 @@ function renderCellar() {
   const filterSet = new Set();
   spaceList.forEach(b => {
     const cat = bottleCategory(b);
-    const reg = bottleRegion(b);
-    const vin = bottleVintage(b);
     if (cat) filterSet.add(cat);
-    if (reg && reg !== '未知產區' && reg !== '未知') filterSet.add(reg);
-    if (vin && vin !== '無年份') filterSet.add(vin);
   });
   const filterOptions = ['all', ...Array.from(filterSet)];
 
   const activeList = (activeFilter === 'all')
     ? spaceList
     : spaceList.filter(b => {
-        return bottleCategory(b) === activeFilter || bottleRegion(b) === activeFilter || bottleVintage(b) === activeFilter;
+        return bottleCategory(b) === activeFilter;
       });
 
   main.innerHTML = `
