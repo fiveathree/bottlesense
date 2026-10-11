@@ -292,6 +292,52 @@ async function scanTier(request, kv, env) {
   return { tier: 'guest', id: gid, email: null, limit: envInt(env.SCAN_GUEST_MONTHLY, 8) };
 }
 
+// ============ 酒款圖片索引：探索池內其他酒友公開嘅酒瓶相 ============
+const IMG_STOP = new Set(['year', 'years', 'old', 'the', 'single', 'malt', 'whisky', 'whiskey', 'wine', 'and', 'de', 'la', 'le', 'des', 'du', 'of', 'nv', 'limited', 'edition', 'reserve', 'cask', 'strength', 'bottle']);
+function nameToks(s2) { return [...new Set(String(s2 || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').split(/[^a-z0-9\u4e00-\u9fff]+/).filter(x => x.length >= (/[\u4e00-\u9fff]/.test(x) ? 2 : 2) && !IMG_STOP.has(x)))].slice(0, 8); }
+async function expImgAdd(kv, clean) {
+  try {
+    if (!clean || !clean.image || !/^https:\/\//.test(clean.image)) return;
+    const idn = clean.identification || {};
+    const toks = nameToks((idn.name || '') + ' ' + (idn.producer || ''));
+    if (toks.length < 2) return;
+    const cur = JSON.parse(await kv.get('expimg:index') || '[]').filter(e => e.id !== clean.id);
+    cur.unshift({ id: clean.id, k: toks, img: clean.image, t: Date.now() });
+    await kv.put('expimg:index', JSON.stringify(cur.slice(0, 250)), { expirationTtl: 60 * 60 * 24 * 120 });
+  } catch (e) {}
+}
+async function expImgRemove(kv, id) {
+  try { const raw = await kv.get('expimg:index'); if (!raw) return; await kv.put('expimg:index', JSON.stringify(JSON.parse(raw).filter(e => e.id !== id)), { expirationTtl: 60 * 60 * 24 * 120 }); } catch (e) {}
+}
+async function expImgIndex(kv) {
+  let raw = await kv.get('expimg:index');
+  if (raw) { try { return JSON.parse(raw); } catch (e) {} }
+  // 首次：由現有公開項目建立 (最多取 40 項，避免過多子請求)
+  const l = await kv.list({ prefix: 'exp:', limit: 300 });
+  const keys = l.keys.filter(k => !(k.metadata && k.metadata.h)).sort((a, b) => ((b.metadata && b.metadata.t) || 0) - ((a.metadata && a.metadata.t) || 0)).slice(0, 40);
+  const out = [];
+  for (const v of await Promise.all(keys.map(k => kv.get(k.name)))) {
+    if (!v) continue;
+    try { const it = JSON.parse(v); const idn = it.identification || {}; const toks = nameToks((idn.name || '') + ' ' + (idn.producer || '')); if (it.image && /^https:\/\//.test(it.image) && toks.length >= 2) out.push({ id: it.id, k: toks, img: it.image, t: it.publishedAt || 0 }); } catch (e) {}
+  }
+  try { await kv.put('expimg:index', JSON.stringify(out), { expirationTtl: 60 * 60 * 24 * 120 }); } catch (e) {}
+  return out;
+}
+function expImgMatch(index, want) {
+  if (!want.length) return null;
+  const nums = want.filter(w => /^\d+$/.test(w));
+  let best = null, bestScore = 0;
+  for (const e of index) {
+    const set = new Set(e.k);
+    const hit = want.filter(w => set.has(w)).length;
+    const enums = e.k.filter(w => /^\d+$/.test(w));
+    if (nums.length && enums.length && !nums.some(n => enums.includes(n))) continue; // 年數/年份不同 = 不同酒款
+    const need = Math.max(2, Math.ceil(Math.min(want.length, e.k.length) * 0.66));
+    if (hit >= need && hit > bestScore) { best = e; bestScore = hit; }
+  }
+  return best ? best.img : null;
+}
+
 // ============ AI 下一支推薦 ============
 const RECO_PROMPT = `你是一位世界級侍酒師。下面是用戶酒窖的摘要（只含酒款屬性，不含任何個人資料）。
 請分析他的口味偏好（品類、產地、風格）、價格帶與評分，推薦他「下一支值得試」的 4 支酒。
@@ -885,6 +931,7 @@ export default {
         if (mod.v === 'not_alcohol') throw new HttpError(422, 'NOT_ALCOHOL_IMAGE');
         const status = mod.v === 'ok' ? 'live' : 'pending';
         await kv.put('exp:' + id, JSON.stringify(clean), { metadata: { t: clean.publishedAt, o: share, ...(status === 'pending' ? { h: 2 } : {}) }, expirationTtl: EXP_TTL });
+        if (status === 'live') await expImgAdd(kv, clean);
         await bumpDay(kv, status === 'pending' ? { publish: 1, publish_pending: 1 } : { publish: 1 });
         return json({ success: true, status });
       }
@@ -1189,11 +1236,13 @@ export default {
           const md = { ...(cur.metadata || {}) }; delete md.h;
           await kv.put('exp:' + id, cur.value, { metadata: md, expirationTtl: EXP_TTL });
           await kv.delete('repcount:' + id);
+          try { await expImgAdd(kv, JSON.parse(cur.value)); } catch (e) {}
           return json({ success: true });
         }
         if (path === '/api/admin/explore/remove' && request.method === 'POST') {
           const { id } = await readJson(request, 1000);
           await kv.delete('exp:' + id);
+          await expImgRemove(kv, id);
           return json({ success: true });
         }
         throw new HttpError(404, 'NOT_FOUND');
@@ -1208,11 +1257,11 @@ export default {
         const ck = 'bimg:' + (await sha256hex((name + '|' + producer).toLowerCase())).slice(0, 24);
         const hitc = await kv.get(ck);
         if (hitc !== null) return json({ url: hitc === '-' ? null : hitc });
-        const stop = new Set(['year', 'years', 'old', 'the', 'single', 'malt', 'whisky', 'whiskey', 'wine', 'and', 'de', 'la', 'le', 'des', 'du', 'of', 'nv', 'limited', 'edition', 'reserve', 'cask', 'strength']);
-        const toks = s2 => String(s2).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').split(/[^a-z0-9]+/).filter(x => x.length >= 3 && !stop.has(x));
+        const toks = s2 => String(s2).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').split(/[^a-z0-9]+/).filter(x => x.length >= 3 && !IMG_STOP.has(x));
         const want = [...new Set(toks(name + ' ' + producer))].slice(0, 5);
-        let found = null;
-        try {
+        let found = null, src = '';
+        try { found = expImgMatch(await expImgIndex(kv), nameToks(name + ' ' + producer)); if (found) src = 'explore'; } catch (e) {}
+        if (!found) try {
           const q = encodeURIComponent(`${name} ${producer && !name.toLowerCase().includes(producer.toLowerCase()) ? producer : ''} bottle`.trim());
           const r = await fetch(`https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${q}&gsrnamespace=6&gsrlimit=10&prop=imageinfo&iiprop=url|mime&iiurlwidth=260&format=json&origin=*`, { headers: { 'User-Agent': 'BottleSense/1.0 (https://fiveathree.github.io/bottlesense)' } });
           const j = r.ok ? await r.json() : null;
@@ -1224,8 +1273,8 @@ export default {
             if (want.filter(w => tt.has(w)).length >= need && ii.thumburl && /^https:\/\/upload\.wikimedia\.org\//.test(ii.thumburl)) { found = ii.thumburl; break; }
           }
         } catch (e) {}
-        await kv.put(ck, found || '-', { expirationTtl: found ? 60 * 60 * 24 * 30 : 60 * 60 * 24 * 3 });
-        return json({ url: found });
+        await kv.put(ck, found || '-', { expirationTtl: found ? 60 * 60 * 24 * 30 : 60 * 60 * 6 });
+        return json({ url: found, src: found ? (src || 'commons') : '' });
       }
 
       // ---------- AI 下一支推薦 (只收酒款屬性摘要) ----------
