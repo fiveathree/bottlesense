@@ -95,6 +95,7 @@ const SCAN_PROMPT = `你是一個世界頂級侍酒師與酒類數據庫專家�
   "country_en": "Country name in English",
   "region_en": "Region name in English",
   "price": { "retail_usd": [35, 55], "market_usd": [40, 70], "conf": "medium" },
+  "critics": { "tier": "strong", "band": "90-94", "src": ["Wine Advocate"], "buzz": "medium", "conf": "medium" },
   "vintage": "年份（若無年份寫無年份）",
   "abv": "酒精度（如 43%）",
   "vol": "容量（如 700ml）",
@@ -140,7 +141,31 @@ const SCAN_PROMPT = `你是一個世界頂級侍酒師與酒類數據庫專家�
 - sv (社交話題)：知名度、品牌傳奇與討論度 (30-95 分)。
 - gv (送禮價值)：排面、外觀與受禮喜好度。日常啤酒/罐裝打 20-35 分；精裝烈酒/名莊打 75-95 分。
 - cv (收藏價值)：【極其嚴格】只有具備罕見性、拍賣價值或陳年升值空間的名酒(如波爾多特級名莊、高年份單一麥芽威士忌、貴州茅台)才可給 70-98 分；大眾商業量產啤酒、罐裝啤酒、即飲平價酒【嚴禁高分，必須給 5-25 分】！
-- sto (保存價值)：【極其嚴格】指長期陳年潛力。啤酒、生酒必須於數月內飲用，保存價值必須給 10-30 分；具備 10 年以上陳年能力的名莊葡萄酒或烈酒才可給 80-95 分。`;
+- sto (保存價值)：【極其嚴格】指長期陳年潛力。啤酒、生酒必須於數月內飲用，保存價值必須給 10-30 分；具備 10 年以上陳年能力的名莊葡萄酒或烈酒才可給 80-95 分。
+
+【critics 規則（專業評價佐證，必須保守）】
+- tier 只能是：acclaimed（國際評酒界普遍高度推崇）/ strong（評價良好）/ solid（中規中矩）/ everyday（日常平價酒，專業評審一般不關注）/ unknown。
+- band 為專業評分級別（100 分制），只能是 "95+" "90-94" "85-89" "80-84" "<80" 或 null。只可填級別，絕不可寫具體分數。
+- src 只列你確實知道曾評論該酒款或該酒廠的機構，最多 3 個，只能從以下名單挑選：Wine Advocate, Wine Spectator, Decanter, James Suckling, Jancis Robinson, Vinous, Whisky Advocate, Jim Murray's Whisky Bible, World Whiskies Awards, IWSC, Gambero Rosso, Falstaff, National New Sake Awards, SAKE COMPETITION, World Beer Cup。
+- buzz 為網上討論度／話題度：high / medium / low / unknown。
+- conf 為你對以上內容的把握 high / medium / low。
+- 凡不確定，tier 填 unknown、band 填 null、src 填 []、conf 填 low，絕對不可編造。
+`;
+
+const CRIT_SRC = ['Wine Advocate', 'Wine Spectator', 'Decanter', 'James Suckling', 'Jancis Robinson', 'Vinous', 'Whisky Advocate', "Jim Murray's Whisky Bible", 'World Whiskies Awards', 'IWSC', 'Gambero Rosso', 'Falstaff', 'National New Sake Awards', 'SAKE COMPETITION', 'World Beer Cup'];
+function cleanCritics(c) {
+  const pick = (v, arr, d) => (arr.includes(v) ? v : d);
+  if (!c || typeof c !== 'object') return { tier: 'unknown', band: null, src: [], buzz: 'unknown', conf: 'low' };
+  const tier = pick(c.tier, ['acclaimed', 'strong', 'solid', 'everyday', 'unknown'], 'unknown');
+  const out = {
+    tier,
+    band: tier === 'unknown' ? null : pick(c.band, ['95+', '90-94', '85-89', '80-84', '<80'], null),
+    src: tier === 'unknown' ? [] : [...new Set((Array.isArray(c.src) ? c.src : []).filter(s => CRIT_SRC.includes(s)))].slice(0, 3),
+    buzz: pick(c.buzz, ['high', 'medium', 'low', 'unknown'], 'unknown'),
+    conf: pick(c.conf, ['high', 'medium', 'low'], 'low')
+  };
+  return out;
+}
 
 // ============ 通用工具 ============
 const DEFAULT_ORIGINS = ['https://fiveathree.github.io'];
@@ -1277,6 +1302,69 @@ export default {
         return json({ url: found, src: found ? (src || 'commons') : '' });
       }
 
+      // ---------- App 內熱度：只讀匿名需求訊號計數，少於 3 不顯示 ----------
+      if (path === '/api/heat' && request.method === 'POST') {
+        const b = await readJson(request, 2_000);
+        const name = clip(String(b.name || ''), 120).trim();
+        if (!name) throw new HttpError(400, 'MISSING_NAME');
+        await limitOrThrow(kv, `rl:heat:${ip}:${ymd()}`, 200, 86400);
+        const h = (await sha256hex(name.toLowerCase())).slice(0, 16);
+        const d = new Date(); const prev = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1));
+        const months = [ym(), prev.toISOString().slice(0, 7).replace('-', '')];
+        let n = 0;
+        for (const m of months) for (const ty of ['wishlist', 'scan', 'share_wishlist']) {
+          try { const v = JSON.parse(await kv.get(`demand:${m}:${ty}:${h}`) || 'null'); if (v) n += Number(v.c) || 0; } catch (e) {}
+        }
+        return json({ n: n >= 3 ? n : 0 });
+      }
+
+      // ---------- 查證評分：Claude 網頁搜尋，結果按酒款快取 30 日 ----------
+      if (path === '/api/verify' && request.method === 'POST') {
+        if (!env.ANTHROPIC_API_KEY) throw new HttpError(503, 'AI_NOT_CONFIGURED');
+        const b = await readJson(request, 3_000);
+        const name = clip(String(b.name || ''), 120).trim(), producer = clip(String(b.producer || ''), 80).trim();
+        const vin = (String(b.vintage || '').match(/(19|20)\d{2}/) || [''])[0];
+        const cat = clip(String(b.category || ''), 30);
+        if (!name) throw new HttpError(400, 'MISSING_NAME');
+        const ck = 'crit:' + (await sha256hex((name + '|' + producer + '|' + vin).toLowerCase())).slice(0, 24);
+        const hit = await kv.get(ck);
+        if (hit) { try { return json({ ...JSON.parse(hit), cached: true }); } catch (e) {} }
+        const tier = await scanTier(request, kv, env);
+        if (tier.email && await kv.get('ban:' + tier.email)) throw new HttpError(403, 'BANNED');
+        const daily = tier.tier === 'pro' ? 20 : tier.tier === 'free' ? 5 : 2;
+        await limitOrThrow(kv, `rl:verify:${tier.id}:${ymd()}`, daily, 86400, 'RATE_LIMITED');
+        await limitOrThrow(kv, `rl:verifyall:${ymd()}`, envInt(env.VERIFY_GLOBAL_DAILY, 300), 86400, 'SERVICE_BUSY');
+        const prompt = `Use web search to find what established wine/spirits/sake/beer critics and competitions say about this bottle: "${name}"${producer ? ' by ' + producer : ''}${vin ? ', vintage ' + vin : ''}${cat ? ' (category: ' + cat + ')' : ''}.
+Also gauge how much online discussion / buzz it gets. Reply with JSON only, no markdown:
+{"tier":"acclaimed|strong|solid|everyday|unknown","band":"95+|90-94|85-89|80-84|<80|null","src":[names chosen only from: ${CRIT_SRC.join(', ')}],"buzz":"high|medium|low|unknown","conf":"high|medium|low","cites":[up to 3 https URLs that you actually used],"zh":"一至兩句繁體中文書面語，用自己的話概括專業評價與討論度，不得引用原文，不得寫具體分數","en":"One or two plain English sentences in your own words, no quotes, no exact scores"}
+Rules: never quote reviews and never give exact critic scores (only the band). If you cannot find reliable evidence for this exact bottle, use tier "unknown", band null, src [], conf "low" and say so in zh/en. Never invent.`;
+        let data = null;
+        try {
+          const res = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+            body: JSON.stringify({ model: env.SCAN_MODEL_STRONG || 'claude-sonnet-5-5', max_tokens: 1800, tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }], messages: [{ role: 'user', content: prompt }] })
+          });
+          if (!res.ok) { let bd = ''; try { bd = (await res.text()).slice(0, 300); } catch (e) {} const er = new Error('AI_UPSTREAM_' + res.status); er.status = res.status; er.body = bd; throw er; }
+          data = await res.json();
+        } catch (er) {
+          try { await kv.put('ailast', JSON.stringify({ t: Date.now(), status: er.status || 0, model: 'verify', msg: 'verify: ' + String(er.body || er.message || '').slice(0, 280) }), { expirationTtl: 60 * 60 * 24 * 14 }); } catch (e) {}
+          throw new HttpError(502, 'AI_UPSTREAM_ERROR');
+        }
+        const blocks = Array.isArray(data.content) ? data.content : [];
+        const txt = blocks.filter(c => c && c.type === 'text' && typeof c.text === 'string').map(c => c.text).join('\n');
+        const seen = new Map();
+        for (const bl of blocks) if (bl && bl.type === 'web_search_tool_result' && Array.isArray(bl.content)) for (const r of bl.content) if (r && /^https:\/\//.test(r.url || '')) seen.set(r.url, clip(String(r.title || ''), 90));
+        const j = extractJson(txt);
+        if (!j) { try { await kv.put('ailast', JSON.stringify({ t: Date.now(), status: 200, model: 'verify', msg: 'verify PARSE FAIL: ' + String(txt).slice(-200) }), { expirationTtl: 60 * 60 * 24 * 14 }); } catch (e) {} throw new HttpError(502, 'AI_UPSTREAM_ERROR'); }
+        const c = cleanCritics(j);
+        const links = (Array.isArray(j.cites) ? j.cites : []).filter(u => seen.has(u)).slice(0, 3).map(u => ({ url: u, title: seen.get(u) }));
+        const out = { ...c, links, zh: clip(String(j.zh || ''), 220), en: clip(String(j.en || ''), 300), verified: true, t: Date.now() };
+        await kv.put(ck, JSON.stringify(out), { expirationTtl: 60 * 60 * 24 * (c.tier === 'unknown' ? 3 : 30) });
+        await bumpDay(kv, { verify: 1 });
+        return json(out);
+      }
+
       // ---------- AI 下一支推薦 (只收酒款屬性摘要) ----------
       if (path === '/api/recommend' && request.method === 'POST') {
         if (!env.ANTHROPIC_API_KEY) throw new HttpError(503, 'AI_NOT_CONFIGURED');
@@ -1374,6 +1462,7 @@ export default {
         else await kv.put(mk, String(used + 1), { expirationTtl: 60 * 60 * 24 * 40 });
         if (tier.email) await kv.put('scanned:' + tier.email, '1', { expirationTtl: 60 * 60 * 24 * 400 });
         await bumpDay(kv, { scan: 1, [tier.tier === 'guest' ? 'scan_guest' : 'scan_user']: 1, ['c:' + String(out.category || '其他').slice(0, 12)]: 1, ['k:' + String(out.country || '未知').slice(0, 12)]: 1, ['mdl:' + modelUsed]: 1 });
+        out.critics = cleanCritics(out.critics);
         out._quota = { tier: tier.tier, used: viaBonus ? used : used + 1, limit: tier.limit, bonus: tier.email ? await bonusBalance(kv, tier.email) : 0 };
         out._model = modelUsed;
         return new Response(JSON.stringify(out), { headers: jsonHeaders });

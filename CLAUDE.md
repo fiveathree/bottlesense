@@ -51,9 +51,10 @@ BottleSense 係一個酒類「電子酒窖」PWA：影酒標 -> AI 辨識 -> 決
 - 用戶：`/api/scan`（AI 辨識，有配額）、`/api/quota`、OTP 登入、同步、`/api/photo`
 - 探索池：`/api/explore*`、發布時自動審查（待覆核會 `h=2`，被舉報 3 次隱藏 `h=1`）
 - 商業：`/api/offers`（商家贊助配對，支援特價 `was`+`until`）、`/api/signal`（匿名需求）、`/api/price/report|community`（社群成交價，>=3 人先顯示）
+- 評分佐證：掃描結果帶 `critics`（只含級別 tier/band、來源名單、話題度，無具體分數）；`/api/verify` 用 Anthropic web_search 查證（每日 訪客 2 / 免費 5 / Pro 20，`VERIFY_GLOBAL_DAILY` 全站上限，結果按酒款快取 `crit:` 30 日）；`/api/heat` 讀匿名需求計數（<3 不顯示）。前端 `criticsCardHTML()` 放喺八維下面。
 - AI：`/api/recommend`（下一支推薦）、`/api/bottle-image`（推薦用酒瓶相：先搵探索池索引 `expimg:index`，再 Wikimedia Commons）
 - 後台 `/api/admin/*`：以 `Authorization: Bearer <ADMIN_TOKEN>` 保護（overview、stats、merchants、merchant、explore/flagged|pending|approve|remove、ban、plan、code、campaign、grant、birthday）
-- KV key 前綴：`user: account: session: quota: exp: repcount: stat: demand: ban: pubban: merchant: bonus: m:<日期>`（每日計數）`act:` `px:` `pxd:` `expimg:index` `bimg:` `ailast` `rl:`（限流）
+- KV key 前綴：`user: account: session: quota: exp: repcount: stat: demand: ban: pubban: merchant: bonus: m:<日期>`（每日計數）`act:` `px:` `pxd:` `expimg:index` `bimg:` `crit:` `ailast` `rl:`（限流）
 - 統計：`bumpDay()` 寫 `m:<YYYY-MM-DD>`（香港時間），只記數量，不記個人內容。
 
 **成本/限流**：掃描月額度 訪客 8 / 免費 40 / Pro 1000（環境變數可改）；推薦每日 訪客 2 / 免費 4 / Pro 10；全站每日上限防爆。
@@ -103,6 +104,8 @@ BottleSense 係一個酒類「電子酒窖」PWA：影酒標 -> AI 辨識 -> 決
 - 日期欄喺 iOS 嘅行為：已移除 JS 追蹤鍵盤高度並改為記錄卡貼頂，**未在 iPhone 真機驗證**；如仍有問題，下一步改用自訂日期選擇器（避開原生 `datetime-local`）。
 - AI「下一支推薦」：剛上線，真實推薦質素、價格準確度未驗證；推薦酒款可能已停產。
 - 推薦酒瓶相：搵探索池 -> 維基共享資源 -> 金色酒瓶輪廓；真實命中率未知，探索池細時會多數見輪廓。
+
+- **查證評分**：需要 Anthropic Console 啟用 Web Search 工具先用得；未啟用會 502，後台「AI 最近一次錯誤」會顯示 `verify:` 開頭訊息。真實查證質素、來源命中率未驗證。
 
 **未做 / 構想**
 - 商家資料加「圖片連結」欄，推薦同商家貨品吻合時用商家相。

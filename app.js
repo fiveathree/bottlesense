@@ -1031,6 +1031,105 @@ async function loadCommunityPrice(b) {
     slot.innerHTML = `<div class="pc-comm-k">${zh ? `社群成交價 (${o.n} 人記錄)` : `Community paid (${o.n} reports)`}</div><div class="pc-v">${fmtMoney(o.lo, cur)} - ${fmtMoney(o.hi, cur).replace(CUR_SYM[cur], '')} <span class="pc-comm-dim">${zh ? '中位' : 'median'} ${fmtMoney(o.med, cur)}</span></div>`;
   } catch (e) {}
 }
+
+/* ---------------- 評分佐證：專業評價 / 網上口碑 / 與 AI 品質分比對 ---------------- */
+const CRIT_TIER = {
+  acclaimed: { zh: '備受推崇', en: 'Highly acclaimed' },
+  strong: { zh: '評價良好', en: 'Well reviewed' },
+  solid: { zh: '中規中矩', en: 'Solid' },
+  everyday: { zh: '日常款', en: 'Everyday' },
+  unknown: { zh: '暫無可靠資料', en: 'No reliable data' }
+};
+const CRIT_BUZZ = { high: { zh: '高', en: 'High' }, medium: { zh: '中', en: 'Medium' }, low: { zh: '低', en: 'Low' } };
+const CRIT_BAND_RANGE = { '95+': [88, 100], '90-94': [82, 95], '85-89': [75, 89], '80-84': [68, 82], '<80': [0, 74] };
+const CRIT_TIER_RANGE = { acclaimed: [85, 100], strong: [76, 92], solid: [66, 82], everyday: [0, 76] };
+function criticsOf(b) { const s = b.scan || {}; return s.critics_v || s.critics || null; }
+function criticsAgree(c, vm) {
+  if (!c || c.tier === 'unknown' || c.conf === 'low') return null;
+  const ql = Number(vm && vm.ql); if (!ql) return null;
+  const r = CRIT_BAND_RANGE[c.band] || CRIT_TIER_RANGE[c.tier]; if (!r) return null;
+  return ql > r[1] ? 'high' : ql < r[0] ? 'low' : 'ok';
+}
+function criticsBodyHTML(b, vm) {
+  const zh = currentLang === 'zh';
+  const c = criticsOf(b);
+  const tierL = c ? CRIT_TIER[c.tier] || CRIT_TIER.unknown : null;
+  const known = c && c.tier !== 'unknown';
+  const buzzL = c && CRIT_BUZZ[c.buzz];
+  const ag = criticsAgree(c, vm);
+  const agT = { ok: zh ? '一致' : 'Consistent', high: zh ? 'AI 品質分偏高' : 'AI score higher', low: zh ? 'AI 品質分偏低' : 'AI score lower' };
+  const agTip = ag === 'ok' ? '' : ag === 'high' ? (zh ? '專業共識較 AI 品質分低，建議以專業評價為參考。' : 'Critics rate it lower than the AI quality score; lean on the critics.')
+    : ag === 'low' ? (zh ? '專業共識較 AI 品質分高，這支酒可能被低估。' : 'Critics rate it higher than the AI quality score; it may be underrated.') : '';
+  const srcs = known && c.src && c.src.length ? c.src.join(' / ') : '';
+  const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
+  const links = c && c.verified && Array.isArray(c.links) ? c.links.filter(l => l && /^https:\/\//.test(l.url)).map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(host(l.url))}</a>`).join(' ') : '';
+  const sum = c && c.verified ? (zh ? c.zh : c.en) : '';
+  return `
+      <div class="cr-row"><div class="cr-k">${zh ? '專業評價' : 'Critics'}</div>
+        <div class="cr-v">${c ? `<span class="cr-tier cr-${esc(c.tier)}">${esc(tierL[zh ? 'zh' : 'en'])}</span>${known && c.band ? `<span class="cr-band">${esc(c.band)}${zh ? ' 分級' : ' pts'}</span>` : ''}` : `<span class="cr-dim">${zh ? '尚未取得，可按下方查證' : 'Not fetched yet - tap Verify below'}</span>`}</div></div>
+      ${srcs ? `<div class="cr-src">${esc(srcs)}</div>` : ''}
+      <div class="cr-row"><div class="cr-k">${zh ? '網上口碑' : 'Buzz'}</div>
+        <div class="cr-v">${buzzL ? `<span class="cr-buzz">${zh ? '話題度 ' : 'Topic buzz: '}${esc(buzzL[zh ? 'zh' : 'en'])}</span>` : `<span class="cr-dim">${zh ? '資料不足' : 'n/a'}</span>`}<span id="crit-heat" class="cr-heat"></span></div></div>
+      <div class="cr-row"><div class="cr-k">${zh ? '對比 AI 品質分' : 'vs AI quality'}</div>
+        <div class="cr-v">${ag ? `<span class="cr-ag cr-ag-${ag}">${esc(agT[ag])}</span>` : `<span class="cr-dim">${zh ? '資料不足，未能比對' : 'Not enough data to compare'}</span>`}</div></div>
+      ${agTip ? `<div class="cr-tip">${esc(agTip)}</div>` : ''}
+      ${sum ? `<div class="cr-sum">${esc(sum)}</div>` : ''}
+      ${links ? `<div class="cr-links">${zh ? '出處：' : 'Sources: '}${links}</div>` : ''}
+      <div class="cr-foot">
+        <span class="cr-tag">${c && c.verified ? (zh ? '已上網查證，僅供參考' : 'Web-checked, for reference only') : (zh ? 'AI 整理，僅供參考' : 'AI summary, for reference only')}</span>
+        ${isVisitorMode ? '' : `<button class="cr-verify" id="cr-verify-btn" onclick="verifyCritics('${esc(b.id)}')">${c && c.verified ? (zh ? '重新查證' : 'Re-check') : (zh ? '查證評分' : 'Verify')}</button>`}
+      </div>`;
+}
+function criticsCardHTML(b, vm) {
+  const zh = currentLang === 'zh';
+  if (!vm || !Object.keys(vm).length) return '';
+  const info = zh
+    ? '專業評價為 AI 整理或上網查證所得，只顯示評分級別與來源名稱，不引用原文或具體分數。話題度為網上討論度的估算；「App 內關注」來自匿名統計，少於 3 人不顯示。對比的是 AI 品質分與專業評價級別是否吻合，僅供參考，並非任何評審機構的官方評分。'
+    : 'Critic info is an AI summary or web-checked result. Only score bands and publication names are shown - no quotes or exact scores. Buzz is an estimate of online discussion; "followed in app" comes from anonymous counts (hidden below 3). The comparison checks whether the AI quality score matches the critic band. For reference only, not an official rating.';
+  if (offersEnabled() && !isVisitorMode) setTimeout(() => loadCriticsHeat(b), 80);
+  return `
+    <div class="info-block crit-card" id="crit-card">
+      <div class="pc-head">
+        <h3>${zh ? '評分佐證' : 'Rating Backup'}</h3>
+        <div class="pc-tools"><button class="radar-info-btn" aria-label="info" onclick="this.closest('.crit-card').querySelector('.pc-info').classList.toggle('open')">!</button></div>
+      </div>
+      <div class="pc-info">${info}</div>
+      <div id="crit-body">${criticsBodyHTML(b, vm)}</div>
+    </div>`;
+}
+async function loadCriticsHeat(b) {
+  const slot = document.getElementById('crit-heat'); if (!slot || !b) return;
+  try {
+    const res = await fetch(`${WORKER_API_URL}/api/heat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: String(bottleName(b) || '').slice(0, 120) }) });
+    if (!res.ok) return;
+    const o = await res.json();
+    if (o.n > 0 && document.getElementById('crit-heat')) document.getElementById('crit-heat').textContent = currentLang === 'zh' ? `App 內 ${o.n} 人關注` : `${o.n} followed in app`;
+  } catch (e) {}
+}
+async function verifyCritics(id) {
+  if (blockIfVisitor()) return;
+  const b = (window.cellar || []).find(x => String(x.id) === String(id)); if (!b) return;
+  const btn = document.getElementById('cr-verify-btn'); const zh = currentLang === 'zh';
+  if (btn) { if (btn.disabled) return; btn.disabled = true; btn.textContent = zh ? '查證中…' : 'Checking...'; }
+  try {
+    const v = String(bottleVintage(b) || '').match(/(19|20)\d{2}/);
+    const res = await apiFetch('/api/verify', { method: 'POST', body: JSON.stringify({ name: String(bottleName(b) || '').slice(0, 120), producer: String((b.identification && b.identification.producer) || '').slice(0, 80), category: String(bottleCategory(b) || '').slice(0, 30), vintage: v ? v[0] : '' }) });
+    const o = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showToast(o.error === 'RATE_LIMITED' ? (zh ? '今日查證次數已用完，請明天再試' : 'Daily verify limit reached, try tomorrow') : o.error === 'SERVICE_BUSY' ? (zh ? '查證服務繁忙，請稍後再試' : 'Service busy, try later') : (zh ? '查證服務暫時不可用，請稍後再試' : 'Verify is unavailable right now, try later'));
+      if (btn) { btn.disabled = false; btn.textContent = zh ? '查證評分' : 'Verify'; }
+      return;
+    }
+    b.scan = b.scan || {}; b.scan.critics_v = o;
+    await saveBottleToDB(b);
+    const body = document.getElementById('crit-body');
+    if (body) { body.innerHTML = criticsBodyHTML(b, calibrateValueMap(b.scan.vm || {}, bottleCategory(b), bottleName(b))); if (offersEnabled()) loadCriticsHeat(b); }
+    if (o.tier === 'unknown') showToast(zh ? '未能找到可靠的專業評價' : 'No reliable critic info found');
+  } catch (e) {
+    showToast(zh ? '查證服務暫時不可用，請稍後再試' : 'Verify is unavailable right now, try later');
+    if (btn) { btn.disabled = false; btn.textContent = zh ? '查證評分' : 'Verify'; }
+  }
+}
 function priceCardHTML(b) {
   const zh = currentLang === 'zh';
   const cur = priceCur();
@@ -1446,6 +1545,9 @@ function renderBottleDetail(id) {
 
       <!-- 2. 八維價值地圖 (數據先行) -->
       ${(() => { const r = renderRadar(vm); return r ? `${r}` : ''; })()}
+
+      <!-- 評分佐證 -->
+      ${criticsCardHTML(b, vm)}
 
       <!-- 價格參考 -->
       ${priceCardHTML(b)}
