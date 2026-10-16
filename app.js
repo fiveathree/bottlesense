@@ -11,6 +11,8 @@
 
 const main = document.getElementById('main');
 const modalContainer = document.getElementById('modal-container');
+// 彈窗開住時鎖住背後頁面，避免 iOS 把手勢交給背景捲動
+if (modalContainer) new MutationObserver(() => document.documentElement.classList.toggle('modal-open', !!modalContainer.firstElementChild)).observe(modalContainer, { childList: true });
 const cameraInput = document.getElementById('cameraInput');
 const galleryInput = document.getElementById('galleryInput');
 
@@ -66,6 +68,10 @@ function apiErrorMessage(code, data) {
     PAYLOAD_TOO_LARGE: zh ? '資料太大，無法上傳' : 'Payload too large',
     BAD_IMAGE_SIZE: zh ? '相片太大或太小，請重新拍攝' : 'Bad image size',
     AI_UPSTREAM_ERROR: zh ? 'AI 服務暫時不可用，請稍後再試' : 'AI service unavailable',
+    AI_BUSY: zh ? 'AI 服務目前繁忙，請稍候一兩分鐘再試' : 'AI service is busy, please try again in a minute or two',
+    INTERNAL_ERROR: zh ? '伺服器發生錯誤，請稍後再試' : 'Server error, please try again later',
+    NETWORK_ERROR: zh ? '網絡連線失敗，請檢查網絡後再試' : 'Network error, please check your connection',
+    TIMEOUT: zh ? '等候時間過長，請稍後再試' : 'This is taking too long, please try again later',
     AI_NOT_CONFIGURED: zh ? 'AI 服務尚未設定' : 'AI not configured',
     CELLAR_TOO_LARGE: zh ? '酒窖資料太大，請聯絡開發者' : 'Cellar too large',
     UNDER_AGE: zh ? `未滿 ${(data && data.minAge) || 18} 歲不可使用本服務` : 'You must be of legal drinking age',
@@ -1116,7 +1122,7 @@ async function verifyCritics(id) {
     const res = await apiFetch('/api/verify', { method: 'POST', body: JSON.stringify({ name: String(bottleName(b) || '').slice(0, 120), producer: String((b.identification && b.identification.producer) || '').slice(0, 80), category: String(bottleCategory(b) || '').slice(0, 30), vintage: v ? v[0] : '' }) });
     const o = await res.json().catch(() => ({}));
     if (!res.ok) {
-      showToast(o.error === 'RATE_LIMITED' ? (zh ? '今日查證次數已用完，請明天再試' : 'Daily verify limit reached, try tomorrow') : o.error === 'SERVICE_BUSY' ? (zh ? '查證服務繁忙，請稍後再試' : 'Service busy, try later') : (zh ? '查證服務暫時不可用，請稍後再試' : 'Verify is unavailable right now, try later'));
+      showToast(o.error === 'RATE_LIMITED' ? (zh ? '今日查證次數已用完，請明天再試' : 'Daily verify limit reached, try tomorrow') : (o.error === 'SERVICE_BUSY' || o.error === 'AI_BUSY') ? (zh ? '查證服務繁忙，請稍後再試' : 'Service busy, try later') : o.error === 'BANNED' ? apiErrorMessage('BANNED') : (zh ? '查證服務暫時不可用，請稍後再試' : 'Verify is unavailable right now, try later'));
       if (btn) { btn.disabled = false; btn.textContent = zh ? '查證評分' : 'Verify'; }
       return;
     }
@@ -2164,9 +2170,11 @@ async function publishCellarForShare() {
   const key = getOrCreateSyncKey();
   const ownerName = localStorage.getItem('bottlesense_profile_name') || '品飲家';
   try {
+    // imageData 只係 image 嘅重複副本 (多數係大型 base64)，分享時唔送，減少上載時間
+    const cellar = (window.cellar || []).map(({ imageData, ...b }) => (b.image || !imageData ? b : { ...b, image: imageData }));
     const res = await apiFetch('/api/cellar/publish', {
       method: 'POST',
-      body: JSON.stringify({ syncKey: key, cellar: window.cellar, ownerName })
+      body: JSON.stringify({ syncKey: key, cellar, ownerName })
     });
     const data = await res.json();
     if (res.ok && data.shareId) return data.shareId;
@@ -2175,10 +2183,16 @@ async function publishCellarForShare() {
   return null;
 }
 
+let _shareCellarBusy = false;
 async function shareEntireCellar() {
   if (blockIfVisitor()) return;
   if (!window.cellar || !window.cellar.length) return;
-  const shareId = await publishCellarForShare();
+  if (_shareCellarBusy) return;
+  _shareCellarBusy = true;
+  const zh = currentLang === 'zh';
+  modalContainer.innerHTML = `<div class="modal-overlay"><div class="modal-card reco-card" role="dialog" aria-modal="true" aria-live="polite"><div class="reco-loading"><div class="reco-spin"></div><div>${zh ? '正在建立分享連結…' : 'Creating share link…'}</div><small>${zh ? '酒款較多時需時數秒' : 'This can take a few seconds for a large cellar'}</small></div></div></div>`;
+  let shareId = null;
+  try { shareId = await publishCellarForShare(); } finally { _shareCellarBusy = false; closeModal(); }
   if (!shareId) return;
   const shareUrl = `${location.origin}${location.pathname}?cellar=${encodeURIComponent(shareId)}${refSuffix()}`;
   const shareText = `🍾 歡迎參觀我的私人酒窖 (BottleSense)：內有 ${window.cellar.length} 款精選佳釀與真實品飲手記！`;
@@ -2187,12 +2201,17 @@ async function shareEntireCellar() {
     try {
       await navigator.share({ title: 'BottleSense Cellar', text: shareText, url: shareUrl });
       return;
-    } catch(err) { return; }
+    } catch(err) {
+      // 用戶自己取消就唔理；其他失敗 (例如等候過耐令 iOS 拒絕彈出分享面板) 改為複製連結
+      if (err && err.name === 'AbortError') return;
+    }
   }
-  
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+
+  try {
+    await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
     showToast(t('copied_toast'));
+  } catch (e) {
+    showToast(zh ? '未能開啟分享，請稍後再試' : 'Could not open sharing, please try again');
   }
 }
 
@@ -3685,10 +3704,20 @@ async function confirmCropAndScan(isFullImage = false) {
 }
 
 async function identifyBottle(image, mediaType) {
-  const res = await apiFetch('/api/scan', {
-    method: 'POST',
-    body: JSON.stringify({ image, mediaType, lang: currentLang })
-  });
+  // 設上限等候時間，避免上游無回應時畫面一直轉圈
+  const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = ctl ? setTimeout(() => ctl.abort(), 90000) : null;
+  let res;
+  try {
+    res = await apiFetch('/api/scan', {
+      method: 'POST',
+      body: JSON.stringify({ image, mediaType, lang: currentLang }),
+      ...(ctl ? { signal: ctl.signal } : {})
+    });
+  } catch (e) {
+    const code = e && e.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK_ERROR';
+    const er = new Error(apiErrorMessage(code)); er.code = code; throw er;
+  } finally { if (timer) clearTimeout(timer); }
   let data = {};
   try { data = await res.json(); } catch {}
   if (!res.ok) { const e = new Error(apiErrorMessage(data.error, data) || `AI API Error (${res.status})`); e.code = data.error; e.data = data; throw e; }

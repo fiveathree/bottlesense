@@ -58,7 +58,11 @@ BottleSense 係一個酒類「電子酒窖」PWA：影酒標 -> AI 辨識 -> 決
 - KV key 前綴：`user: account: session: quota: exp: repcount: stat: demand: ban: pubban: merchant: bonus: m:<日期>`（每日計數）`act:` `px:` `pxd:` `expimg:index` `bimg:` `crit:` `ailast` `rl:`（限流）
 - 統計：`bumpDay()` 寫 `m:<YYYY-MM-DD>`（香港時間），只記數量，不記個人內容。
 
-**成本/限流**：掃描月額度 訪客 8 / 免費 40 / Pro 1000（環境變數可改）；推薦每日 訪客 2 / 免費 4 / Pro 10；全站每日上限防爆。
+**成本/限流**：掃描月額度 訪客 8 / 免費 40 / Pro 1000（環境變數可改）；訪客另有每 IP 每月上限 `SCAN_GUEST_IP_MONTHLY`（24，防止隨機同步碼刷額度）；推薦每日 訪客 2 / 免費 4 / Pro 10；全站每日上限防爆。
+- AI 上游 429/529/5xx/連線失敗/JSON 壞咗：自動轉 `SCAN_MODEL_FAST` 再試（scan、recommend）；兩個都繁忙回 `503 AI_BUSY`（前端「AI 服務目前繁忙」），403 等其他錯誤唔重試，回 `AI_UPSTREAM_ERROR`。
+- `/api/verify` 每日次數「成功先扣」，另有嘗試上限（每日次數 x3）；web_search 回覆嘅 text 區塊要直接拼接（唔好加換行）。
+- 刪帳號：會清走所有舊同步碼上載嘅相片（`photoowners:<email>`，由 `rotateKey` 記錄；記錄前已換碼嘅舊相仍清唔到）、全部探索池項目（分頁）、`expimg:index` 相關項目。
+- 前端彈窗：`modal-container` 有內容時 `html.modal-open` 鎖住背景捲動；彈窗高度已扣頂部／底部安全區。
 
 ## 3. 部署方法
 
@@ -107,6 +111,11 @@ BottleSense 係一個酒類「電子酒窖」PWA：影酒標 -> AI 辨識 -> 決
 - 推薦酒瓶相：搵探索池 -> 維基共享資源 -> 金色酒瓶輪廓；真實命中率未知，探索池細時會多數見輪廓。
 
 - **查證評分**：需要 Anthropic Console 啟用 Web Search 工具先用得；未啟用會 502，後台「AI 最近一次錯誤」會顯示 `verify:` 開頭訊息。真實查證質素、來源命中率未驗證。
+
+**第二期（要先開規格檔）**
+- 計數改用 Durable Object（KV 讀後寫非原子，並發請求可超額；OTP 錯誤次數同理）。
+- 同步改為逐欄位合併或伺服器時間戳（現時整支酒「最後寫入者勝」，用手機時鐘；兩部機改同一支酒會蓋走對方改動；刪咗嘅酒可能復活）。
+- `imageData` 係 `image` 嘅重複 base64，仍然跟同步送出（分享已唔送）。
 
 **未做 / 構想**
 - 商家資料加「圖片連結」欄，推薦同商家貨品吻合時用商家相。

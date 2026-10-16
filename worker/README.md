@@ -12,6 +12,7 @@ Deployed automatically by Cloudflare Workers Builds from this repo (root dir `wo
 | `ALLOWED_ORIGINS` | var (optional) | extra comma separated allowed web origins (default: https://fiveathree.github.io + localhost) |
 | `SCAN_GUEST_MONTHLY` / `SCAN_FREE_MONTHLY` / `SCAN_PRO_MONTHLY` | var (optional) | AI scans per month (defaults 8 / 40 / 1000) |
 | `SCAN_IP_DAILY` / `SCAN_GLOBAL_DAILY` | var (optional) | per-IP and whole-service daily caps (defaults 60 / 1500) |
+| `SCAN_GUEST_IP_MONTHLY` | var (optional) | guest scans per IP per month, on top of the per-sync-key guest limit (default 24) |
 | `DEV_MODE` | var | `1` returns the OTP in the API response when mail fails. NEVER set in production |
 
 ## Photos

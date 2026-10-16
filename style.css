@@ -2246,3 +2246,11 @@ html { background: #0b0b0a; color-scheme: dark; }
 .modal-overlay { padding-top: max(20px, env(safe-area-inset-top)); }
 .crop-modal { padding-top: env(safe-area-inset-top); }
 .btn-back-world { top: calc(8px + env(safe-area-inset-top)); }
+
+/* ---- modals v2: page behind stays still while a modal is open; long modals scroll; heights respect the notch and home bar ---- */
+html.modal-open, html.modal-open body { overflow: hidden; }
+.modal-overlay { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+.modal-overlay > .modal-card { margin: auto; flex-shrink: 0; }
+.modal-card { max-height: calc(100dvh - max(20px, env(safe-area-inset-top)) - max(20px, env(safe-area-inset-bottom))); overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.modal-overlay:has(.sess-card) > .sess-card { margin: 0 auto auto; }
+.sess-card { max-height: calc(100dvh - max(16px, env(safe-area-inset-top)) - max(20px, env(safe-area-inset-bottom))); }

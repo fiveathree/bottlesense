@@ -233,6 +233,17 @@ async function hit(kv, key, limit, ttl) {
 async function limitOrThrow(kv, key, limit, ttl, code) {
   if (!(await hit(kv, key, limit, ttl))) throw new HttpError(429, code || 'RATE_LIMITED');
 }
+// 「成功先扣」：先檢查唔計數，成功後先 bumpCount
+async function underLimit(kv, key, limit) { return parseInt(await kv.get(key) || '0', 10) < limit; }
+async function bumpCount(kv, key, ttl) {
+  const cur = parseInt(await kv.get(key) || '0', 10);
+  await kv.put(key, String(cur + 1), { expirationTtl: Math.max(60, ttl) });
+}
+// AI 上游錯誤分類：繁忙 / 暫時故障 / 回覆壞咗 可以轉另一個模型再試；403 等其他錯誤唔重試
+function aiStatus(er) { return Number(er && er.status) || 0; }
+function aiRetryable(er) { const s = aiStatus(er); return !!er && (er.message === 'AI_BAD_JSON' || s === 0 || s === 429 || s === 529 || s >= 500); }
+function aiBusy(er) { const s = aiStatus(er); return s === 429 || s === 529; }
+function aiHttpError(er) { return aiBusy(er) ? new HttpError(503, 'AI_BUSY') : new HttpError(502, 'AI_UPSTREAM_ERROR'); }
 
 async function readJson(request, maxBytes = 2_000_000) {
   const text = await request.text();
@@ -281,6 +292,13 @@ async function requireSession(request, kv) {
 // 將舊的弱同步碼換成高熵同步碼 (搬資料 + 更新擁有者標記 + 探索池擁有者)
 async function rotateKey(env, kv, email, oldKey) {
   const newKey = newSyncKey();
+  // 相片擁有者由同步碼計出，換碼後舊相唔會搬：記低舊擁有者，刪帳號時一併清走
+  try {
+    const po = JSON.parse(await kv.get('photoowners:' + email) || '[]');
+    const old = await photoOwnerOf(oldKey);
+    if (!po.includes(old)) po.push(old);
+    await kv.put('photoowners:' + email, JSON.stringify(po.slice(-50)));
+  } catch (e) {}
   const raw = await kv.get('user:' + oldKey);
   if (raw) await kv.put('user:' + newKey, raw);
   await kv.put('account:' + email, newKey);
@@ -314,7 +332,9 @@ async function scanTier(request, kv, env) {
   }
   const k = request.headers.get('X-Sync-Key') || '';
   const gid = 'g:' + (await sha256hex(isStrongKey(k) ? k : 'anon:' + clientIp(request))).slice(0, 24);
-  return { tier: 'guest', id: gid, email: null, limit: envInt(env.SCAN_GUEST_MONTHLY, 8) };
+  // 訪客另加 IP 層上限：同步碼可以隨意新造，單靠同步碼計額度會被無限繞過
+  const ipId = 'gi:' + (await sha256hex('anon:' + clientIp(request))).slice(0, 24);
+  return { tier: 'guest', id: gid, ipId, email: null, limit: envInt(env.SCAN_GUEST_MONTHLY, 8), ipLimit: envInt(env.SCAN_GUEST_IP_MONTHLY, 24) };
 }
 
 // ============ 酒款圖片索引：探索池內其他酒友公開嘅酒瓶相 ============
@@ -865,9 +885,11 @@ export default {
         const rcode = await kv.get('refcode:' + email);
         if (rcode) { await kv.delete('refowner:' + rcode); await kv.delete('refcode:' + email); }
         await kv.put('sessver:' + email, String(parseInt(await kv.get('sessver:' + email) || '0', 10) + 1), { expirationTtl: 60 * 60 * 24 * 100 });
-        const ex = await kv.list({ prefix: 'exp:', limit: 500 });
-        for (const k of ex.keys) if (k.metadata && k.metadata.o === share) await kv.delete(k.name);
-        await deletePhotosOf(env, kv, userKey);
+        let owners = [await photoOwnerOf(userKey)];
+        try { owners = [...new Set([...owners, ...JSON.parse(await kv.get('photoowners:' + email) || '[]')])]; } catch (e) {}
+        await deleteExploreOf(kv, share, owners);
+        for (const o of owners) await deletePhotosOf(env, kv, o);
+        await kv.delete('photoowners:' + email);
         return json({ success: true });
       }
 
@@ -1228,7 +1250,7 @@ export default {
             await kv.put('ban:' + e, clip(b.reason, 200) || '1');
             await kv.put('sessver:' + e, String(parseInt(await kv.get('sessver:' + e) || '0', 10) + 1));
             const key = await kv.get('account:' + e);
-            if (key) { const sh = await shareIdOf(key); const ex = await kv.list({ prefix: 'exp:', limit: 500 }); for (const k of ex.keys) if (k.metadata && k.metadata.o === sh) await kv.delete(k.name); await kv.delete('public_cellar:' + sh); }
+            if (key) { const sh = await shareIdOf(key); await deleteExploreOf(kv, sh, []); await kv.delete('public_cellar:' + sh); }
           }
           return json({ success: true });
         }
@@ -1348,7 +1370,11 @@ export default {
         const tier = await scanTier(request, kv, env);
         if (tier.email && await kv.get('ban:' + tier.email)) throw new HttpError(403, 'BANNED');
         const daily = tier.tier === 'pro' ? 20 : tier.tier === 'free' ? 5 : 2;
-        await limitOrThrow(kv, `rl:verify:${tier.id}:${ymd()}`, daily, 86400, 'RATE_LIMITED');
+        // 每日次數「成功先扣」：上游失敗唔會食咗用戶次數；另設嘗試上限 (daily x3) 防止失敗請求無限重試
+        const vKey = `rl:verify:${tier.id}:${ymd()}`;
+        const vIpKey = tier.ipId ? `rl:verify:${tier.ipId}:${ymd()}` : null;
+        if (!(await underLimit(kv, vKey, daily)) || (vIpKey && !(await underLimit(kv, vIpKey, daily * 3)))) throw new HttpError(429, 'RATE_LIMITED');
+        await limitOrThrow(kv, `rl:verifytry:${tier.id}:${ymd()}`, daily * 3, 86400, 'RATE_LIMITED');
         await limitOrThrow(kv, `rl:verifyall:${ymd()}`, envInt(env.VERIFY_GLOBAL_DAILY, 300), 86400, 'SERVICE_BUSY');
         const prompt = `Use web search to find what established wine/spirits/sake/beer critics and competitions say about this bottle: "${name}"${producer ? ' by ' + producer : ''}${vin ? ', vintage ' + vin : ''}${cat ? ' (category: ' + cat + ')' : ''}.
 Also gauge how much online discussion / buzz it gets. Reply with JSON only, no markdown:
@@ -1365,10 +1391,11 @@ Rules: never quote reviews and never give exact critic scores (only the band). I
           data = await res.json();
         } catch (er) {
           try { await kv.put('ailast', JSON.stringify({ t: Date.now(), status: er.status || 0, model: 'verify', msg: 'verify: ' + String(er.body || er.message || '').slice(0, 280) }), { expirationTtl: 60 * 60 * 24 * 14 }); } catch (e) {}
-          throw new HttpError(502, 'AI_UPSTREAM_ERROR');
+          throw aiHttpError(er);
         }
         const blocks = Array.isArray(data.content) ? data.content : [];
-        const txt = blocks.filter(c => c && c.type === 'text' && typeof c.text === 'string').map(c => c.text).join('\n');
+        // 用 web search 時回覆會按引用切成多段：直接拼接，唔可以加換行 (否則 JSON 字串中間會斷)
+        const txt = blocks.filter(c => c && c.type === 'text' && typeof c.text === 'string').map(c => c.text).join('');
         const seen = new Map();
         for (const bl of blocks) if (bl && bl.type === 'web_search_tool_result' && Array.isArray(bl.content)) for (const r of bl.content) if (r && /^https:\/\//.test(r.url || '')) seen.set(r.url, clip(String(r.title || ''), 90));
         const j = extractJson(txt);
@@ -1377,6 +1404,8 @@ Rules: never quote reviews and never give exact critic scores (only the band). I
         const links = (Array.isArray(j.cites) ? j.cites : []).filter(u => seen.has(u)).slice(0, 3).map(u => ({ url: u, title: seen.get(u) }));
         const out = { ...c, links, zh: clip(String(j.zh || ''), 220), en: clip(String(j.en || ''), 300), verified: true, t: Date.now() };
         await kv.put(ck, JSON.stringify(out), { expirationTtl: 60 * 60 * 24 * (c.tier === 'unknown' ? 3 : 30) });
+        await bumpCount(kv, vKey, 86400);
+        if (vIpKey) await bumpCount(kv, vIpKey, 86400);
         await bumpDay(kv, { verify: 1 });
         return json(out);
       }
@@ -1396,15 +1425,20 @@ Rules: never quote reviews and never give exact critic scores (only the band). I
         if (list.length < 2) throw new HttpError(400, 'NOT_ENOUGH_DATA');
         const wish = (Array.isArray(b.wish) ? b.wish : []).slice(0, 40).map(x => clip(String(x), 100)).filter(Boolean);
         await limitOrThrow(kv, `rl:reco:${tier.id}:${ymd()}`, daily, 86400, 'RATE_LIMITED');
+        if (tier.ipId) await limitOrThrow(kv, `rl:reco:${tier.ipId}:${ymd()}`, daily * 3, 86400, 'RATE_LIMITED');
         await limitOrThrow(kv, `rl:recoall:${ymd()}`, envInt(env.RECO_GLOBAL_DAILY, 800), 86400, 'SERVICE_BUSY');
         const body = `${b.lang === 'en' ? RECO_PROMPT + RECO_EN : RECO_PROMPT}\n\n【酒窖摘要】(n=名稱 c=品類 k=國家 r=產區 v=年份 s=狀態 star=個人評分1-5 usd=買入價美元 nt=品飲次數)\n${JSON.stringify(list)}\n【願望清單】${JSON.stringify(wish)}`;
         let out = null;
         try {
-          const txt = await callClaude(env, env.SCAN_MODEL_STRONG || 'claude-sonnet-5-5', [{ type: 'text', text: body }], 3000);
+          const strong = env.SCAN_MODEL_STRONG || 'claude-sonnet-5-5', fast = env.SCAN_MODEL_FAST || 'claude-haiku-5-5';
+          const msg = [{ type: 'text', text: body }];
+          let txt;
+          try { txt = await callClaude(env, strong, msg, 3000); }
+          catch (e1) { if (!aiRetryable(e1) || fast === strong) throw e1; txt = await callClaude(env, fast, msg, 3000); }
           out = cleanReco(extractJson(txt));
         } catch (er) {
           try { await kv.put('ailast', JSON.stringify({ t: Date.now(), status: er.status || 0, model: er.model || '', msg: 'reco: ' + String(er.body || er.message || '').slice(0, 280) }), { expirationTtl: 60 * 60 * 24 * 14 }); } catch (e) {}
-          throw new HttpError(502, 'AI_UPSTREAM_ERROR');
+          throw aiHttpError(er);
         }
         if (!out) throw new HttpError(502, 'AI_UPSTREAM_ERROR');
         await bumpDay(kv, { reco: 1 });
@@ -1420,10 +1454,13 @@ Rules: never quote reviews and never give exact critic scores (only the band). I
 
         const tier = await scanTier(request, kv, env);
         if (tier.email && await kv.get('ban:' + tier.email)) throw new HttpError(403, 'BANNED');
-        if (await kv.get('scanblock:' + tier.id)) throw new HttpError(429, 'TEMP_BLOCKED');
+        if (await kv.get('scanblock:' + tier.id) || (tier.ipId && await kv.get('scanblock:' + tier.ipId))) throw new HttpError(429, 'TEMP_BLOCKED');
         const mk = `quota:${tier.id}:${ym()}`;
         const used = parseInt(await kv.get(mk) || '0', 10);
+        const ipk = tier.ipId ? `quota:${tier.ipId}:${ym()}` : null;
+        const ipUsed = ipk ? parseInt(await kv.get(ipk) || '0', 10) : 0;
         let viaBonus = false;
+        if (ipk && ipUsed >= tier.ipLimit) { await bumpDay(kv, { quota_out: 1 }); throw new HttpError(429, 'QUOTA_EXCEEDED', { tier: tier.tier, limit: tier.limit, used: tier.limit }); }
         if (used >= tier.limit) {
           if (tier.email && (await bonusBalance(kv, tier.email)) > 0) viaBonus = true;
           else { await bumpDay(kv, { quota_out: 1 }); throw new HttpError(429, 'QUOTA_EXCEEDED', { tier: tier.tier, limit: tier.limit, used }); }
@@ -1455,13 +1492,14 @@ Rules: never quote reviews and never give exact critic scores (only the band). I
             if (lowConf) out = null;
           }
           if (!out) {
+            // 強模型繁忙 (429/529)、5xx、連線失敗或回覆壞咗：轉快速模型再試一次
             try { out = await ask(strong); modelUsed = strong; }
-            catch (e1) { if (e1.message !== 'AI_BAD_JSON' || fast === strong) throw e1; out = await ask(fast); modelUsed = fast; }
+            catch (e1) { if (!aiRetryable(e1) || fast === strong) throw e1; out = await ask(fast); modelUsed = fast; }
           }
         } catch (er) {
           try { await kv.put('ailast', JSON.stringify({ t: Date.now(), status: er.status || 0, model: er.model || '', msg: String(er.body || er.message || '').slice(0, 300) }), { expirationTtl: 60 * 60 * 24 * 14 }); } catch (e) {}
           await bumpDay(kv, { ai_err: 1 });
-          throw new HttpError(502, 'AI_UPSTREAM_ERROR');
+          throw aiHttpError(er);
         }
         if (!out) throw new HttpError(502, 'AI_UPSTREAM_ERROR');
 
@@ -1471,11 +1509,18 @@ Rules: never quote reviews and never give exact critic scores (only the band). I
           const n = parseInt(await kv.get(sk) || '0', 10) + 1;
           await kv.put(sk, String(n), { expirationTtl: 86400 });
           if (n >= 5) await kv.put('scanblock:' + tier.id, '1', { expirationTtl: 86400 });
+          if (tier.ipId) {
+            const ik = `strike:${tier.ipId}:${ymd()}`;
+            const ni = parseInt(await kv.get(ik) || '0', 10) + 1;
+            await kv.put(ik, String(ni), { expirationTtl: 86400 });
+            if (ni >= 10) await kv.put('scanblock:' + tier.ipId, '1', { expirationTtl: 86400 });
+          }
           await bumpDay(kv, { not_alcohol: 1 });
           throw new HttpError(422, 'NOT_ALCOHOL');
         }
         if (viaBonus) await consumeBonus(kv, tier.email);
         else await kv.put(mk, String(used + 1), { expirationTtl: 60 * 60 * 24 * 40 });
+        if (ipk) await kv.put(ipk, String(ipUsed + 1), { expirationTtl: 60 * 60 * 24 * 40 });
         if (tier.email) await kv.put('scanned:' + tier.email, '1', { expirationTtl: 60 * 60 * 24 * 400 });
         await bumpDay(kv, { scan: 1, [tier.tier === 'guest' ? 'scan_guest' : 'scan_user']: 1, ['c:' + String(out.category || '其他').slice(0, 12)]: 1, ['k:' + String(out.country || '未知').slice(0, 12)]: 1, ['mdl:' + modelUsed]: 1 });
         out.critics = cleanCritics(out.critics);
@@ -1493,8 +1538,30 @@ Rules: never quote reviews and never give exact critic scores (only the band). I
   }
 };
 
-async function deletePhotosOf(env, kv, userKey) {
-  const owner = (await sha256hex('photo-owner:' + userKey)).slice(0, 12);
+async function photoOwnerOf(syncKey) { return (await sha256hex('photo-owner:' + syncKey)).slice(0, 12); }
+
+// 刪除某分享身分嘅全部探索池項目 (分頁讀完，唔止頭 500 項)，並由酒瓶相索引移除佢哋同佢嘅相片
+async function deleteExploreOf(kv, share, photoOwners) {
+  const ids = new Set();
+  let cursor;
+  do {
+    const l = await kv.list({ prefix: 'exp:', limit: 1000, cursor });
+    for (const k of l.keys) if (k.metadata && k.metadata.o === share) { await kv.delete(k.name); ids.add(k.name.slice(4)); }
+    cursor = l.list_complete ? null : l.cursor;
+  } while (cursor);
+  try {
+    const raw = await kv.get('expimg:index');
+    if (raw) {
+      const marks = (photoOwners || []).map(o => '/api/photo/' + o + '/');
+      const cur = JSON.parse(raw);
+      const keep = cur.filter(e => !ids.has(e.id) && !marks.some(m => String(e.img || '').includes(m)));
+      if (keep.length !== cur.length) await kv.put('expimg:index', JSON.stringify(keep), { expirationTtl: 60 * 60 * 24 * 120 });
+    }
+  } catch (e) {}
+  return ids.size;
+}
+
+async function deletePhotosOf(env, kv, owner) {
   try {
     if (env.PHOTOS) {
       let cursor;
