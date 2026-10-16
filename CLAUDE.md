@@ -53,6 +53,7 @@ BottleSense 係一個酒類「電子酒窖」PWA：影酒標 -> AI 辨識 -> 決
 - 商業：`/api/offers`（商家贊助配對，支援特價 `was`+`until`）、`/api/signal`（匿名需求）、`/api/price/report|community`（社群成交價，>=3 人先顯示）
 - 評分佐證：掃描結果帶 `critics`（只含級別 tier/band、來源名單、話題度，無具體分數）；`/api/verify` 用 Anthropic web_search 查證（每日 訪客 2 / 免費 5 / Pro 20，`VERIFY_GLOBAL_DAILY` 全站上限，結果按酒款快取 `crit:` 30 日）；`/api/heat` 讀匿名需求計數（<3 不顯示）。前端 `criticsCardHTML()` 放喺八維下面。
 - AI：`/api/recommend`（下一支推薦）、`/api/bottle-image`（推薦用酒瓶相：先搵探索池索引 `expimg:index`，再 Wikimedia Commons）
+- ops 用量總覽 `/api/ops/daily`：以 `Authorization: Bearer <OPS_STATS_TOKEN>` 保護，只回每日掃描／註冊次數同模型計數（`m:<日期>` 入面嘅數字），唔回任何個人資料。
 - 後台 `/api/admin/*`：以 `Authorization: Bearer <ADMIN_TOKEN>` 保護（overview、stats、merchants、merchant、explore/flagged|pending|approve|remove、ban、plan、code、campaign、grant、birthday）
 - KV key 前綴：`user: account: session: quota: exp: repcount: stat: demand: ban: pubban: merchant: bonus: m:<日期>`（每日計數）`act:` `px:` `pxd:` `expimg:index` `bimg:` `crit:` `ailast` `rl:`（限流）
 - 統計：`bumpDay()` 寫 `m:<YYYY-MM-DD>`（香港時間），只記數量，不記個人內容。
@@ -63,7 +64,7 @@ BottleSense 係一個酒類「電子酒窖」PWA：影酒標 -> AI 辨識 -> 決
 
 - **前端**：GitHub Pages，由 `main` 分支根目錄發佈 (`https://fiveathree.github.io/bottlesense/`)。push 到 `main` 即部署。
 - **Worker**：Cloudflare **Workers Builds** 由 repo `worker` 資料夾自動部署（push 到 `main` 即觸發）。`wrangler.jsonc` 有 `keep_vars: true`，Dashboard 設定嘅變數/Secret 唔會被覆蓋；`placement.region = aws:us-east-1`（見第 6 節）。
-- **Secrets / 變數**（只寫名，值喺 Cloudflare Dashboard，絕對唔好入 repo）：`ANTHROPIC_API_KEY`、`GAS_URL`（OTP 郵件）、`ADMIN_TOKEN`（後台登入）；可選：`ALLOWED_ORIGINS`、`SCAN_*`、`RECO_GLOBAL_DAILY`、`MIN_AGE`、`MOD_MODEL`、`DEV_MODE`（**正式環境絕對唔可以設**）。詳見 `worker/README.md`。
+- **Secrets / 變數**（只寫名，值喺 Cloudflare Dashboard，絕對唔好入 repo）：`ANTHROPIC_API_KEY`、`GAS_URL`（OTP 郵件）、`ADMIN_TOKEN`（後台登入）、`OPS_STATS_TOKEN`（ops 用量總覽讀每日數量）；可選：`ALLOWED_ORIGINS`、`SCAN_*`、`RECO_GLOBAL_DAILY`、`MIN_AGE`、`MOD_MODEL`、`DEV_MODE`（**正式環境絕對唔可以設**）。詳見 `worker/README.md`。
 - **改完前端必做**：`sw.js` 的 `VERSION` +1、`index.html` 內 `app.js?v=` / `style.css?v=` +1（否則用戶會食舊 cache）。
 - **WhatsApp 預覽圖 cache**：改 OG 圖要換 `?v=`，並叫用戶用新連結分享。
 - 流程：本地改 -> 測試 -> `git add -A && git commit && git push origin HEAD:main`。**用 `&&` 串連，唔好用 `;`**（曾因 `node --check` 失敗仍然 push 咗壞代碼）。

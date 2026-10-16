@@ -1130,6 +1130,22 @@ export default {
         return json({ success: true, scans: cd.scans || 0, proDays: cd.proDays || 0, voucher: cd.voucher || null });
       }
 
+      // ---------- ops 用量總覽：只回報每日數量，唔含任何個人資料 (需設定 OPS_STATS_TOKEN secret) ----------
+      if (path === '/api/ops/daily' && request.method === 'GET') {
+        const tok = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+        if (!env.OPS_STATS_TOKEN || !safeEqual(tok, env.OPS_STATS_TOKEN)) throw new HttpError(401, 'OPS_ONLY');
+        const days = Math.max(1, Math.min(31, parseInt(url.searchParams.get('days') || '14', 10) || 14));
+        const series = [];
+        for (let i = days - 1; i >= 0; i--) {
+          const d = hkday(i);
+          let v = {}; try { v = JSON.parse(await kv.get('m:' + d) || '{}'); } catch (e) {}
+          const models = {};
+          for (const k in v) if (k.startsWith('mdl:')) models[k.slice(4)] = v[k];
+          series.push({ date: d, scan: v.scan || 0, signup: v.signup || 0, models });
+        }
+        return json({ tz: 'UTC+8', days: series, dailyCap: envInt(env.SCAN_GLOBAL_DAILY, 1500) }, 200, { 'Cache-Control': 'no-store' });
+      }
+
       // ---------- 管理 (需設定 ADMIN_TOKEN secret) ----------
       if (path.startsWith('/api/admin/')) {
         const tok = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
