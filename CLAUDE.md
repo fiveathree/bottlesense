@@ -119,3 +119,12 @@ BottleSense 係一個酒類「電子酒窖」PWA：影酒標 -> AI 辨識 -> 決
 - 改 `style.css` 要保持 ASCII；改文案要中英同步。
 - 大改動後更新 `sw.js` VERSION 同 `?v=`。
 - `app.js` 好大，改前先用 Grep 搵相關函數，唔好整份重寫。
+
+## 多 AI 協作（2026-10 起）
+
+- 分工：**ChatGPT Go 做設計，Claude（Claude Code）寫 code，Gemini Pro（Google）做驗收**，用戶拍板。
+- 交流和規格全部經 `docs/specs/`：一個功能一個 Markdown 檔，用 `docs/specs/_template.md` 開新檔；流程和要貼給 ChatGPT／Gemini 的提示在 `docs/specs/README.md`。
+- 開工前先確認規格檔有「2. 驗收標準」且用戶已確認；沒有就先同用戶定好，再開始。
+- ChatGPT 和 Gemini 不能直接改 repo：用戶會把他們的回覆貼進來，由 Claude 原文寫入對應章節（第 3、5 節），不改寫他們的判斷。
+- 實作完填第 4 節，與設計不同的地方要寫原因；Gemini 退回的項目修好後記在第 6 節。
+- 細小修改（改字、修 bug）不用開規格檔，照常做。
