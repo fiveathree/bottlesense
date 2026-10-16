@@ -10,5 +10,12 @@
   "placement": { "region": "aws:us-east-1" },
   "kv_namespaces": [
     { "binding": "CELLAR_KV", "id": "2156c87518404b7d9bda22982f2ad518" }
+  ],
+  // atomic quota / rate-limit / OTP counters (SQLite-backed Durable Object, works on the Workers Free plan)
+  "durable_objects": {
+    "bindings": [{ "name": "LIMITER", "class_name": "Limiter" }]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Limiter"] }
   ]
 }

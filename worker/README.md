@@ -15,6 +15,10 @@ Deployed automatically by Cloudflare Workers Builds from this repo (root dir `wo
 | `SCAN_GUEST_IP_MONTHLY` | var (optional) | guest scans per IP per month, on top of the per-sync-key guest limit (default 24) |
 | `DEV_MODE` | var | `1` returns the OTP in the API response when mail fails. NEVER set in production |
 
+## Counters (Durable Object)
+Quotas, rate limits, OTP codes/attempts and bonus credits live in the `Limiter` Durable Object (SQLite backend, binding `LIMITER`, migration tag `v1` in wrangler.jsonc).
+It is created automatically on deploy; nothing to set in the dashboard. If the Durable Object fails (e.g. free-plan daily limit reached), counters fall back to KV and OTP login is refused until it recovers; the error shows in the admin "AI last error" card as `limiter: ...`.
+
 ## Photos
 Photos are stored in R2 when an `PHOTOS` R2 binding exists, otherwise in KV (`photo:` keys).
 To use R2: enable R2 in the dashboard, create a bucket, add to wrangler.jsonc:

@@ -223,21 +223,232 @@ class HttpError extends Error {
   constructor(status, code, extra) { super(code); this.status = status; this.code = code; this.extra = extra || {}; }
 }
 
-// KV 計數式限流 (非原子，足以擋住一般濫用；更強保護請加 Cloudflare Rate Limiting / Turnstile)
-async function hit(kv, key, limit, ttl) {
-  const cur = parseInt(await kv.get(key) || '0', 10);
-  if (cur >= limit) return false;
-  await kv.put(key, String(cur + 1), { expirationTtl: Math.max(60, ttl) });
+// ============ 計數：Durable Object `Limiter` (原子) ============
+// 每個「計數 + 身分」一個 DO (計數鍵去掉尾段日期／時段，例如 rl:otpip:<ip>)，同一個 DO 入面嘅操作逐個排隊執行，並發請求唔會超額。
+// DO 出錯 (例如免費方案當日額度用完) 時退回舊 KV 計數：非原子，只係盡力限流，唔會令全站停用。
+function kvOf(env) { return env.CELLAR_KV || env.BOTTLE_KV; }
+function limName(key) { return String(key).replace(/:\d{6,10}$/, ''); }
+let limErrAt = 0;
+async function limCall(env, key, body) {
+  if (!env.LIMITER) throw new Error('LIMITER_NOT_BOUND');
+  const stub = env.LIMITER.get(env.LIMITER.idFromName(limName(key)));
+  const res = await stub.fetch('https://limiter/', { method: 'POST', body: JSON.stringify({ key, ...body }) });
+  if (!res.ok) throw new Error('LIMITER_' + res.status);
+  return res.json();
+}
+// DO 出錯記錄喺 ailast (後台「AI 最近一次錯誤」可見)，10 分鐘最多寫一次，避免故障期間狂寫 KV
+async function limFailed(env, er) {
+  if (Date.now() - limErrAt < 600_000) return;
+  limErrAt = Date.now();
+  try { await kvOf(env).put('ailast', JSON.stringify({ t: Date.now(), status: 0, model: 'limiter', msg: 'limiter: ' + String(er && er.message || er).slice(0, 280) }), { expirationTtl: 60 * 60 * 24 * 14 }); } catch (e) {}
+}
+// 舊 KV 計數 (只喺 DO 出錯時用)
+async function kvUsed(kv, key) { return parseInt(await kv.get(key) || '0', 10); }
+async function kvBump(kv, key, ttl) { await kv.put(key, String((await kvUsed(kv, key)) + 1), { expirationTtl: Math.max(60, ttl) }); }
+async function kvHit(kv, key, limit, ttl) {
+  if ((await kvUsed(kv, key)) >= limit) return false;
+  await kvBump(kv, key, ttl);
   return true;
 }
-async function limitOrThrow(kv, key, limit, ttl, code) {
-  if (!(await hit(kv, key, limit, ttl))) throw new HttpError(429, code || 'RATE_LIMITED');
+
+// 計一次；已達上限回 false
+async function limTake(env, key, limit, ttl) {
+  try { return (await limCall(env, key, { op: 'take', limit, ttl })).ok; }
+  catch (er) { await limFailed(env, er); return kvHit(kvOf(env), key, limit, ttl); }
 }
-// 「成功先扣」：先檢查唔計數，成功後先 bumpCount
-async function underLimit(kv, key, limit) { return parseInt(await kv.get(key) || '0', 10) < limit; }
-async function bumpCount(kv, key, ttl) {
-  const cur = parseInt(await kv.get(key) || '0', 10);
-  await kv.put(key, String(cur + 1), { expirationTtl: Math.max(60, ttl) });
+async function limitOrThrow(env, key, limit, ttl, code) {
+  if (!(await limTake(env, key, limit, ttl))) throw new HttpError(429, code || 'RATE_LIMITED');
+}
+// 退還一次 limTake (同一請求後面嘅檢查失敗、請求被拒時用)
+async function limRefund(env, key) {
+  try { await limCall(env, key, { op: 'refund' }); } catch (er) { await limFailed(env, er); }
+}
+// 「成功先扣」：reserve 預留一次 (預留都計入上限，並發唔會超額)；成功 limCommit，失敗 limRelease；預留 5 分鐘未處理自動失效
+async function limReserve(env, key, limit, ttl) {
+  try { return { key, ttl, ...(await limCall(env, key, { op: 'reserve', limit, ttl })) }; }
+  catch (er) {
+    await limFailed(env, er);
+    const used = await kvUsed(kvOf(env), key);
+    return used < limit ? { key, ttl, ok: true, used: used + 1, ticket: 'kv' } : { key, ttl, ok: false, used };
+  }
+}
+async function limCommit(env, r) {
+  if (!r || !r.ok) return;
+  if (r.ticket === 'kv') { try { await kvBump(kvOf(env), r.key, r.ttl); } catch (e) {} return; }
+  try { await limCall(env, r.key, { op: 'commit', ticket: r.ticket, ttl: r.ttl }); } catch (er) { await limFailed(env, er); }
+}
+async function limRelease(env, r) {
+  if (!r || !r.ok || r.ticket === 'kv') return;
+  try { await limCall(env, r.key, { op: 'release', ticket: r.ticket }); } catch (er) { await limFailed(env, er); }
+}
+// 只讀 (額度顯示、後台)
+async function limPeek(env, key) {
+  try { return (await limCall(env, key, { op: 'peek' })).used; }
+  catch (er) { await limFailed(env, er); return kvUsed(kvOf(env), key); }
+}
+async function limDelete(env, key) {
+  try { await limCall(env, key, { op: 'del' }); } catch (er) { await limFailed(env, er); }
+}
+// OTP：驗證碼同錯誤次數放喺 DO，比對同加錯誤次數一次過完成；DO 出錯時一律當驗證失敗 (安全優先)
+async function otpPut(env, email, h, exp) {
+  try { await limCall(env, 'otp:' + email, { op: 'otpPut', h, exp }); }
+  catch (er) { await limFailed(env, er); throw new HttpError(503, 'SERVICE_BUSY'); }
+}
+async function otpCheck(env, email, h) {
+  try { return (await limCall(env, 'otp:' + email, { op: 'otpCheck', h })).r; }
+  catch (er) { await limFailed(env, er); return 'none'; }
+}
+
+const LIM_SEED = /^(quota:|rl:verify:)/;
+// 每個 DO 實例只處理一個 limName 底下嘅鍵；所有操作經 this.q 排隊，包括等 KV 遷移讀取期間
+export class Limiter {
+  constructor(ctx, env) { this.ctx = ctx; this.env = env; this.q = Promise.resolve(); this.alarmOk = false; }
+  async fetch(request) {
+    let body;
+    try { body = await request.json(); } catch (e) { return new Response('BAD_JSON', { status: 400 }); }
+    const run = this.q.then(() => this.op(body));
+    this.q = run.catch(() => {});
+    try { return new Response(JSON.stringify(await run), { headers: { 'Content-Type': 'application/json' } }); }
+    catch (e) { return new Response(String(e && e.message || e), { status: 500 }); }
+  }
+  async alarm() {
+    const st = this.ctx.storage;
+    let left = 0;
+    for (const [k, r] of await st.list()) {
+      if (!r || !r.exp) continue;
+      if (r.exp < Date.now()) await st.delete(k); else left++;
+    }
+    if (left) await st.setAlarm(Date.now() + 86400e3);
+  }
+  async load(key) {
+    const r = await this.ctx.storage.get(key);
+    if (r && r.exp && r.exp < Date.now()) { await this.ctx.storage.delete(key); return null; }
+    return r || null;
+  }
+  async save(key, r) {
+    const st = this.ctx.storage;
+    await st.put(key, r);
+    if (r.exp && !this.alarmOk) {
+      if ((await st.getAlarm()) == null) await st.setAlarm(Date.now() + 86400e3);
+      this.alarmOk = true;
+    }
+  }
+  // 第一次用某個計數：由舊 KV 帶入本月／今日已用次數 (遷移)，之後只用 DO
+  async seedCount(key) {
+    if (!LIM_SEED.test(key)) return 0;
+    try { return Math.max(0, parseInt(await kvOf(this.env).get(key) || '0', 10) || 0); } catch (e) { return 0; }
+  }
+  async counter(key, ttl) {
+    let r = await this.load(key);
+    if (!r) r = { n: await this.seedCount(key), r: {}, exp: Date.now() + Math.max(60, Number(ttl) || 86400) * 1000 };
+    const now = Date.now();
+    for (const t in r.r) if (r.r[t] < now) delete r.r[t];
+    return r;
+  }
+  async bonus(key) {
+    let r = await this.load(key);
+    if (!r) {
+      let l = [];
+      try { l = JSON.parse(await kvOf(this.env).get(key) || '[]'); } catch (e) {}
+      r = { l: Array.isArray(l) ? l : [], r: {} };
+    }
+    const now = Date.now();
+    r.l = r.l.filter(x => x && x.n > 0 && x.exp > now);
+    for (const t in r.r) if (r.r[t] < now) delete r.r[t];
+    return r;
+  }
+  async op(b) {
+    const key = String(b.key || '');
+    const now = Date.now();
+    const used = r => r.n + Object.keys(r.r).length;
+    switch (b.op) {
+      case 'take': {
+        const r = await this.counter(key, b.ttl);
+        const u = used(r);
+        if (u >= b.limit) return { ok: false, used: u };
+        r.n++; await this.save(key, r);
+        return { ok: true, used: u + 1 };
+      }
+      case 'refund': {
+        const r = await this.load(key);
+        if (r && r.n > 0) { r.n--; await this.save(key, r); }
+        return { ok: true };
+      }
+      case 'reserve': {
+        const r = await this.counter(key, b.ttl);
+        const u = used(r);
+        if (u >= b.limit) return { ok: false, used: u };
+        const ticket = crypto.randomUUID();
+        r.r[ticket] = now + 300_000;
+        await this.save(key, r);
+        return { ok: true, used: u + 1, ticket };
+      }
+      case 'commit': {
+        if (key.startsWith('bonus:')) {
+          const r = await this.bonus(key);
+          delete r.r[b.ticket];
+          const x = r.l.sort((p, q) => p.exp - q.exp).find(y => y.n > 0);
+          if (x) x.n--;
+          await this.save(key, r);
+          return { ok: true };
+        }
+        // 預留過期都照扣：AI 已經成功回覆
+        const r = await this.counter(key, b.ttl);
+        delete r.r[b.ticket]; r.n++;
+        await this.save(key, r);
+        return { ok: true };
+      }
+      case 'release': {
+        const r = await this.load(key);
+        if (r && r.r && r.r[b.ticket]) { delete r.r[b.ticket]; await this.save(key, r); }
+        return { ok: true };
+      }
+      case 'peek': {
+        const r = await this.load(key);
+        if (!r) return { used: await this.seedCount(key) };
+        return { used: r.n + Object.values(r.r).filter(x => x >= now).length };
+      }
+      case 'del': await this.ctx.storage.delete(key); return { ok: true };
+      case 'otpPut':
+        await this.save(key, { h: String(b.h), tries: 0, exp: Number(b.exp) });
+        return { ok: true };
+      case 'otpCheck': {
+        let r = await this.load(key);
+        if (!r) {
+          // 遷移：部署前已發出嘅驗證碼仲喺 KV
+          try {
+            const kv = kvOf(this.env);
+            const raw = await kv.get(key);
+            if (raw) { r = JSON.parse(raw); await kv.delete(key); }
+          } catch (e) { r = null; }
+        }
+        if (!r || !r.h || now > r.exp) { await this.ctx.storage.delete(key); return { r: 'none' }; }
+        if (r.tries >= 5) { await this.ctx.storage.delete(key); return { r: 'toomany' }; }
+        if (!safeEqual(b.h, r.h)) { r.tries++; await this.save(key, r); return { r: 'bad' }; }
+        await this.ctx.storage.delete(key);
+        return { r: 'ok' };
+      }
+      case 'bonusList': {
+        const r = await this.bonus(key);
+        return { list: r.l, pending: Object.keys(r.r).length };
+      }
+      case 'bonusGrant': {
+        const r = await this.bonus(key);
+        r.l.push({ n: Number(b.n) || 0, src: String(b.src || ''), exp: now + (Number(b.days) || 90) * 86400000 });
+        await this.save(key, r);
+        return { ok: true };
+      }
+      case 'bonusReserve': {
+        const r = await this.bonus(key);
+        if (r.l.reduce((a, x) => a + x.n, 0) - Object.keys(r.r).length <= 0) return { ok: false };
+        const ticket = crypto.randomUUID();
+        r.r[ticket] = now + 300_000;
+        await this.save(key, r);
+        return { ok: true, ticket };
+      }
+    }
+    throw new Error('BAD_OP');
+  }
 }
 // AI 上游錯誤分類：繁忙 / 暫時故障 / 回覆壞咗 可以轉另一個模型再試；403 等其他錯誤唔重試
 function aiStatus(er) { return Number(er && er.status) || 0; }
@@ -499,22 +710,21 @@ async function planOf(kv, email) {
   if (u > Date.now()) return { plan: 'pro', proUntil: u };
   return { plan: 'free', proUntil: 0 };
 }
-async function loadBonus(kv, email) {
-  try { return JSON.parse(await kv.get('bonus:' + email) || '[]').filter(x => x.n > 0 && x.exp > Date.now()); } catch (e) { return []; }
+// 獎勵次數放喺 Limiter DO (bonus:<email>)；第一次讀取時由舊 KV 帶入。DO 出錯時當冇獎勵、派獎回 503
+async function loadBonus(env, email) {
+  try { return (await limCall(env, 'bonus:' + email, { op: 'bonusList' })).list; }
+  catch (er) { await limFailed(env, er); return []; }
 }
-async function grantBonus(kv, email, n, src, days = 90) {
-  const l = await loadBonus(kv, email);
-  l.push({ n, src, exp: Date.now() + days * 86400000 });
-  await kv.put('bonus:' + email, JSON.stringify(l));
+async function grantBonus(env, email, n, src, days = 90) {
+  try { await limCall(env, 'bonus:' + email, { op: 'bonusGrant', n, src, days }); }
+  catch (er) { await limFailed(env, er); throw new HttpError(503, 'SERVICE_BUSY'); }
 }
-async function bonusBalance(kv, email) { return (await loadBonus(kv, email)).reduce((a, x) => a + x.n, 0); }
-async function consumeBonus(kv, email) {
-  const l = (await loadBonus(kv, email)).sort((a, b) => a.exp - b.exp);
-  const x = l.find(y => y.n > 0);
-  if (!x) return false;
-  x.n--;
-  await kv.put('bonus:' + email, JSON.stringify(l));
-  return true;
+async function bonusBalance(env, email) { return (await loadBonus(env, email)).reduce((a, x) => a + x.n, 0); }
+// 預留一次獎勵；之後用 limCommit / limRelease
+async function bonusReserve(env, email) {
+  const key = 'bonus:' + email;
+  try { return { key, ...(await limCall(env, key, { op: 'bonusReserve' })) }; }
+  catch (er) { await limFailed(env, er); return { key, ok: false }; }
 }
 async function ensureRefCode(kv, email) {
   let c = await kv.get('refcode:' + email);
@@ -535,12 +745,12 @@ async function evaluateReferral(kv, env, email) {
   if (Date.now() < r.eligibleAt || !(await kv.get('scanned:' + email))) return null;
   await kv.delete('refpending:' + email);
   const n = envInt(env.REF_REWARD, 10);
-  await grantBonus(kv, email, n, 'referral');
+  try { await grantBonus(env, email, n, 'referral'); } catch (er) { await kv.put('refpending:' + email, raw, { expirationTtl: 60 * 60 * 24 * 60 }); throw er; }
   const ck = `refcap:${r.owner}:${ym()}`;
   const cnt = parseInt(await kv.get(ck) || '0', 10);
   const ownerIp = await kv.get('lastip:' + r.owner);
   if (cnt < envInt(env.REF_MONTHLY_CAP, 10) && !(ownerIp && ownerIp === r.ip)) {
-    await grantBonus(kv, r.owner, n, 'referral');
+    await grantBonus(env, r.owner, n, 'referral');
     await kv.put(ck, String(cnt + 1), { expirationTtl: 60 * 60 * 24 * 40 });
     await kv.put('refcount:' + r.owner, String(parseInt(await kv.get('refcount:' + r.owner) || '0', 10) + 1));
   }
@@ -555,7 +765,7 @@ async function grantDue(kv, env, email, profile) {
     if (!(await kv.get(k))) {
       await kv.put(k, '1', { expirationTtl: 60 * 60 * 24 * 400 });
       const n = envInt(env.BDAY_BONUS, 10);
-      await grantBonus(kv, email, n, 'birthday');
+      try { await grantBonus(env, email, n, 'birthday'); } catch (er) { await kv.delete(k); throw er; }
       granted.push({ src: 'birthday', n });
     }
   }
@@ -568,7 +778,7 @@ async function grantDue(kv, env, email, profile) {
     const ck = `claimed:${c.id}:${email}`;
     if (await kv.get(ck)) continue;
     await kv.put(ck, '1', { expirationTtl: 60 * 60 * 24 * 400 });
-    await grantBonus(kv, email, c.bonus, 'campaign:' + c.id);
+    try { await grantBonus(env, email, c.bonus, 'campaign:' + c.id); } catch (er) { await kv.delete(ck); throw er; }
     granted.push({ src: 'campaign', name: c.name, n: c.bonus });
   }
   const rr = await evaluateReferral(kv, env, email);
@@ -705,20 +915,19 @@ export default {
           if (ageOf(birthday) < minAge(env)) throw new HttpError(403, 'UNDER_AGE', { minAge: minAge(env) });
         }
         if (await kv.get('ban:' + e)) throw new HttpError(403, 'BANNED');
-        await limitOrThrow(kv, `rl:otpip:${ip}:${ymd()}${new Date().getUTCHours()}`, 20, 3600, 'RATE_LIMITED_IP');
-        await limitOrThrow(kv, `rl:otpem:${e}:${ymd()}${new Date().getUTCHours()}`, 5, 3600, 'RATE_LIMITED_EMAIL');
-        if (await kv.get('otpcd:' + e)) throw new HttpError(429, 'COOLDOWN');
-        await kv.put('otpcd:' + e, '1', { expirationTtl: 60 });
+        await limitOrThrow(env, `rl:otpip:${ip}:${ymd()}${new Date().getUTCHours()}`, 20, 3600, 'RATE_LIMITED_IP');
+        await limitOrThrow(env, `rl:otpem:${e}:${ymd()}${new Date().getUTCHours()}`, 5, 3600, 'RATE_LIMITED_EMAIL');
+        if (!(await limTake(env, 'otpcd:' + e, 1, 60))) throw new HttpError(429, 'COOLDOWN');
 
         const otp = randomOtp();
-        await kv.put('otp:' + e, JSON.stringify({ h: await sha256hex(otp + ':' + e), tries: 0, exp: Date.now() + 600_000 }), { expirationTtl: 600 });
+        await otpPut(env, e, await sha256hex(otp + ':' + e), Date.now() + 600_000);
         if (name || birthday || gender) {
           await kv.put('pending_reg:' + e, JSON.stringify({ name: clip(name, 60), gender: clip(gender, 20), birthday: validBirthday(birthday) ? birthday : '' }), { expirationTtl: 600 });
         }
         const mailRes = await sendEmail(env, { to: e, code: otp, type: clip(type, 20) || 'otp', name: clip(name, 60) || e.split('@')[0] });
         const devMode = env.DEV_MODE === '1';
         if (!mailRes.ok && !devMode) {
-          await kv.delete('otp:' + e);
+          await limDelete(env, 'otp:' + e);
           return json({ error: 'EMAIL_SEND_FAILED: ' + (mailRes.error || 'unknown') }, 502);
         }
         return json({ success: true, emailSent: mailRes.ok, devOtp: (!mailRes.ok && devMode) ? otp : undefined });
@@ -726,7 +935,7 @@ export default {
 
       if (path === '/api/auth/check-email' && request.method === 'POST') {
         const { email } = await readJson(request, 5_000);
-        await limitOrThrow(kv, `rl:chk:${ip}:${ymd()}${new Date().getUTCHours()}`, 30, 3600);
+        await limitOrThrow(env, `rl:chk:${ip}:${ymd()}${new Date().getUTCHours()}`, 30, 3600);
         const e = String(email || '').toLowerCase().trim();
         return json({ exists: isEmail(e) ? !!(await kv.get('account:' + e)) : false });
       }
@@ -734,19 +943,12 @@ export default {
       if (path === '/api/auth/verify-otp' && request.method === 'POST') {
         const { email, otp, syncKey, localCellar, localDeleted, ref } = await readJson(request, 24_000_000);
         const e = String(email || '').toLowerCase().trim();
-        await limitOrThrow(kv, `rl:ver:${ip}:${ymd()}${new Date().getUTCHours()}`, 40, 3600, 'RATE_LIMITED_IP');
-        const raw = await kv.get('otp:' + e);
-        let rec = null; try { rec = raw ? JSON.parse(raw) : null; } catch (er) {}
+        await limitOrThrow(env, `rl:ver:${ip}:${ymd()}${new Date().getUTCHours()}`, 40, 3600, 'RATE_LIMITED_IP');
         const bad = () => json({ error: '驗證碼無效或已過期，請重新發送。' }, 400);
-        if (!rec || Date.now() > rec.exp) return bad();
-        if (rec.tries >= 5) { await kv.delete('otp:' + e); return json({ error: '嘗試次數過多，請重新發送驗證碼。' }, 429); }
-        const h = await sha256hex(String(otp || '') + ':' + e);
-        if (!safeEqual(h, rec.h)) {
-          rec.tries++;
-          await kv.put('otp:' + e, JSON.stringify(rec), { expirationTtl: Math.max(60, Math.floor((rec.exp - Date.now()) / 1000)) });
-          return bad();
-        }
-        await kv.delete('otp:' + e);
+        // 比對同加錯誤次數喺 DO 入面一次過完成，並發猜碼都只會計夠 5 次
+        const chk = await otpCheck(env, e, await sha256hex(String(otp || '') + ':' + e));
+        if (chk === 'toomany') return json({ error: '嘗試次數過多，請重新發送驗證碼。' }, 429);
+        if (chk !== 'ok') return bad();
 
         let userKey = await kv.get('account:' + e);
         let pendingInfo = {};
@@ -793,7 +995,7 @@ export default {
         await kv.put('lastip:' + e, await ipHash(ip), { expirationTtl: 60 * 60 * 24 * 90 });
         await bumpDay(kv, { login: 1 });
         const token = await createSession(kv, e);
-        const grantedNow = await grantDue(kv, env, e, profileData);
+        const grantedNow = await grantDue(kv, env, e, profileData).catch(() => []);
         const pl = await planOf(kv, e);
         return json({
           success: true, email: e,
@@ -830,21 +1032,21 @@ export default {
           const ak = `act:${hkday()}:${await ipHash(ip)}`;
           if (!(await kv.get(ak))) { await kv.put(ak, '1', { expirationTtl: 172800 }); await bumpDay(kv, { active: 1 }); }
         } catch (e) {}
-        const used = parseInt(await kv.get(`quota:${tier.id}:${ym()}`) || '0', 10);
-        return json({ tier: tier.tier, used, limit: tier.limit, bonus: tier.email ? await bonusBalance(kv, tier.email) : 0 });
+        const used = await limPeek(env, `quota:${tier.id}:${ym()}`);
+        return json({ tier: tier.tier, used, limit: tier.limit, bonus: tier.email ? await bonusBalance(env, tier.email) : 0 });
       }
 
       if (path === '/api/me' && request.method === 'GET') {
         const { email, userKey } = await requireSession(request, kv);
         const rec = parseUserRecord(await kv.get('user:' + userKey));
-        const granted = await grantDue(kv, env, email, rec.profile);
+        const granted = await grantDue(kv, env, email, rec.profile).catch(() => []);
         await kv.put('lastip:' + email, await ipHash(ip), { expirationTtl: 60 * 60 * 24 * 90 });
         const pl = await planOf(kv, email);
         const limit = pl.plan === 'pro' ? envInt(env.SCAN_PRO_MONTHLY, 1000) : envInt(env.SCAN_FREE_MONTHLY, 40);
         return json({
           email, plan: pl.plan, proUntil: pl.proUntil,
-          bonus: await bonusBalance(kv, email),
-          quota: { used: parseInt(await kv.get(`quota:u:${email}:${ym()}`) || '0', 10), limit },
+          bonus: await bonusBalance(env, email),
+          quota: { used: await limPeek(env, `quota:u:${email}:${ym()}`), limit },
           refCode: await ensureRefCode(kv, email),
           refCount: parseInt(await kv.get('refcount:' + email) || '0', 10),
           birthday: rec.profile.birthday || '', birthdayLocked: validBirthday(rec.profile.birthday),
@@ -881,6 +1083,8 @@ export default {
         await kv.delete('keyowner:' + userKey);
         await kv.delete('account:' + email);
         await kv.delete('otp:' + email);
+        await limDelete(env, 'otp:' + email);
+        await limDelete(env, 'bonus:' + email);
         for (const k of ['plan:', 'proUntil:', 'bonus:', 'lastip:', 'scanned:', 'refpending:', 'pubban:', 'modstrike:']) await kv.delete(k + email);
         const rcode = await kv.get('refcode:' + email);
         if (rcode) { await kv.delete('refowner:' + rcode); await kv.delete('refcode:' + email); }
@@ -960,8 +1164,8 @@ export default {
         if (!validBirthday(prof.birthday) || ageOf(prof.birthday) < minAge(env)) throw new HttpError(403, 'AGE_REQUIRED', { minAge: minAge(env) });
         const id = String(item.id || '');
         if (!/^[\w.\-]{1,120}$/.test(id)) throw new HttpError(400, 'BAD_ID');
-        await limitOrThrow(kv, `rl:exp:${(await sha256hex(syncKey)).slice(0, 16)}:${ymd()}`, 20, 86400, 'RATE_LIMITED');
-        await limitOrThrow(kv, `rl:expip:${ip}:${ymd()}`, 60, 86400, 'RATE_LIMITED');
+        await limitOrThrow(env, `rl:exp:${(await sha256hex(syncKey)).slice(0, 16)}:${ymd()}`, 20, 86400, 'RATE_LIMITED');
+        await limitOrThrow(env, `rl:expip:${ip}:${ymd()}`, 60, 86400, 'RATE_LIMITED');
         const share = await shareIdOf(syncKey);
         const prev = await kv.getWithMetadata('exp:' + id);
         if (prev.value && prev.metadata && prev.metadata.o && prev.metadata.o !== share) throw new HttpError(409, 'ID_TAKEN');
@@ -999,7 +1203,7 @@ export default {
       if (path === '/api/explore/report' && request.method === 'POST') {
         const { id } = await readJson(request, 2_000);
         if (!/^[\w.\-]{1,120}$/.test(String(id || ''))) throw new HttpError(400, 'BAD_ID');
-        await limitOrThrow(kv, `rl:rep:${ip}:${ymd()}`, 20, 86400);
+        await limitOrThrow(env, `rl:rep:${ip}:${ymd()}`, 20, 86400);
         const dk = `rep:${id}:${(await sha256hex(ip)).slice(0, 16)}`;
         if (await kv.get(dk)) return json({ success: true, already: true });
         await kv.put(dk, '1', { expirationTtl: 60 * 60 * 24 * 90 });
@@ -1028,7 +1232,7 @@ export default {
       if (path === '/api/photo' && request.method === 'POST') {
         const syncKey = request.headers.get('X-Sync-Key');
         await requireKeyAccess(request, kv, syncKey);
-        await limitOrThrow(kv, `rl:ph:${(await sha256hex(syncKey)).slice(0, 16)}:${ymd()}`, 300, 86400, 'RATE_LIMITED');
+        await limitOrThrow(env, `rl:ph:${(await sha256hex(syncKey)).slice(0, 16)}:${ymd()}`, 300, 86400, 'RATE_LIMITED');
         const buf = await request.arrayBuffer();
         if (buf.byteLength < 200 || buf.byteLength > 900_000) throw new HttpError(413, 'BAD_SIZE');
         const u8 = new Uint8Array(buf);
@@ -1060,7 +1264,7 @@ export default {
       // ---------- 贊助購買建議 (只用酒款屬性配對，不帶任何用戶身份) ----------
       if (path === '/api/offers' && request.method === 'POST') {
         const q = await readJson(request, 5_000);
-        await limitOrThrow(kv, `rl:off:${ip}:${ymd()}`, 300, 86400);
+        await limitOrThrow(env, `rl:off:${ip}:${ymd()}`, 300, 86400);
         const merchants = await loadMerchants(kv);
         const buy = [], similar = [];
         for (const m of merchants) {
@@ -1098,7 +1302,7 @@ export default {
         if (path === '/api/price/report') {
           const usd = Number(b.usd);
           if (!isFinite(usd) || usd < 1 || usd > 2_000_000) throw new HttpError(400, 'BAD_PRICE');
-          await limitOrThrow(kv, `rl:px:${ip}:${ymd()}`, 40, 86400);
+          await limitOrThrow(env, `rl:px:${ip}:${ymd()}`, 40, 86400);
           const dk = `pxd:${pk}:${(await ipHash(ip)).slice(0, 16)}`;
           if (await kv.get(dk)) return json({ success: true, dup: true });
           await kv.put(dk, '1', { expirationTtl: 60 * 60 * 24 * 90 });
@@ -1118,7 +1322,7 @@ export default {
       if (path === '/api/signal' && request.method === 'POST') {
         const b = await readJson(request, 3_000);
         if (!['wishlist', 'scan', 'share_wishlist'].includes(b.type)) throw new HttpError(400, 'BAD_TYPE');
-        await limitOrThrow(kv, `rl:sig:${ip}:${ymd()}`, 60, 86400);
+        await limitOrThrow(env, `rl:sig:${ip}:${ymd()}`, 60, 86400);
         const name = clip(b.name, 120).trim();
         if (!name) throw new HttpError(400, 'MISSING_NAME');
         const dk = `demand:${ym()}:${b.type}:${(await sha256hex(name.toLowerCase())).slice(0, 16)}`;
@@ -1132,8 +1336,8 @@ export default {
       if (path === '/api/redeem' && request.method === 'POST') {
         const { email } = await requireSession(request, kv);
         const { code } = await readJson(request, 1000);
-        await limitOrThrow(kv, `rl:redip:${ip}:${ymd()}`, 20, 86400, 'RATE_LIMITED_IP');
-        await limitOrThrow(kv, `rl:redem:${email}:${ymd()}`, 10, 86400, 'RATE_LIMITED');
+        await limitOrThrow(env, `rl:redip:${ip}:${ymd()}`, 20, 86400, 'RATE_LIMITED_IP');
+        await limitOrThrow(env, `rl:redem:${email}:${ymd()}`, 10, 86400, 'RATE_LIMITED');
         const c = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 32);
         const raw = c ? await kv.get('code:' + c) : null;
         if (!raw) throw new HttpError(404, 'CODE_INVALID');
@@ -1142,7 +1346,7 @@ export default {
         if (await kv.get(`redeemed:${c}:${email}`)) throw new HttpError(409, 'CODE_ALREADY');
         const used = parseInt(await kv.get('codeuses:' + c) || '0', 10);
         if (cd.maxUses && used >= cd.maxUses) throw new HttpError(410, 'CODE_USED_UP');
-        if (cd.scans) await grantBonus(kv, email, cd.scans, 'code:' + c);
+        if (cd.scans) await grantBonus(env, email, cd.scans, 'code:' + c);
         if (cd.proDays) {
           const cur = parseInt(await kv.get('proUntil:' + email) || '0', 10);
           await kv.put('proUntil:' + email, String(Math.max(Date.now(), cur) + cd.proDays * 86400000));
@@ -1237,7 +1441,7 @@ export default {
           const g = await readJson(request, 1000);
           const e = String(g.email || '').toLowerCase().trim();
           if (!isEmail(e)) throw new HttpError(400, 'INVALID_EMAIL');
-          if (g.scans) await grantBonus(kv, e, Math.min(1000, parseInt(g.scans, 10) || 0), 'admin');
+          if (g.scans) await grantBonus(env, e, Math.min(1000, parseInt(g.scans, 10) || 0), 'admin');
           if (g.proDays) { const cur = parseInt(await kv.get('proUntil:' + e) || '0', 10); await kv.put('proUntil:' + e, String(Math.max(Date.now(), cur) + Math.min(366, parseInt(g.proDays, 10) || 0) * 86400000)); }
           return json({ success: true });
         }
@@ -1316,7 +1520,7 @@ export default {
         const b = await readJson(request, 2_000);
         const name = clip(String(b.name || ''), 120).trim(), producer = clip(String(b.producer || ''), 80).trim();
         if (!name) throw new HttpError(400, 'MISSING_NAME');
-        await limitOrThrow(kv, `rl:bimg:${ip}:${ymd()}`, 80, 86400);
+        await limitOrThrow(env, `rl:bimg:${ip}:${ymd()}`, 80, 86400);
         const ck = 'bimg:' + (await sha256hex((name + '|' + producer).toLowerCase())).slice(0, 24);
         const hitc = await kv.get(ck);
         if (hitc !== null) return json({ url: hitc === '-' ? null : hitc });
@@ -1345,7 +1549,7 @@ export default {
         const b = await readJson(request, 2_000);
         const name = clip(String(b.name || ''), 120).trim();
         if (!name) throw new HttpError(400, 'MISSING_NAME');
-        await limitOrThrow(kv, `rl:heat:${ip}:${ymd()}`, 200, 86400);
+        await limitOrThrow(env, `rl:heat:${ip}:${ymd()}`, 200, 86400);
         const h = (await sha256hex(name.toLowerCase())).slice(0, 16);
         const d = new Date(); const prev = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1));
         const months = [ym(), prev.toISOString().slice(0, 7).replace('-', '')];
@@ -1373,9 +1577,13 @@ export default {
         // 每日次數「成功先扣」：上游失敗唔會食咗用戶次數；另設嘗試上限 (daily x3) 防止失敗請求無限重試
         const vKey = `rl:verify:${tier.id}:${ymd()}`;
         const vIpKey = tier.ipId ? `rl:verify:${tier.ipId}:${ymd()}` : null;
-        if (!(await underLimit(kv, vKey, daily)) || (vIpKey && !(await underLimit(kv, vIpKey, daily * 3)))) throw new HttpError(429, 'RATE_LIMITED');
-        await limitOrThrow(kv, `rl:verifytry:${tier.id}:${ymd()}`, daily * 3, 86400, 'RATE_LIMITED');
-        await limitOrThrow(kv, `rl:verifyall:${ymd()}`, envInt(env.VERIFY_GLOBAL_DAILY, 300), 86400, 'SERVICE_BUSY');
+        // 預留都計入上限，並發請求唔會超額；成功先 commit，任何失敗喺 finally 退還
+        const vRes = await Promise.all([limReserve(env, vKey, daily, 86400), vIpKey ? limReserve(env, vIpKey, daily * 3, 86400) : null]);
+        let vDone = false;
+        try {
+        if (vRes.some(r => r && !r.ok)) throw new HttpError(429, 'RATE_LIMITED');
+        await limitOrThrow(env, `rl:verifytry:${tier.id}:${ymd()}`, daily * 3, 86400, 'RATE_LIMITED');
+        await limitOrThrow(env, `rl:verifyall:${ymd()}`, envInt(env.VERIFY_GLOBAL_DAILY, 300), 86400, 'SERVICE_BUSY');
         const prompt = `Use web search to find what established wine/spirits/sake/beer critics and competitions say about this bottle: "${name}"${producer ? ' by ' + producer : ''}${vin ? ', vintage ' + vin : ''}${cat ? ' (category: ' + cat + ')' : ''}.
 Also gauge how much online discussion / buzz it gets. Reply with JSON only, no markdown:
 {"tier":"acclaimed|strong|solid|everyday|unknown","band":"95+|90-94|85-89|80-84|<80|null","src":[names chosen only from: ${CRIT_SRC.join(', ')}],"buzz":"high|medium|low|unknown","conf":"high|medium|low","cites":[up to 3 https URLs that you actually used],"zh":"一至兩句繁體中文書面語，用自己的話概括專業評價與討論度，不得引用原文，不得寫具體分數","en":"One or two plain English sentences in your own words, no quotes, no exact scores"}
@@ -1404,10 +1612,13 @@ Rules: never quote reviews and never give exact critic scores (only the band). I
         const links = (Array.isArray(j.cites) ? j.cites : []).filter(u => seen.has(u)).slice(0, 3).map(u => ({ url: u, title: seen.get(u) }));
         const out = { ...c, links, zh: clip(String(j.zh || ''), 220), en: clip(String(j.en || ''), 300), verified: true, t: Date.now() };
         await kv.put(ck, JSON.stringify(out), { expirationTtl: 60 * 60 * 24 * (c.tier === 'unknown' ? 3 : 30) });
-        await bumpCount(kv, vKey, 86400);
-        if (vIpKey) await bumpCount(kv, vIpKey, 86400);
+        await Promise.all(vRes.map(r => limCommit(env, r)));
+        vDone = true;
         await bumpDay(kv, { verify: 1 });
         return json(out);
+        } finally {
+          if (!vDone) await Promise.all(vRes.map(r => limRelease(env, r)));
+        }
       }
 
       // ---------- AI 下一支推薦 (只收酒款屬性摘要) ----------
@@ -1424,9 +1635,9 @@ Rules: never quote reviews and never give exact critic scores (only the band). I
         })).filter(x => x.n);
         if (list.length < 2) throw new HttpError(400, 'NOT_ENOUGH_DATA');
         const wish = (Array.isArray(b.wish) ? b.wish : []).slice(0, 40).map(x => clip(String(x), 100)).filter(Boolean);
-        await limitOrThrow(kv, `rl:reco:${tier.id}:${ymd()}`, daily, 86400, 'RATE_LIMITED');
-        if (tier.ipId) await limitOrThrow(kv, `rl:reco:${tier.ipId}:${ymd()}`, daily * 3, 86400, 'RATE_LIMITED');
-        await limitOrThrow(kv, `rl:recoall:${ymd()}`, envInt(env.RECO_GLOBAL_DAILY, 800), 86400, 'SERVICE_BUSY');
+        await limitOrThrow(env, `rl:reco:${tier.id}:${ymd()}`, daily, 86400, 'RATE_LIMITED');
+        if (tier.ipId) await limitOrThrow(env, `rl:reco:${tier.ipId}:${ymd()}`, daily * 3, 86400, 'RATE_LIMITED');
+        await limitOrThrow(env, `rl:recoall:${ymd()}`, envInt(env.RECO_GLOBAL_DAILY, 800), 86400, 'SERVICE_BUSY');
         const body = `${b.lang === 'en' ? RECO_PROMPT + RECO_EN : RECO_PROMPT}\n\n【酒窖摘要】(n=名稱 c=品類 k=國家 r=產區 v=年份 s=狀態 star=個人評分1-5 usd=買入價美元 nt=品飲次數)\n${JSON.stringify(list)}\n【願望清單】${JSON.stringify(wish)}`;
         let out = null;
         try {
@@ -1456,17 +1667,25 @@ Rules: never quote reviews and never give exact critic scores (only the band). I
         if (tier.email && await kv.get('ban:' + tier.email)) throw new HttpError(403, 'BANNED');
         if (await kv.get('scanblock:' + tier.id) || (tier.ipId && await kv.get('scanblock:' + tier.ipId))) throw new HttpError(429, 'TEMP_BLOCKED');
         const mk = `quota:${tier.id}:${ym()}`;
-        const used = parseInt(await kv.get(mk) || '0', 10);
         const ipk = tier.ipId ? `quota:${tier.ipId}:${ym()}` : null;
-        const ipUsed = ipk ? parseInt(await kv.get(ipk) || '0', 10) : 0;
-        let viaBonus = false;
-        if (ipk && ipUsed >= tier.ipLimit) { await bumpDay(kv, { quota_out: 1 }); throw new HttpError(429, 'QUOTA_EXCEEDED', { tier: tier.tier, limit: tier.limit, used: tier.limit }); }
-        if (used >= tier.limit) {
-          if (tier.email && (await bonusBalance(kv, tier.email)) > 0) viaBonus = true;
-          else { await bumpDay(kv, { quota_out: 1 }); throw new HttpError(429, 'QUOTA_EXCEEDED', { tier: tier.tier, limit: tier.limit, used }); }
+        const mttl = 60 * 60 * 24 * 40;
+        // 預留月額度 (用戶 + 訪客 IP)：預留都計入上限，並發請求唔會超額；AI 成功先 commit，其他情況 (AI 失敗、唔係酒) 喺 finally 退還
+        const [qRes, ipRes] = await Promise.all([limReserve(env, mk, tier.limit, mttl), ipk ? limReserve(env, ipk, tier.ipLimit, mttl) : null]);
+        const held = [qRes, ipRes];
+        let scanDone = false;
+        try {
+        if (ipRes && !ipRes.ok) { await bumpDay(kv, { quota_out: 1 }); throw new HttpError(429, 'QUOTA_EXCEEDED', { tier: tier.tier, limit: tier.limit, used: tier.limit }); }
+        if (!qRes.ok) {
+          const br = tier.email ? await bonusReserve(env, tier.email) : null;
+          if (!br || !br.ok) { await bumpDay(kv, { quota_out: 1 }); throw new HttpError(429, 'QUOTA_EXCEEDED', { tier: tier.tier, limit: tier.limit, used: qRes.used }); }
+          held.push(br);
         }
-        await limitOrThrow(kv, `rl:scanip:${ip}:${ymd()}`, envInt(env.SCAN_IP_DAILY, 60), 86400, 'RATE_LIMITED_IP');
-        await limitOrThrow(kv, `rl:scanall:${ymd()}`, envInt(env.SCAN_GLOBAL_DAILY, 1500), 86400, 'SERVICE_BUSY');
+        const ipDayKey = `rl:scanip:${ip}:${ymd()}`, allDayKey = `rl:scanall:${ymd()}`;
+        const [ipDayOk, allDayOk] = await Promise.all([limTake(env, ipDayKey, envInt(env.SCAN_IP_DAILY, 60), 86400), limTake(env, allDayKey, envInt(env.SCAN_GLOBAL_DAILY, 1500), 86400)]);
+        if (!ipDayOk || !allDayOk) {
+          await Promise.all([ipDayOk && limRefund(env, ipDayKey), allDayOk && limRefund(env, allDayKey)]);
+          throw new HttpError(429, ipDayOk ? 'SERVICE_BUSY' : 'RATE_LIMITED_IP');
+        }
 
         // 以實際檔頭判斷格式，避免手機相片標示與內容不符令 AI 拒收
         let mt = ['image/jpeg', 'image/png', 'image/webp'].includes(mediaType) ? mediaType : 'image/jpeg';
@@ -1518,15 +1737,17 @@ Rules: never quote reviews and never give exact critic scores (only the band). I
           await bumpDay(kv, { not_alcohol: 1 });
           throw new HttpError(422, 'NOT_ALCOHOL');
         }
-        if (viaBonus) await consumeBonus(kv, tier.email);
-        else await kv.put(mk, String(used + 1), { expirationTtl: 60 * 60 * 24 * 40 });
-        if (ipk) await kv.put(ipk, String(ipUsed + 1), { expirationTtl: 60 * 60 * 24 * 40 });
+        await Promise.all(held.map(r => limCommit(env, r)));
+        scanDone = true;
         if (tier.email) await kv.put('scanned:' + tier.email, '1', { expirationTtl: 60 * 60 * 24 * 400 });
         await bumpDay(kv, { scan: 1, [tier.tier === 'guest' ? 'scan_guest' : 'scan_user']: 1, ['c:' + String(out.category || '其他').slice(0, 12)]: 1, ['k:' + String(out.country || '未知').slice(0, 12)]: 1, ['mdl:' + modelUsed]: 1 });
         out.critics = cleanCritics(out.critics);
-        out._quota = { tier: tier.tier, used: viaBonus ? used : used + 1, limit: tier.limit, bonus: tier.email ? await bonusBalance(kv, tier.email) : 0 };
+        out._quota = { tier: tier.tier, used: qRes.used, limit: tier.limit, bonus: tier.email ? await bonusBalance(env, tier.email) : 0 };
         out._model = modelUsed;
         return new Response(JSON.stringify(out), { headers: jsonHeaders });
+        } finally {
+          if (!scanDone) await Promise.all(held.map(r => limRelease(env, r)));
+        }
       }
 
       return new Response('Not Found', { status: 404, headers: corsHeaders });
