@@ -183,9 +183,15 @@ export class UserSync {
   }
 }
 
+const PAIRING_RULES = `【pairing 配餐規則】
+- foods 列出 3 至 4 樣最適合配這支酒的食物或菜式，每樣同時寫繁體中文 (zh) 與英文 (en)，名稱要具體簡短（例如「叉燒」「藍紋芝士」「刺身拼盤」），不要寫「肉類」這類籠統字眼。
+- 要中西合璧：以香港日常吃得到的中式、西式、日式等食物為主，至少一樣是中式或亞洲食物；只有在酒款明顯不適合時（例如甜點酒）才可例外。
+- zh 為一句繁體中文書面語（不要粵語）說明為何這樣配；en 為同一句的英文。
+- 若未能辨識酒款或不確定，foods 填 []，zh 與 en 填空字串，絕對不可編造。
+`;
 const EN_SUFFIX = `
 
-[LANGUAGE] The user reads English. Write rec.headline, rec.when, rec.reason and every rec.actions[].reason in plain, elegant English (one short sentence each, no jargon, no slang). Keep category, country, region and vintage values exactly in the Traditional Chinese forms specified above (the app translates them); keep the JSON keys and the verdict codes unchanged.`;
+[LANGUAGE] The user reads English. Write rec.headline, rec.when, rec.reason and every rec.actions[].reason in plain, elegant English (one short sentence each, no jargon, no slang). Keep category, country, region and vintage values exactly in the Traditional Chinese forms specified above (the app translates them); keep the JSON keys and the verdict codes unchanged. Always fill both zh and en in pairing.`;
 const SCAN_PROMPT = `你是一個世界頂級侍酒師與酒類數據庫專家。請辨識相片中的酒標，並以嚴格的純 JSON 格式輸出（不要包含任何 markdown 標籤或額外文字）。若相片明顯不是酒類（酒瓶、酒罐、酒標、酒杯），只輸出 {"not_alcohol": true}。
 {
   "category": "紅酒/白酒/威士忌/清酒/氣泡酒/啤酒/琴酒/蘭姆酒/白蘭地/泡盛/利口酒/其他",
@@ -197,6 +203,7 @@ const SCAN_PROMPT = `你是一個世界頂級侍酒師與酒類數據庫專家�
   "region_en": "Region name in English",
   "price": { "retail_usd": [35, 55], "market_usd": [40, 70], "conf": "medium" },
   "critics": { "tier": "strong", "band": "90-94", "src": ["Wine Advocate"], "buzz": "medium", "conf": "medium" },
+  "pairing": { "foods": [{ "zh": "叉燒", "en": "Char siu" }, { "zh": "黑朱古力", "en": "Dark chocolate" }, { "zh": "煙燻三文魚", "en": "Smoked salmon" }], "zh": "一句配搭原因", "en": "One-sentence reason" },
   "vintage": "年份（若無年份寫無年份）",
   "abv": "酒精度（如 43%）",
   "vol": "容量（如 700ml）",
@@ -251,7 +258,8 @@ const SCAN_PROMPT = `你是一個世界頂級侍酒師與酒類數據庫專家�
 - buzz 為網上討論度／話題度：high / medium / low / unknown。
 - conf 為你對以上內容的把握 high / medium / low。
 - 凡不確定，tier 填 unknown、band 填 null、src 填 []、conf 填 low，絕對不可編造。
-`;
+
+${PAIRING_RULES}`;
 
 const CRIT_SRC = ['Wine Advocate', 'Wine Spectator', 'Decanter', 'James Suckling', 'Jancis Robinson', 'Vinous', 'Whisky Advocate', "Jim Murray's Whisky Bible", 'World Whiskies Awards', 'IWSC', 'Gambero Rosso', 'Falstaff', 'National New Sake Awards', 'SAKE COMPETITION', 'World Beer Cup'];
 function cleanCritics(c) {
@@ -266,6 +274,14 @@ function cleanCritics(c) {
     conf: pick(c.conf, ['high', 'medium', 'low'], 'low')
   };
   return out;
+}
+
+// 配餐：3-4 樣食物 (中英) + 一句原因；少過 2 樣當冇 (foods 為空)，前端顯示「暫無配餐建議」
+function cleanPairing(p) {
+  const foods = (p && Array.isArray(p.foods) ? p.foods : []).map(x => ({ zh: clip(String((x && x.zh) || ''), 20).trim(), en: clip(String((x && x.en) || ''), 40).trim() }))
+    .filter(x => x.zh && x.en).slice(0, 4);
+  if (foods.length < 2) return { foods: [], zh: '', en: '' };
+  return { foods, zh: clip(String(p.zh || ''), 80).trim(), en: clip(String(p.en || ''), 200).trim() };
 }
 
 // ============ 通用工具 ============
@@ -1655,6 +1671,51 @@ export default {
       }
 
       // ---------- 查證評分：Claude 網頁搜尋，結果按酒款快取 30 日 ----------
+      // ---------- 配餐建議 (舊酒款按需產生)：只收酒款屬性，結果按酒款快取；每日次數成功先扣，唔扣辨識額度 ----------
+      if (path === '/api/pairing' && request.method === 'POST') {
+        if (!env.ANTHROPIC_API_KEY) throw new HttpError(503, 'AI_NOT_CONFIGURED');
+        const b = await readJson(request, 3_000);
+        const name = clip(String(b.name || ''), 120).trim(), producer = clip(String(b.producer || ''), 80).trim();
+        const vin = (String(b.vintage || '').match(/(19|20)\d{2}/) || [''])[0];
+        const cat = clip(String(b.category || ''), 30), country = clip(String(b.country || ''), 40), region = clip(String(b.region || ''), 60);
+        if (!name) throw new HttpError(400, 'MISSING_NAME');
+        const ck = 'pair:' + (await sha256hex((name + '|' + producer + '|' + vin).toLowerCase())).slice(0, 24);
+        const hit = await kv.get(ck);
+        if (hit) { try { return json({ ...JSON.parse(hit), cached: true }); } catch (e) {} }
+        const tier = await scanTier(request, kv, env);
+        if (tier.email && await kv.get('ban:' + tier.email)) throw new HttpError(403, 'BANNED');
+        const daily = tier.tier === 'pro' ? envInt(env.PAIR_PRO_DAILY, 30) : tier.tier === 'free' ? envInt(env.PAIR_FREE_DAILY, 10) : envInt(env.PAIR_GUEST_DAILY, 3);
+        const pKey = `rl:pair:${tier.id}:${ymd()}`;
+        const pIpKey = tier.ipId ? `rl:pair:${tier.ipId}:${ymd()}` : null;
+        const pRes = await Promise.all([limReserve(env, pKey, daily, 86400), pIpKey ? limReserve(env, pIpKey, daily * 3, 86400) : null]);
+        let pDone = false;
+        try {
+          if (pRes.some(r => r && !r.ok)) throw new HttpError(429, 'RATE_LIMITED');
+          await limitOrThrow(env, `rl:pairtry:${tier.id}:${ymd()}`, daily * 3, 86400, 'RATE_LIMITED');
+          await limitOrThrow(env, `rl:pairall:${ymd()}`, envInt(env.PAIR_GLOBAL_DAILY, 1500), 86400, 'SERVICE_BUSY');
+          const attrs = [`名稱：${name}`, producer && `酒廠：${producer}`, cat && `類別：${cat}`, (country || region) && `產地：${[country, region].filter(Boolean).join(' ')}`, vin && `年份：${vin}`].filter(Boolean).join('\n');
+          const prompt = `你是一位世界頂級侍酒師。請為以下酒款建議配餐，只輸出嚴格純 JSON（不要 markdown）：\n{"foods":[{"zh":"中文名","en":"English name"}],"zh":"一句原因","en":"One-sentence reason"}\n\n${PAIRING_RULES}\n【酒款】\n${attrs}`;
+          const strong = env.SCAN_MODEL_STRONG || 'claude-sonnet-5-5', fast = env.SCAN_MODEL_FAST || 'claude-haiku-5-5';
+          const msg = [{ type: 'text', text: prompt }];
+          let j;
+          try {
+            const ask = async m => { const o = extractJson(await callClaude(env, m, msg, 600)); if (!o) { const er = new Error('AI_BAD_JSON'); er.status = 200; er.model = m; throw er; } return o; };
+            try { j = await ask(fast); } catch (e1) { if (!aiRetryable(e1) || fast === strong) throw e1; j = await ask(strong); }
+          } catch (er) {
+            try { await kv.put('ailast', JSON.stringify({ t: Date.now(), status: er.status || 0, model: er.model || '', msg: 'pairing: ' + String(er.body || er.message || '').slice(0, 280) }), { expirationTtl: 60 * 60 * 24 * 14 }); } catch (e) {}
+            throw aiHttpError(er);
+          }
+          const out = { ...cleanPairing(j), t: Date.now() };
+          await kv.put(ck, JSON.stringify(out), { expirationTtl: 60 * 60 * 24 * (out.foods.length ? 90 : 3) });
+          await Promise.all(pRes.map(r => limCommit(env, r)));
+          pDone = true;
+          await bumpDay(kv, { pairing: 1 });
+          return json(out);
+        } finally {
+          if (!pDone) await Promise.all(pRes.map(r => limRelease(env, r)));
+        }
+      }
+
       if (path === '/api/verify' && request.method === 'POST') {
         if (!env.ANTHROPIC_API_KEY) throw new HttpError(503, 'AI_NOT_CONFIGURED');
         const b = await readJson(request, 3_000);
@@ -1836,6 +1897,7 @@ Rules: never quote reviews and never give exact critic scores (only the band). I
         if (tier.email) await kv.put('scanned:' + tier.email, '1', { expirationTtl: 60 * 60 * 24 * 400 });
         await bumpDay(kv, { scan: 1, [tier.tier === 'guest' ? 'scan_guest' : 'scan_user']: 1, ['c:' + String(out.category || '其他').slice(0, 12)]: 1, ['k:' + String(out.country || '未知').slice(0, 12)]: 1, ['mdl:' + modelUsed]: 1 });
         out.critics = cleanCritics(out.critics);
+        out.pairing = { ...cleanPairing(out.pairing), t: Date.now() };
         out._quota = { tier: tier.tier, used: qRes.used, limit: tier.limit, bonus: tier.email ? await bonusBalance(env, tier.email) : 0 };
         out._model = modelUsed;
         return new Response(JSON.stringify(out), { headers: jsonHeaders });

@@ -51,8 +51,9 @@ BottleSense 係一個酒類「電子酒窖」PWA：影酒標 -> AI 辨識 -> 決
 - 用戶：`/api/scan`（AI 辨識，有配額）、`/api/quota`、OTP 登入、同步、`/api/photo`
 - 探索池：`/api/explore*`、發布時自動審查（待覆核會 `h=2`，被舉報 3 次隱藏 `h=1`）
 - 商業：`/api/offers`（商家贊助配對，支援特價 `was`+`until`）、`/api/signal`（匿名需求）、`/api/price/report|community`（社群成交價，>=3 人先顯示）
-- 評分佐證：掃描結果帶 `critics`（只含級別 tier/band、來源名單、話題度，無具體分數）；`/api/verify` 用 Anthropic web_search 查證（每日 訪客 2 / 免費 5 / Pro 20，`VERIFY_GLOBAL_DAILY` 全站上限，結果按酒款快取 `crit:` 30 日）；`/api/heat` 讀匿名需求計數（<3 不顯示）。前端 `criticsCardHTML()` 放喺八維下面。
+- 評分佐證：掃描結果帶 `critics`（只含級別 tier/band、來源名單、話題度，無具體分數）；`/api/verify` 用 Anthropic web_search 查證（每日 訪客 2 / 免費 5 / Pro 20，`VERIFY_GLOBAL_DAILY` 全站上限，結果按酒款快取 `crit:` `pair:` 30 日）；`/api/heat` 讀匿名需求計數（<3 不顯示）。前端 `criticsCardHTML()` 放喺八維下面。
 - AI：`/api/recommend`（下一支推薦）、`/api/bottle-image`（推薦用酒瓶相：先搵探索池索引 `expimg:index`，再 Wikimedia Commons）
+- 配餐建議（docs/specs/2026-10-food-pairing.md）：掃描結果帶 `pairing`（`foods[{zh,en}]` 3-4 樣 + `zh`/`en` 一句原因；AI 唔肯定時 `foods` 為空，前端顯示「暫無配餐建議」，唔可以寫死預設食物）；舊酒款喺詳情頁撳「取得配餐建議」→ `/api/pairing`（快速模型先、只送酒款屬性、按酒款快取 `pair:` 90 日，每日 訪客 3 / 免費 10 / Pro 30 成功先扣，唔扣辨識額度）。前端存喺酒款頂層 `pairing` 欄位（逐欄位同步）。
 - ops 用量總覽 `/api/ops/daily`：以 `Authorization: Bearer <OPS_STATS_TOKEN>` 保護，只回每日掃描／註冊次數同模型計數（`m:<日期>` 入面嘅數字），唔回任何個人資料。
 - 後台 `/api/admin/*`：以 `Authorization: Bearer <ADMIN_TOKEN>` 保護（overview、stats、merchants、merchant、explore/flagged|pending|approve|remove、ban、plan、code、campaign、grant、birthday）
 - KV key 前綴：`user: account: session: quota: exp: repcount: stat: demand: ban: pubban: merchant: bonus: m:<日期>`（每日計數）`act:` `px:` `pxd:` `expimg:index` `bimg:` `crit:` `ailast` `rl:`（限流）

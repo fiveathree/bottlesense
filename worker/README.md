@@ -13,6 +13,7 @@ Deployed automatically by Cloudflare Workers Builds from this repo (root dir `wo
 | `SCAN_GUEST_MONTHLY` / `SCAN_FREE_MONTHLY` / `SCAN_PRO_MONTHLY` | var (optional) | AI scans per month (defaults 8 / 40 / 1000) |
 | `SCAN_IP_DAILY` / `SCAN_GLOBAL_DAILY` | var (optional) | per-IP and whole-service daily caps (defaults 60 / 1500) |
 | `SCAN_GUEST_IP_MONTHLY` | var (optional) | guest scans per IP per month, on top of the per-sync-key guest limit (default 24) |
+| `PAIR_GUEST_DAILY` / `PAIR_FREE_DAILY` / `PAIR_PRO_DAILY` / `PAIR_GLOBAL_DAILY` | var (optional) | `/api/pairing` daily limits (defaults 3 / 10 / 30 / 1500); charged on success only |
 | `DEV_MODE` | var | `1` returns the OTP in the API response when mail fails. NEVER set in production |
 
 ## Counters (Durable Object)

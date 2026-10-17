@@ -1136,6 +1136,61 @@ async function verifyCritics(id) {
     if (btn) { btn.disabled = false; btn.textContent = zh ? '查證評分' : 'Verify'; }
   }
 }
+/* ---------------- 配餐建議 (docs/specs/2026-10-food-pairing.md) ---------------- */
+function pairingOf(b) { const p = b && (b.pairing || (b.scan && b.scan.pairing)); return p && Array.isArray(p.foods) ? p : null; }
+function pairingBodyHTML(b) {
+  const zh = currentLang === 'zh';
+  const p = pairingOf(b);
+  if (p && p.foods.length) {
+    const why = zh ? p.zh : p.en;
+    return `
+      <div class="pair-pills">${p.foods.map(f => `<span class="pair-pill">${esc(zh ? f.zh : f.en)}</span>`).join('')}</div>
+      ${why ? `<div class="cr-sum">${esc(why)}</div>` : ''}
+      <div class="cr-foot"><span class="cr-tag">${zh ? 'AI 建議，僅供參考' : 'AI suggestion, for reference only'}</span></div>`;
+  }
+  if (p) return `<div class="cr-dim pair-empty">${zh ? '暫無配餐建議' : 'No pairing suggestion available'}</div>`;
+  return `
+      <div class="cr-foot pair-foot">
+        <span class="cr-dim">${zh ? '尚未有配餐建議' : 'No pairing suggestion yet'}</span>
+        <button class="cr-verify" id="pair-btn" onclick="fetchPairing('${esc(b.id)}')">${zh ? '取得配餐建議' : 'Get pairing'}</button>
+      </div>`;
+}
+function pairingCardHTML(b) {
+  // 訪客 (查看分享酒窖) 只顯示已有嘅配餐，唔顯示取得按鈕
+  if (isVisitorMode && !pairingOf(b)) return '';
+  return `
+    <div class="info-block crit-card pair-card" id="pair-card">
+      <div class="pc-head"><h3>${currentLang === 'zh' ? '配餐建議' : 'Food Pairing'}</h3></div>
+      <div id="pair-body">${pairingBodyHTML(b)}</div>
+    </div>`;
+}
+async function fetchPairing(id) {
+  if (blockIfVisitor()) return;
+  const b = (window.cellar || []).find(x => String(x.id) === String(id)); if (!b) return;
+  const btn = document.getElementById('pair-btn'); const zh = currentLang === 'zh';
+  if (btn) { if (btn.disabled) return; btn.disabled = true; btn.textContent = zh ? '取得中…' : 'Loading…'; }
+  const fail = (msg) => { showToast(msg); if (btn) { btn.disabled = false; btn.textContent = zh ? '取得配餐建議' : 'Get pairing'; } };
+  try {
+    // 只送酒款屬性，不送相片或個人資料
+    const x = safeIdentification(b);
+    const v = String(bottleVintage(b) || '').match(/(19|20)\d{2}/);
+    const res = await apiFetch('/api/pairing', { method: 'POST', body: JSON.stringify({ name: String(bottleName(b) || '').slice(0, 120), producer: String(x.producer || '').slice(0, 80), category: String(bottleCategory(b) || '').slice(0, 30), country: String(bottleCountry(b) || '').slice(0, 40), region: String(bottleRegion(b) || '').slice(0, 60), vintage: v ? v[0] : '' }) });
+    const o = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return fail(o.error === 'RATE_LIMITED' ? (zh ? '今日配餐建議次數已用完，請明天再試' : 'Daily pairing limit reached, try tomorrow')
+        : (o.error === 'AI_BUSY' || o.error === 'SERVICE_BUSY') ? (zh ? '服務繁忙，請稍後再試' : 'Service busy, please try later')
+        : o.error === 'BANNED' ? apiErrorMessage('BANNED')
+        : (zh ? '暫時未能取得配餐建議，請稍後再試' : 'Could not get a pairing right now, please try later'));
+    }
+    b.pairing = { foods: Array.isArray(o.foods) ? o.foods : [], zh: o.zh || '', en: o.en || '', t: o.t || Date.now() };
+    await saveBottleToDB(b);
+    const body = document.getElementById('pair-body');
+    if (body) body.innerHTML = pairingBodyHTML(b);
+  } catch (e) {
+    fail(zh ? '網絡連線失敗，請檢查網絡後再試' : 'Network error, please check your connection');
+  }
+}
+
 function priceCardHTML(b) {
   const zh = currentLang === 'zh';
   const cur = priceCur();
@@ -1560,6 +1615,9 @@ function renderBottleDetail(id) {
 
       <!-- 3. 建議 -->
       ${renderVerdictCard(b)}
+
+      <!-- 配餐建議 -->
+      ${pairingCardHTML(b)}
 
       <!-- 4. 轉移藏酒空間 (單行極致收窄膠囊列) -->
       ${isVisitorMode ? '' : `<div class="info-block">
@@ -3677,6 +3735,7 @@ async function confirmCropAndScan(isFullImage = false) {
       image: dataUrl,
       identification: result,
       scan: result,
+      ...(result && result.pairing ? { pairing: result.pairing } : {}),
       tags: {
         category: result.category || '酒類',
         vintage: result.vintage || '',
@@ -4640,6 +4699,8 @@ function onCloudCellarChanged() {
   window.cellar = Array.isArray(window.cellar) ? window.cellar.map(normalizeBottle) : [];
   // 正在睇嘅酒已喺其他裝置刪除
   if (window._detailId && !window.cellar.some(x => String(x.id) === String(window._detailId))) { onBottleGone(window._detailId); return; }
+  // 正在睇酒款詳情：唔重畫 (否則由首頁入嘅詳情會被彈返首頁，亦會打斷輸入)；資料已更新，下次打開就見到
+  if (window._detailId) return;
   if (document.querySelector('.modal-overlay')) return;
   if (currentView === 'cellar') renderCellar();
   else if (currentView === 'home') renderHome();
