@@ -88,6 +88,11 @@ async function loadCellarWithMigration() {
         for (const rawItem of items) {
           if (rawItem && rawItem.id && !seenIds.has(rawItem.id) && !(tomb[rawItem.id] && Number(tomb[rawItem.id]) >= Number(rawItem.updatedAt || rawItem.addedAt || 0))) {
             seenIds.add(rawItem.id);
+            // imageData 係 image 嘅重複副本：只有 imageData 嘅舊酒款先搬去 image，之後刪除
+            if (rawItem.imageData !== undefined) {
+              if (!rawItem.image && rawItem.imageData) rawItem.image = rawItem.imageData;
+              delete rawItem.imageData;
+            }
             const item = {
               ...rawItem,
               status: rawItem.status || 'unopened',
@@ -151,18 +156,92 @@ async function readAllLocal() {
   } catch(e) { return []; }
 }
 
+/* ---------------- 逐欄位同步 (docs/specs/2026-10-sync-merge.md) ----------------
+   每支酒 _f = { 欄位: 時間戳 }；每條品鑑 _t；刪除品鑑 _td；刪除酒款寫 bottlesense_deleted，刪除優先。
+   時間戳用混合邏輯時鐘：本機時間同見過嘅最大時間戳取較大者再加一，同一部機永遠遞增。
+   欄位分類同 worker.js 嘅 SYNC_META 一樣，改其中一邊要同步改另一邊。 */
+const SYNC_META = new Set(['id', 'addedAt', 'updatedAt', '_f', '_td', 'tastings', 'imageData']);
+function syncJ(v) { return v === undefined ? '' : JSON.stringify(v); }
+function syncFields(b) { return Object.keys(b || {}).filter(k => !SYNC_META.has(k)); }
+function hlcNow() {
+  let last = 0;
+  try { last = Number(localStorage.getItem('bottlesense_hlc')) || 0; } catch(e) {}
+  const t = Math.max(Date.now(), last + 1);
+  try { localStorage.setItem('bottlesense_hlc', String(t)); } catch(e) {}
+  return t;
+}
+// 收到雲端資料：記低見過嘅最大時間戳 (雲端已限制唔會超過伺服器時間 5 分鐘)
+function hlcSeen(list) {
+  let last = 0;
+  try { last = Number(localStorage.getItem('bottlesense_hlc')) || 0; } catch(e) {}
+  let mx = last;
+  for (const b of (list || [])) if (b && Number(b.updatedAt) > mx) mx = Number(b.updatedAt);
+  if (mx > last) { try { localStorage.setItem('bottlesense_hlc', String(mx)); } catch(e) {} }
+}
+function stripTs(t) { const { _t, ...x } = t || {}; return x; }
+// 儲存前比較本機舊版：只為真正改咗嘅欄位／品鑑蓋時間戳，刪除咗嘅品鑑記入 _td
+function stampBottle(b, old, ts) {
+  const base = Number((old && (old.updatedAt || old.addedAt)) || 0);
+  const f = { ...((old && old._f) || b._f || {}) };
+  if (old && !old._f) for (const k of syncFields(old)) f[k] = base;
+  const ref = old || {};
+  let changed = !old;
+  for (const k of new Set([...syncFields(b), ...syncFields(ref)])) {
+    if (!old || syncJ(b[k]) !== syncJ(ref[k])) { f[k] = ts; changed = true; }
+  }
+  const oldT = new Map(((old && old.tastings) || []).map(t => [String(t.id), t]));
+  const td = { ...((old && old._td) || b._td || {}) };
+  const seen = new Set();
+  b.tastings = (Array.isArray(b.tastings) ? b.tastings : []).map(t => {
+    const o = oldT.get(String(t.id));
+    seen.add(String(t.id));
+    if (o && syncJ(stripTs(t)) === syncJ(stripTs(o))) return { ...t, _t: o._t != null ? o._t : base };
+    changed = true;
+    return { ...t, _t: ts };
+  });
+  for (const id of oldT.keys()) if (!seen.has(id)) { td[id] = ts; changed = true; }
+  delete b.imageData;
+  b._f = f; b._td = td;
+  b.updatedAt = Math.max(changed ? ts : base, ...Object.values(f), ...b.tastings.map(t => t._t || 0));
+}
+// 雲端合併結果寫回本機：以雲端為準，只保留送出之後 (時間戳 > snap) 本機再改過嘅欄位／品鑑
+function applyServerBottle(s, l, snap) {
+  const m = { ...s, _f: { ...(s._f || {}) }, _td: { ...(s._td || {}) } };
+  let dirty = false;
+  const lf = l._f || {};
+  for (const k in lf) if (lf[k] > snap) { if (l[k] === undefined) delete m[k]; else m[k] = l[k]; m._f[k] = lf[k]; dirty = true; }
+  for (const id in (l._td || {})) if (l._td[id] > snap) { m._td[id] = l._td[id]; dirty = true; }
+  const tm = new Map((s.tastings || []).map(t => [String(t.id), t]));
+  for (const t of (l.tastings || [])) if (Number(t._t) > snap) { tm.set(String(t.id), t); dirty = true; }
+  m.tastings = [...tm.values()].filter(t => m._td[String(t.id)] == null);
+  if (dirty) m.updatedAt = Math.max(Number(s.updatedAt) || 0, Number(l.updatedAt) || 0);
+  return { m, dirty };
+}
+
+async function readLocalBottle(db, id) {
+  return new Promise((res) => {
+    const req = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(id);
+    req.onsuccess = () => res(req.result || null);
+    req.onerror = () => res(null);
+  });
+}
+
 async function saveBottleToDB(bottle) {
-  if (isReadOnlyMode()) return;
+  if (isReadOnlyMode()) return false;
   try {
-    bottle.updatedAt = Date.now();
-    const m = getDeletedMap();
-    if (m[bottle.id]) { delete m[bottle.id]; setDeletedMap(m); }
+    // 刪除優先：已刪除 (包括其他裝置刪除並已同步) 嘅酒唔再寫入
+    if (getDeletedMap()[bottle.id] != null) {
+      if (typeof onBottleGone === 'function') onBottleGone(bottle.id);
+      return false;
+    }
     const db = await openDB(DB_NAME);
+    stampBottle(bottle, await readLocalBottle(db, bottle.id), hlcNow());
     const tx = db.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).put(bottle);
     await waitTx(tx);
     scheduleSync();
     if (typeof bottle.image === 'string' && bottle.image.startsWith('data:')) schedulePhotoMigration();
+    return true;
   } catch(e) {
     console.error('DB save error', e);
   }
@@ -172,7 +251,7 @@ async function deleteBottleFromDB(id) {
   if (isReadOnlyMode()) return;
   try {
     const m = getDeletedMap();
-    m[id] = Date.now();
+    m[id] = hlcNow();
     setDeletedMap(m);
     const db = await openDB(DB_NAME);
     const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -218,7 +297,10 @@ async function syncToCloudKV() {
   _syncing = true;
   let changed = false;
   try {
-    const local = await readAllLocal();
+    // snap 之後本機再改嘅欄位時間戳一定大過佢，寫回雲端結果時要保留
+    const snap = hlcNow();
+    // imageData 係 image 嘅重複副本，唔再送出
+    const local = (await readAllLocal()).map(({ imageData, ...b }) => (b.image || !imageData ? b : { ...b, image: imageData }));
     const deleted = getDeletedMap();
     setSyncStatus('syncing');
     const res = await apiFetch('/api/sync', {
@@ -228,17 +310,26 @@ async function syncToCloudKV() {
     if (!res.ok) { setSyncStatus(res.status === 401 ? 'auth' : 'error'); throw new Error('sync http ' + res.status); }
     const data = await res.json();
     if (Array.isArray(data.cellar)) {
-      const localMap = new Map(local.map(b => [String(b.id), b]));
+      hlcSeen(data.cellar);
+      if (data.deleted) setDeletedMap({ ...getDeletedMap(), ...data.deleted });
+      const tomb = getDeletedMap();
+      const cur = await readAllLocal();
+      const localMap = new Map(cur.map(b => [String(b.id), b]));
       const toPut = [];
-      for (const b of data.cellar) {
-        const l = localMap.get(String(b.id));
-        if (!l || Number(b.updatedAt || b.addedAt || 0) > Number(l.updatedAt || l.addedAt || 0)) toPut.push(b);
+      let again = false;
+      for (const s of data.cellar) {
+        if (tomb[s.id] != null) continue;
+        const l = localMap.get(String(s.id));
+        if (!l) { toPut.push(s); continue; }
+        const { m, dirty } = applyServerBottle(s, l, snap);
+        if (dirty) again = true;
+        if (syncJ(m) !== syncJ(l)) toPut.push(m);
       }
       const cloudIds = new Set(data.cellar.map(b => String(b.id)));
-      const toDel = local.filter(b => !cloudIds.has(String(b.id)) && data.deleted && data.deleted[b.id]).map(b => b.id);
+      const toDel = cur.filter(b => !cloudIds.has(String(b.id)) && tomb[b.id] != null).map(b => b.id);
       if (toPut.length) { await putBottlesLocalRaw(toPut); changed = true; }
       if (toDel.length) { await deleteBottlesLocalRaw(toDel); changed = true; }
-      if (data.deleted) setDeletedMap({ ...getDeletedMap(), ...data.deleted });
+      if (again) _syncAgain = true;
     }
     setSyncStatus('ok');
   } catch(e) {

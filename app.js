@@ -3392,7 +3392,6 @@ async function addExploreItemToWishlist(bottleId) {
   const newBottle = normalizeBottle({
     id: uid(),
     image: b.image || '',
-    imageData: b.image || '',
     identification: { ...b.identification },
     scan: { ...b.identification },
     tags: {
@@ -3676,7 +3675,6 @@ async function confirmCropAndScan(isFullImage = false) {
     const bottle = normalizeBottle({
       id: uid(),
       image: dataUrl,
-      imageData: dataUrl,
       identification: result,
       scan: result,
       tags: {
@@ -4480,6 +4478,7 @@ async function restoreCellarToLocal(cellarData, syncKey, name, deleted) {
   if (deleted && typeof deleted === 'object') setDeletedMap({ ...getDeletedMap(), ...deleted });
   // 以雲端合併結果為準寫入本機 (不逐筆觸發同步，避免用舊資料覆蓋雲端)
   if (Array.isArray(cellarData)) {
+    if (typeof hlcSeen === 'function') hlcSeen(cellarData);
     const keep = new Set(cellarData.map(b => String(b.id)));
     const existing = await readAllLocal();
     const toDel = existing.filter(b => !keep.has(String(b.id)) && deleted && deleted[b.id]).map(b => b.id);
@@ -4624,10 +4623,23 @@ async function initApp() {
   }
 }
 
+// 酒款已被刪除 (刪除優先)：移出畫面，正在睇佢就返回酒窖
+function onBottleGone(id) {
+  window.cellar = (window.cellar || []).filter(x => String(x.id) !== String(id));
+  showToast(currentLang === 'zh' ? '此酒款已在其他裝置移除' : 'This bottle was removed on another device');
+  if (String(window._detailId) === String(id)) {
+    if (document.querySelector('.modal-overlay')) closeModal();
+    window._detailId = null;
+    renderCellar();
+  }
+}
+
 // 雲端有較新資料寫入本機後，重新整理畫面
 function onCloudCellarChanged() {
   if (isVisitorMode) return;
   window.cellar = Array.isArray(window.cellar) ? window.cellar.map(normalizeBottle) : [];
+  // 正在睇嘅酒已喺其他裝置刪除
+  if (window._detailId && !window.cellar.some(x => String(x.id) === String(window._detailId))) { onBottleGone(window._detailId); return; }
   if (document.querySelector('.modal-overlay')) return;
   if (currentView === 'cellar') renderCellar();
   else if (currentView === 'home') renderHome();

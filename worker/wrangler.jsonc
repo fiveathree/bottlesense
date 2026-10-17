@@ -11,11 +11,16 @@
   "kv_namespaces": [
     { "binding": "CELLAR_KV", "id": "2156c87518404b7d9bda22982f2ad518" }
   ],
-  // atomic quota / rate-limit / OTP counters (SQLite-backed Durable Object, works on the Workers Free plan)
+  // atomic quota / rate-limit / OTP counters (SQLite-backed Durable Objects, work on the Workers Free plan)
   "durable_objects": {
-    "bindings": [{ "name": "LIMITER", "class_name": "Limiter" }]
+    "bindings": [
+      { "name": "LIMITER", "class_name": "Limiter" },
+      // one per sync key: serialises cellar merges so two devices syncing at once never overwrite each other
+      { "name": "USER_SYNC", "class_name": "UserSync" }
+    ]
   },
   "migrations": [
-    { "tag": "v1", "new_sqlite_classes": ["Limiter"] }
+    { "tag": "v1", "new_sqlite_classes": ["Limiter"] },
+    { "tag": "v2", "new_sqlite_classes": ["UserSync"] }
   ]
 }

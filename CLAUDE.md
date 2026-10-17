@@ -62,6 +62,7 @@ BottleSense 係一個酒類「電子酒窖」PWA：影酒標 -> AI 辨識 -> 決
 - AI 上游 429/529/5xx/連線失敗/JSON 壞咗：自動轉 `SCAN_MODEL_FAST` 再試（scan、recommend）；兩個都繁忙回 `503 AI_BUSY`（前端「AI 服務目前繁忙」），403 等其他錯誤唔重試，回 `AI_UPSTREAM_ERROR`。
 - `/api/verify` 每日次數「成功先扣」，另有嘗試上限（每日次數 x3）；web_search 回覆嘅 text 區塊要直接拼接（唔好加換行）。
 - **計數用 Durable Object**（`Limiter`，SQLite，Workers 免費方案；綁定 `LIMITER`）：掃描月額度 `quota:`、所有 `rl:` 限流、OTP（`otp:` 驗證碼 + 錯誤次數、`otpcd:` 冷卻）、獎勵次數 `bonus:` 都喺 DO，原子操作，並發唔會超額。每個「計數 + 身分」一個 DO（鍵去掉尾段日期）。「成功先扣」用 `limReserve` → `limCommit`／`limRelease`（預留 5 分鐘自動失效）。第一次讀取時由舊 KV 帶入（遷移）。DO 出錯時退回 KV 計數（盡力），OTP 驗證一律失敗，錯誤寫入 `ailast`（`model: limiter`）。規格：`docs/specs/2026-10-quota-durable-object.md`；測試要 mock `env.LIMITER`（`idFromName`／`get().fetch`）。
+- **同步（逐欄位合併）**：每支酒 `_f`（欄位時間戳）、品鑑 `_t`、刪除品鑑 `_td`；刪除酒款 `bottlesense_deleted` 刪除優先（`saveBottleToDB` 唔會清走、已刪酒款唔寫入並觸發 `onBottleGone`）。時間戳用混合邏輯時鐘（`hlcNow`），伺服器把快過伺服器 5 分鐘以上嘅時間戳壓到伺服器時間。合併邏輯 `worker.js` `syncNormalize`／`syncMergeBottle` 同 `db.js` `stampBottle`／`applyServerBottle` 要一齊改，`SYNC_META` 兩邊一致。每個同步碼一個 `UserSync` DO 排隊讀寫 `user:` KV（`userMerge()`），寫 `user:` 記錄一律經佢。`imageData` 已停用：唔寫、唔同步，只有 `imageData` 嘅舊酒款會搬去 `image`。規格：`docs/specs/2026-10-sync-merge.md`。
 - 刪帳號：會清走所有舊同步碼上載嘅相片（`photoowners:<email>`，由 `rotateKey` 記錄；記錄前已換碼嘅舊相仍清唔到）、全部探索池項目（分頁）、`expimg:index` 相關項目。
 - 前端彈窗：`modal-container` 有內容時 `html.modal-open` 鎖住背景捲動；彈窗高度已扣頂部／底部安全區。
 
@@ -115,8 +116,7 @@ BottleSense 係一個酒類「電子酒窖」PWA：影酒標 -> AI 辨識 -> 決
 
 **第二期（要先開規格檔）**
 - 計數改用 Durable Object：已實作（待 Cloudflare 部署確認同用戶真機掃描）。仍用 KV 讀後寫（範圍外）：`bumpDay()`、`strike:`、`codeuses:`、`refcap:`。
-- 同步改為逐欄位合併或伺服器時間戳（現時整支酒「最後寫入者勝」，用手機時鐘；兩部機改同一支酒會蓋走對方改動；刪咗嘅酒可能復活）。
-- `imageData` 係 `image` 嘅重複 base64，仍然跟同步送出（分享已唔送）。
+- 同步逐欄位合併 + `imageData` 唔再同步：已實作（待用戶兩部真機測試，規格 AC15）。
 
 **未做 / 構想**
 - 商家資料加「圖片連結」欄，推薦同商家貨品吻合時用商家相。

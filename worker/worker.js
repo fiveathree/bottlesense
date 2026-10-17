@@ -59,27 +59,128 @@ function parseUserRecord(raw) {
   return out;
 }
 
-function stampOf(b) { return Number(b && (b.updatedAt || b.addedAt) || 0); }
-
-// 以 id 合併兩份酒窖：較新 updatedAt 勝出；刪除記錄 (tombstone) 比該酒款更新則剔除
+// ============ 酒窖同步：逐欄位合併 (docs/specs/2026-10-sync-merge.md) ============
+// 每支酒 _f = { 欄位: 時間戳 }；每條品鑑 _t；刪除品鑑 _td = { 品鑑id: 時間戳 }；刪除酒款 deleted = { id: 時間戳 }，刪除優先。
+// 合併邏輯同 db.js 嘅 syncMergeBottle 一樣，改其中一邊要同步改另一邊。
+const SYNC_META = new Set(['id', 'addedAt', 'updatedAt', '_f', '_td', 'tastings', 'imageData']);
+const SYNC_SKEW = 5 * 60 * 1000;
+function syncJ(v) { return v === undefined ? '' : JSON.stringify(v); }
+function syncFields(b) { return Object.keys(b).filter(k => !SYNC_META.has(k)); }
+// 手機時鐘快過伺服器 5 分鐘以上嘅時間戳，一律壓到伺服器時間
+function syncClamp(ts, now) { const n = Number(ts) || 0; return n > now + SYNC_SKEW ? now : n; }
+// 統一格式：補齊 _f / _t、限制未來時間、imageData 併入 image。ref = 雲端現有版本 (用嚟認出舊版 App 嘅改動)
+function syncNormalize(b, now, ref) {
+  const x = { ...b };
+  if (x.imageData !== undefined) { if (!x.image && x.imageData) x.image = x.imageData; delete x.imageData; }
+  const base = syncClamp(x.updatedAt || x.addedAt, now);
+  let f;
+  if (x._f && typeof x._f === 'object') {
+    f = {};
+    for (const k in x._f) f[k] = syncClamp(x._f[k], now);
+  }
+  const ts = (Array.isArray(x.tastings) ? x.tastings : []).filter(t => t && t.id != null).map(t => ({ ...t, _t: t._t != null ? syncClamp(t._t, now) : null }));
+  let fmax = 0;
+  if (f) for (const k in f) fmax = Math.max(fmax, f[k]);
+  for (const t of ts) if (t._t != null) fmax = Math.max(fmax, t._t);
+  // 舊版 App 改完只更新 updatedAt：同雲端唔同嘅欄位／品鑑當作喺 updatedAt 改過
+  const legacyEdit = !!f && !!ref && base > fmax;
+  if (!f) { f = {}; for (const k of syncFields(x)) f[k] = base; }
+  else if (legacyEdit) { for (const k of syncFields(x)) if (syncJ(x[k]) !== syncJ(ref[k])) f[k] = base; }
+  const refT = new Map(((ref && ref.tastings) || []).map(t => [String(t.id), t]));
+  for (const t of ts) {
+    if (t._t == null) t._t = base;
+    else if (legacyEdit) { const rt = refT.get(String(t.id)); if (rt && syncJ({ ...t, _t: 0 }) !== syncJ({ ...rt, _t: 0 })) t._t = base; }
+  }
+  const td = {};
+  for (const id in (x._td || {})) td[id] = syncClamp(x._td[id], now);
+  x._f = f; x.tastings = ts; x._td = td;
+  x.updatedAt = Math.max(base, fmax, ...Object.values(f), ...ts.map(t => t._t));
+  return x;
+}
+// 兩個已統一格式嘅版本逐欄位合併：時間戳大者勝；相同時取 JSON 較大者 (兩邊結果一致)
+function syncMergeBottle(a, b) {
+  const m = { id: a.id, addedAt: a.addedAt || b.addedAt };
+  const f = {};
+  const keys = new Set([...syncFields(a), ...syncFields(b), ...Object.keys(a._f), ...Object.keys(b._f)]);
+  for (const k of keys) {
+    // 冇時間戳又冇值 = 嗰邊冇資料，唔可以蓋過對方；有時間戳但冇值 = 刻意刪除
+    const sa = a._f[k] != null ? a._f[k] : -1, sb = b._f[k] != null ? b._f[k] : -1;
+    const src = sb > sa || (sb === sa && syncJ(b[k]) > syncJ(a[k])) ? b : a;
+    if (src[k] !== undefined) m[k] = src[k];
+    f[k] = Math.max(sa, sb);
+  }
+  const td = { ...a._td };
+  for (const id in b._td) td[id] = Math.max(td[id] || 0, b._td[id]);
+  const tm = new Map();
+  for (const t of [...a.tastings, ...b.tastings]) {
+    const id = String(t.id);
+    if (td[id] != null) continue;
+    const p = tm.get(id);
+    if (!p || t._t > p._t || (t._t === p._t && syncJ(t) > syncJ(p))) tm.set(id, t);
+  }
+  m.tastings = [...tm.values()];
+  m._td = td;
+  m._f = f;
+  m.updatedAt = Math.max(a.updatedAt || 0, b.updatedAt || 0, ...Object.values(f), ...m.tastings.map(t => t._t));
+  return m;
+}
 function mergeCellars(cloud, incoming, deletedCloud, deletedIncoming) {
-  const deleted = { ...(deletedCloud || {}) };
-  for (const [id, ts] of Object.entries(deletedIncoming || {})) {
-    if (!deleted[id] || Number(ts) > Number(deleted[id])) deleted[id] = Number(ts);
+  const now = Date.now();
+  const deleted = {};
+  for (const src of [deletedCloud || {}, deletedIncoming || {}]) {
+    for (const [id, ts] of Object.entries(src)) { const v = syncClamp(ts, now); if (deleted[id] == null || v > deleted[id]) deleted[id] = v; }
   }
   const map = new Map();
-  for (const b of [...(cloud || []), ...(incoming || [])]) {
+  for (const b of cloud || []) {
     if (!b || !b.id) continue;
-    const key = String(b.id);
-    const prev = map.get(key);
-    if (!prev || stampOf(b) >= stampOf(prev)) map.set(key, b);
+    const nb = syncNormalize(b, now, null), p = map.get(String(b.id));
+    map.set(String(b.id), p ? syncMergeBottle(p, nb) : nb);
+  }
+  for (const b of incoming || []) {
+    if (!b || !b.id) continue;
+    const p = map.get(String(b.id)), nb = syncNormalize(b, now, p);
+    map.set(String(b.id), p ? syncMergeBottle(p, nb) : nb);
   }
   const merged = [];
-  for (const [id, b] of map) {
-    if (deleted[id] && Number(deleted[id]) >= stampOf(b)) continue;
-    merged.push(b);
-  }
+  // 刪除優先：有刪除記錄嘅酒一律剔除 (酒款 id 隨機產生，重新加入一定係新 id)
+  for (const [id, b] of map) if (!(deleted[id] != null && deleted[id] >= syncClamp(b.addedAt, now))) merged.push(b);
   return { cellar: merged, deleted };
+}
+
+// 每個同步碼一個 DO：同一帳號嘅合併同寫入逐個排隊，兩部機同時同步都唔會蓋走對方。DO 出錯時直接喺 Worker 合併 (舊做法)
+async function applyUserMerge(kv, key, o) {
+  const rec = parseUserRecord(await kv.get('user:' + key));
+  const m = mergeCellars(rec.cellar, Array.isArray(o.cellar) ? o.cellar : [], rec.deleted, o.deleted);
+  const profile = o.profileMode === 'set' ? (o.profile || {}) : o.profileMode === 'patch' ? { ...rec.profile, ...(o.profile || {}) } : rec.profile;
+  const body = JSON.stringify({ profile, cellar: m.cellar, deleted: m.deleted });
+  if (body.length > 24_000_000) return { error: 'CELLAR_TOO_LARGE' };
+  await kv.put('user:' + key, body);
+  return { profile, cellar: m.cellar, deleted: m.deleted };
+}
+async function userMerge(env, key, o) {
+  let r;
+  if (env.USER_SYNC) {
+    try {
+      const stub = env.USER_SYNC.get(env.USER_SYNC.idFromName('user:' + key));
+      const res = await stub.fetch('https://user-sync/', { method: 'POST', body: JSON.stringify({ key, ...o }) });
+      if (!res.ok) throw new Error('USER_SYNC_' + res.status);
+      r = await res.json();
+    } catch (er) { await limFailed(env, er); }
+  }
+  if (!r) r = await applyUserMerge(kvOf(env), key, o);
+  if (r.error) throw new HttpError(413, r.error);
+  return r;
+}
+export class UserSync {
+  constructor(ctx, env) { this.ctx = ctx; this.env = env; this.q = Promise.resolve(); }
+  async fetch(request) {
+    let body;
+    try { body = await request.json(); } catch (e) { return new Response('BAD_JSON', { status: 400 }); }
+    const run = this.q.then(() => applyUserMerge(kvOf(this.env), String(body.key || ''), body));
+    this.q = run.catch(() => {});
+    try { return new Response(JSON.stringify(await run), { headers: { 'Content-Type': 'application/json' } }); }
+    catch (e) { return new Response(String(e && e.message || e), { status: 500 }); }
+  }
 }
 
 const EN_SUFFIX = `
@@ -961,11 +1062,9 @@ export default {
         if (userKey) {
           if (!isStrongKey(userKey)) userKey = await rotateKey(env, kv, e, userKey);
           await kv.put('keyowner:' + userKey, e);
-          const r = parseUserRecord(await kv.get('user:' + userKey));
-          profileData = r.profile || {};
-          const m = mergeCellars(r.cellar, incoming, r.deleted, localDeleted);
+          const m = await userMerge(env, userKey, { cellar: incoming, deleted: localDeleted });
+          profileData = m.profile || {};
           cellar = m.cellar; deleted = m.deleted;
-          await kv.put('user:' + userKey, JSON.stringify({ profile: profileData, cellar, deleted }));
         } else {
           let k = isStrongKey(syncKey) ? syncKey : null;
           if (k) { const o = await kv.get('keyowner:' + k); if (o && o !== e) k = null; }
@@ -978,10 +1077,8 @@ export default {
             birthday: pendingInfo.birthday || '',
             gender: pendingInfo.gender || 'unspecified'
           };
-          const existing = parseUserRecord(await kv.get('user:' + userKey));
-          const m = mergeCellars(existing.cellar, incoming, existing.deleted, localDeleted);
+          const m = await userMerge(env, userKey, { cellar: incoming, deleted: localDeleted, profileMode: 'set', profile: profileData });
           cellar = m.cellar; deleted = m.deleted;
-          await kv.put('user:' + userKey, JSON.stringify({ profile: profileData, cellar, deleted }));
           await bumpDay(kv, { signup: 1 });
           const rc = String(ref || '').toUpperCase();
           if (/^[0-9A-F]{8}$/.test(rc) && !(await kv.get('refclaimed:' + e))) {
@@ -1071,7 +1168,7 @@ export default {
           gender: clip(gender, 20) || r.profile.gender,
           birthday: bd
         };
-        await kv.put('user:' + userKey, JSON.stringify(r));
+        await userMerge(env, userKey, { profileMode: 'patch', profile: r.profile });
         return json({ success: true, birthday: bd, birthdayLocked: validBirthday(bd) });
       }
 
@@ -1137,11 +1234,7 @@ export default {
       if (path === '/api/sync' && request.method === 'POST') {
         const { syncKey, cellar, deleted } = await readJson(request, 24_000_000);
         await requireKeyAccess(request, kv, syncKey);
-        const rec = parseUserRecord(await kv.get('user:' + syncKey));
-        const m = mergeCellars(rec.cellar, Array.isArray(cellar) ? cellar : [], rec.deleted, deleted);
-        const body = JSON.stringify({ profile: rec.profile, cellar: m.cellar, deleted: m.deleted });
-        if (body.length > 24_000_000) throw new HttpError(413, 'CELLAR_TOO_LARGE');
-        await kv.put('user:' + syncKey, body);
+        const m = await userMerge(env, syncKey, { cellar, deleted });
         return json({ success: true, cellar: m.cellar, deleted: m.deleted });
       }
 
@@ -1149,7 +1242,8 @@ export default {
         const syncKey = url.searchParams.get('key');
         await requireKeyAccess(request, kv, syncKey);
         const rec = parseUserRecord(await kv.get('user:' + syncKey));
-        return json({ cellar: rec.cellar, deleted: rec.deleted });
+        const m = mergeCellars(rec.cellar, [], rec.deleted, {});
+        return json({ cellar: m.cellar, deleted: m.deleted });
       }
 
       // ---------- 探索池 (逐筆儲存，無讀寫競爭) ----------
@@ -1465,7 +1559,7 @@ export default {
           if (!key || !validBirthday(b.birthday)) throw new HttpError(400, 'BAD_REQUEST');
           const r = parseUserRecord(await kv.get('user:' + key));
           r.profile.birthday = b.birthday;
-          await kv.put('user:' + key, JSON.stringify(r));
+          await userMerge(env, key, { profileMode: 'patch', profile: { birthday: r.profile.birthday } });
           return json({ success: true });
         }
         if (path === '/api/admin/overview' && request.method === 'GET') {
