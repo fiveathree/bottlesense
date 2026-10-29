@@ -1,5 +1,5 @@
 /* BottleSense service worker: offline shell + safe caching. API calls are never cached. */
-const VERSION = 'bs-v36';
+const VERSION = 'bs-v37';
 const SHELL = `${VERSION}-shell`;
 const IMG = `${VERSION}-img`;
 const FONT = `${VERSION}-font`;

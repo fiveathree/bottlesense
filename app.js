@@ -13,6 +13,24 @@ const main = document.getElementById('main');
 const modalContainer = document.getElementById('modal-container');
 // 彈窗開住時鎖住背後頁面，避免 iOS 把手勢交給背景捲動
 if (modalContainer) new MutationObserver(() => document.documentElement.classList.toggle('modal-open', !!modalContainer.firstElementChild)).observe(modalContainer, { childList: true });
+// iOS 收起鍵盤後，固定喺底部嘅導航列有時會停留喺鍵盤原本嘅位置：輸入時先隱藏導航列，
+// 鍵盤收起後再顯示並輕推捲動位置，令瀏覽器重新計算位置 (只切換 class，唔追蹤鍵盤高度)
+(function () {
+  const isField = el => !!el && ((el.tagName === 'INPUT' && !/^(button|submit|reset|checkbox|radio|range|file|color|image|hidden)$/i.test(el.type)) || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+  const root = document.documentElement;
+  let t = null;
+  const settle = () => {
+    if (isField(document.activeElement)) return;
+    root.classList.remove('kb-open');
+    window.scrollTo(window.scrollX, window.scrollY);
+  };
+  document.addEventListener('focusin', e => { if (isField(e.target)) { clearTimeout(t); root.classList.add('kb-open'); } });
+  document.addEventListener('focusout', e => { if (isField(e.target)) { clearTimeout(t); t = setTimeout(settle, 150); } });
+  // 鍵盤收起但輸入欄仍有焦點 (例如向下掃收起) 時，等可視範圍回復全高先處理
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', () => {
+    if (root.classList.contains('kb-open') && window.visualViewport.height >= window.innerHeight - 1) { clearTimeout(t); t = setTimeout(() => { root.classList.remove('kb-open'); window.scrollTo(window.scrollX, window.scrollY); }, 150); }
+  });
+})();
 const cameraInput = document.getElementById('cameraInput');
 const galleryInput = document.getElementById('galleryInput');
 
